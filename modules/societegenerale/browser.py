@@ -34,6 +34,7 @@ class SocieteGenerale(BaseBrowser):
     CERTHASH = '4499ca391d0d690050d80e625fd0b16e83476fd565d8e43315c7a9c025f02b88'
     PROTOCOL = 'https'
     ENCODING = None # refer to the HTML encoding
+    DEBUG_HTTP = True
     PAGES = {
              'https://particuliers.societegenerale.fr/.*':  LoginPage,
              'https://.*.societegenerale.fr//acces/authlgn.html': BadLoginPage,

@@ -32,6 +32,84 @@ from ..captcha import Captcha, TileError
 __all__ = ['LoginPage', 'BadLoginPage']
 
 
+class Putain(object):
+    ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/="
+
+    def __init__(self, infos):
+        self.infos = infos
+
+    def t(self, e):
+        t = ''
+        for r in e:
+            n = ord(r)
+            if n < 128:
+                t += chr(n)
+            elif n > 127 and n < 2048:
+                t += chr(n>>6|192)
+                t += chr(n&63|128)
+            else:
+                t += chr(n>>12|224)
+                t += chr(n>>6&63|128)
+                t += chr(n&63|128)
+        return t
+
+    def decode(self, t):
+        r = ''
+        c = 0
+        while c < len(t):
+            u = self.ALPHABET.index(t[c])
+            a = self.ALPHABET.index(t[c+1])
+            f = self.ALPHABET.index(t[c+2])
+            l = self.ALPHABET.index(t[c+3])
+            c += 4
+            i = u<<2|a>>4
+            s = (a&15)<<4|f>>2
+            o = (f&3)<<6|l
+            r += chr(i)
+            if f != 64: r += chr(s)
+            if l != 64: r += chr(o)
+
+        print r
+        return r
+
+    def update(self):
+        grid = self.decode(self.infos['grid'])
+        grid = map(int, re.findall('[0-9]{3}', grid))
+        n = int(self.infos['nbrows']) * int(self.infos['nbcols'])
+        r = 7
+        print r * n
+        print len(grid)
+
+        vierge = list(grid[:n])
+        grid = list(grid[n:])
+        caca = list(grid)
+
+        s = n
+        o = ["180","149","244","125","115","058","017","071","075","119","167","040","066","083","254","151","212","245","193","224","006","068","139","054","089","083","111","208","105","235","109","030","130","226","155","245","157","044","061","233","036","101","145","103","185","017","126","142","007","192","239","140","133","250","194","222","079","178","048","184","158","158","086","160","001","114","022","158","030","210","008","067","056","026","042","113","043","169","128","051","107","112","063","240","108","003","079","059","053","127","116","084","157","203","244","031","062","012","062","093"]
+        u = list(self.infos['crypto'])
+
+        print caca
+        print vierge
+
+        for j in xrange(s):
+            u[j] = '%02d' % ord(u[j])
+        for i in xrange(5, 0, -1):
+            for j in xrange(s):
+                caca[i*s+j] = caca[i*s+j]^caca[(i-1)*s+j]
+                caca[i*s+j] = '%03d' % caca[i*s+j]
+        print ''
+        print caca
+        print vierge
+        for j in xrange(s):
+            caca[j] = caca[j]^int(o[j])^vierge[j]
+            caca[j] = '%03d' % caca[j]
+        for j in xrange(s):
+            vierge[j] = int(u[j])^vierge[j]
+
+        print ''
+        self.infos['grid'] = caca
+        print vierge
+
 class LoginPage(BasePage):
     def on_loaded(self):
         for td in self.document.getroot().cssselect('td.LibelleErreur'):
@@ -48,7 +126,7 @@ class LoginPage(BasePage):
         url_login = 'https://' + DOMAIN_LOGIN + '/index.html'
 
         base_url = 'https://' + DOMAIN
-        url = base_url + '//sec/vk/gen_crypto?estSession=0'
+        url = base_url + '//sec/vkm/gen_crypto?estSession=0'
         headers = {
                  'Referer': url_login
                   }
@@ -59,7 +137,10 @@ class LoginPage(BasePage):
 
         infos = json.loads(infos_data.replace("'", '"'))
 
-        url = base_url + '//sec/vk/gen_ui?modeClavier=0&cryptogramme=' + infos["crypto"]
+        putain = Putain(infos)
+        putain.update()
+
+        url = base_url + '//sec/vkm/gen_ui?modeClavier=0&cryptogramme=' + infos["crypto"]
         img = Captcha(self.browser.openurl(url), infos)
 
         try:
@@ -72,7 +153,7 @@ class LoginPage(BasePage):
         self.browser.select_form('n2g_authentification')
         self.browser.controls.append(ClientForm.TextControl('text', 'codsec', {'value': ''}))
         self.browser.controls.append(ClientForm.TextControl('text', 'cryptocvcs', {'value': ''}))
-        self.browser.controls.append(ClientForm.TextControl('text', 'vk_op', {'value': 'auth'}))
+        self.browser.controls.append(ClientForm.TextControl('text', 'vkm_op', {'value': 'auth'}))
         self.browser.set_all_readonly(False)
 
         self.browser['codcli'] = login.encode('iso-8859-1')
