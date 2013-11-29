@@ -42,6 +42,7 @@ class SocieteGenerale(BaseBrowser):
              '.*restitution/cns_listeprestation.html':      AccountsList,
              '.*restitution/cns_listeCartes.*.html.*':      CardsList,
              '.*restitution/cns_detail.*\.html.*':          AccountHistory,
+             'https://.*.societegenerale.fr/lgn/url.html.*':AccountHistory,
             }
 
     def __init__(self, *args, **kwargs):

@@ -21,7 +21,7 @@
 from urlparse import urlsplit, parse_qsl
 from decimal import Decimal
 import re
-from mechanize import Cookie
+from mechanize import Cookie, FormNotFoundError
 
 from weboob.tools.browser import BasePage as _BasePage, BrowserUnavailable, BrokenPageError
 from weboob.capabilities.bank import Account
@@ -135,6 +135,13 @@ class RedirectPage(BasePage):
         if redirect_url is not None:
             self.browser.location(self.browser.request_class(self.browser.absurl(redirect_url), None, {'Referer': self.url}))
 
+        try:
+            self.browser.select_form(name="CyberIngtegrationPostForm")
+        except FormNotFoundError:
+            pass
+        else:
+            self.browser.submit(nologin=True)
+
 
 class UnavailablePage(BasePage):
     def on_loaded(self):
@@ -176,7 +183,18 @@ class IndexPage(BasePage):
 
 class HomePage(BasePage):
     def get_token(self):
-        vary = self.group_dict['vary']
+        vary = None
+        if self.group_dict.get('vary', None) is not None:
+            vary = self.group_dict['vary']
+        else:
+            for script in self.document.xpath('//script'):
+                if script.text is None:
+                    continue
+
+                m = re.search("'vary', '([\d-]+)'\)", script.text)
+                if m:
+                    vary = m.group(1)
+                    break
 
         #r = self.browser.openurl(self.browser.request_class(self.browser.buildurl(self.browser.absurl("/portailinternet/_layouts/Ibp.Cyi.Application/GetuserInfo.ashx"), action='UInfo', vary=vary), None, {'Referer': self.url}))
         #print r.read()
@@ -208,7 +226,9 @@ class AccountsPage(BasePage):
 
     def is_error(self):
         for script in self.document.xpath('//script'):
-            if script.text is not None and u"Le service est momentanément indisponible" in script.text:
+            if script.text is not None and \
+               (u"Le service est momentanément indisponible" in script.text or
+                u"Votre abonnement ne vous permet pas d'accéder à ces services" in script.text):
                 return True
 
         return False
@@ -310,9 +330,9 @@ class TransactionsPage(BasePage):
 
     COL_COMPTA_DATE = 0
     COL_LABEL = 1
-    COL_REF = 2
-    COL_OP_DATE = 3
-    COL_VALUE_DATE = 4
+    COL_REF = 2 # optional
+    COL_OP_DATE = -4
+    COL_VALUE_DATE = -3
     COL_DEBIT = -2
     COL_CREDIT = -1
 
@@ -323,7 +343,7 @@ class TransactionsPage(BasePage):
             if len(tds) < 5:
                 continue
 
-            t = Transaction(tr.attrib['id'].split('_', 1)[1])
+            t = Transaction(tr.attrib.get('id', '0_0').split('_', 1)[1])
 
             # XXX We currently take the *value* date, but it will probably
             # necessary to use the *operation* one.
