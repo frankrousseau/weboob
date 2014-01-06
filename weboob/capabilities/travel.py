@@ -21,7 +21,7 @@
 import datetime
 
 from .base import IBaseCap, CapBaseObject, StringField, TimeField, DeltaField, \
-                  DateField, UserError
+                  DateField, DecimalField, IntField, Currency, UserError
 
 
 __all__ = ['Station', 'Departure', 'RoadStep', 'RoadmapError', 'RoadmapFilters', 'ICapTravel']
@@ -46,12 +46,15 @@ class Departure(CapBaseObject):
     Describes a departure.
     """
     type =              StringField('Type of train')
-    time =              TimeField('When the train will leave')
+    time =              TimeField('Departure time')
     departure_station = StringField('Departure station')
     arrival_station =   StringField('Destination of the train')
+    arrival_time =      TimeField('Arrival time')
     late =              TimeField('Optional late', default=datetime.time())
     information =       StringField('Informations')
     plateform =         StringField('Where the train will leave')
+    price =             DecimalField('Price of ticket')
+    currency =          IntField('Currency', default=Currency.CUR_UNKNOWN)
 
     def __init__(self, id, _type, _time):
         CapBaseObject.__init__(self, id)
@@ -107,7 +110,7 @@ class ICapTravel(IBaseCap):
         """
         raise NotImplementedError()
 
-    def iter_station_departures(self, station_id, arrival_id=None):
+    def iter_station_departures(self, station_id, arrival_id=None, date=None):
         """
         Iterate on departures.
 
@@ -115,6 +118,8 @@ class ICapTravel(IBaseCap):
         :type station_id: str
         :param arrival_id: optionnal arrival station ID
         :type arrival_id: str
+        :param date: optional date
+        :type date: datetime.datetime
         :rtype: iter[:class:`Departure`]
         """
         raise NotImplementedError()

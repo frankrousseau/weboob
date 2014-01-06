@@ -19,6 +19,7 @@
 
 
 from weboob.tools.json import json
+from weboob.capabilities.base import NotAvailable, NotLoaded
 
 from .iformatter import IFormatter
 
@@ -32,14 +33,23 @@ class Encoder(json.JSONEncoder):
         try:
             return json.JSONEncoder.default(self, obj)
         except TypeError:
+            if obj is NotAvailable or obj is NotLoaded:
+                return None
+
             try:
                 dct = obj.to_dict()
             except AttributeError:
                 return str(obj)
-            for z in dct:
-                return z
+            return dct
 
 
 class JsonFormatter(IFormatter):
+    def __init__(self):
+        IFormatter.__init__(self)
+        self.queue = []
+
+    def flush(self):
+        print json.dumps(self.queue, cls=Encoder)
+
     def format_dict(self, item):
-        return json.dumps(item, cls=Encoder)
+        self.queue.append(item)

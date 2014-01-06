@@ -19,6 +19,7 @@
 
 
 from weboob.tools.browser import BasePage
+from weboob.tools.misc import html2text
 from .job import AdeccoJobAdvert
 import datetime
 import re
@@ -74,7 +75,7 @@ class AdvertPage(BasePage):
             advert.publication_date = datetime.date(yyyy, mm, dd)
 
         title = self.parser.select(div, "h1", 1, method='xpath').text_content().strip()
-        town = self.parser.select(div, "h1/span[@class='town']", 1, method='xpath').text_content()
+        town = self.parser.select(div, "h1/span/span[@class='town']", 1, method='xpath').text_content()
         page_title = self.parser.select(div, "h1/span[@class='pageTitle']", 1, method='xpath').text_content()
         advert.title = u'%s' % title.replace(town, '').replace(page_title, '')
 
@@ -84,5 +85,6 @@ class AdvertPage(BasePage):
         advert.pay = u'%s' % spans[2].text
         advert.contract_type = u'%s' % spans[3].text
         advert.url = url
-        advert.description = self.document.getroot().xpath("//div[@class='descriptionContainer']/p")[0].text_content()
+        description = self.document.getroot().xpath("//div[@class='descriptionContainer']/p")[0]
+        advert.description = html2text(self.parser.tostring(description))
         return advert

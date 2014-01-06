@@ -31,8 +31,8 @@ import re
 import datetime
 from dateutil.parser import parse as parse_dt
 
-from weboob.tools.capabilities.thumbnail import Thumbnail
 from weboob.capabilities.base import NotAvailable
+from weboob.capabilities.image import BaseImage
 from weboob.tools.browser import BrokenPageError
 
 from .video import VimeoVideo
@@ -64,7 +64,8 @@ class VideoPage(BasePage):
 
         obj = self.parser.select(self.document.getroot(), 'meta[itemprop=thumbnailUrl]')
         if len(obj) > 0:
-            v.thumbnail = Thumbnail(unicode(obj[0].attrib['content']))
+            v.thumbnail = BaseImage(obj[0].attrib['content'])
+            v.thumbnail.url = v.thumbnail.id
 
         data = None
 
@@ -88,7 +89,8 @@ class VideoPage(BasePage):
         if v.title is None:
             v.title = unicode(data['video']['title'])
         if v.thumbnail is None:
-            v.thumbnail = Thumbnail(unicode(data['video']['thumbnail']))
+            v.thumbnail = BaseImage(data['video']['thumbnail'])
+            v.thumbnail.url = v.thumbnail.id
         v.author = data['video']['owner']['name']
         v.duration = datetime.timedelta(seconds=int(data['video']['duration']))
 

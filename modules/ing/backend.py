@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Romain Bignon, Florent Fourcot
+# Copyright(C) 2010-2013 Romain Bignon, Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -22,6 +22,7 @@ from weboob.capabilities.bank import ICapBank, AccountNotFound,\
         Account, Recipient
 from weboob.capabilities.bill import ICapBill, Bill, Subscription,\
         SubscriptionNotFound, BillNotFound
+from weboob.capabilities.base import UserError
 from weboob.tools.backend import BaseBackend, BackendConfig
 from weboob.tools.value import ValueBackendPassword
 
@@ -36,15 +37,15 @@ class INGBackend(BaseBackend, ICapBank, ICapBill):
     EMAIL = 'weboob@flo.fourcot.fr'
     VERSION = '0.h'
     LICENSE = 'AGPLv3+'
-    DESCRIPTION = 'ING Direct French bank website'
+    DESCRIPTION = 'ING Direct'
     CONFIG = BackendConfig(ValueBackendPassword('login',
-                                                label='Account ID',
+                                                label=u'Numéro client',
                                                 masked=False),
                            ValueBackendPassword('password',
-                                                label='Password',
+                                                label='Code secret',
                                                 regexp='^(\d{6}|)$'),
                            ValueBackendPassword('birthday',
-                                                label='Birthday',
+                                                label='Date de naissance',
                                                 regexp='^(\d{8}|)$',
                                                 masked=False)
                           )
@@ -89,6 +90,8 @@ class INGBackend(BaseBackend, ICapBank, ICapBill):
 
     def transfer(self, account, recipient, amount, reason):
         with self.browser:
+            if not reason:
+                raise UserError('Reason is mandatory to do a transfer on ING website')
             if not isinstance(account, Account):
                 account = self.get_account(account)
             if not isinstance(recipient, Recipient):

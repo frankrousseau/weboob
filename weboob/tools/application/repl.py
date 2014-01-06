@@ -69,6 +69,7 @@ class ReplOptionFormatter(IndentedHelpFormatter):
                 s += '    %s\n' % c
         return s
 
+
 def defaultcount(default_count=10):
     def deco(f):
         def inner(self, *args, **kwargs):
@@ -87,6 +88,22 @@ def defaultcount(default_count=10):
 
         return inner
     return deco
+
+# First sort in alphabetical of backend
+# Second, first with ID
+def comp_object(obj1, obj2):
+    if obj1.backend == obj2.backend:
+        if obj1.id == obj2.id:
+            return 0
+        elif obj1.id > obj2.id:
+            return 1
+        else:
+            return -1
+    elif obj1.backend > obj2.backend:
+        return 1
+    else:
+        return -1
+
 
 class ReplApplication(Cmd, ConsoleApplication):
     """
@@ -133,7 +150,7 @@ class ReplApplication(Cmd, ConsoleApplication):
         self._parser.formatter = ReplOptionFormatter()
 
         results_options = OptionGroup(self._parser, 'Results Options')
-        results_options.add_option('-c', '--condition', help='filter result items to display given a boolean expression')
+        results_options.add_option('-c', '--condition', help='filter result items to display given a boolean expression. See CONDITION section for the syntax')
         results_options.add_option('-n', '--count', type='int',
                                    help='limit number of results (from each backends)')
         results_options.add_option('-s', '--select', help='select result item keys to display (comma separated)')
@@ -480,11 +497,6 @@ class ReplApplication(Cmd, ConsoleApplication):
 
         if self.options.condition:
             self.condition = ResultsCondition(self.options.condition)
-            # Enable infinite search by default is condition is set
-            # (count applies on the non-filtered result, and can be confusing for users)
-            if self._is_default_count:
-                self.options.count = None
-                self._is_default_count = False
         else:
             self.condition = None
 
@@ -755,7 +767,7 @@ class ReplApplication(Cmd, ConsoleApplication):
         """
         condition [EXPRESSION | off]
 
-        If an argument is given, set the condition expression used to filter the results.
+        If an argument is given, set the condition expression used to filter the results. See CONDITION section for more details and the expression.
         If the "off" value is given, conditional filtering is disabled.
 
         If no argument is given, print the current condition expression.
@@ -942,17 +954,25 @@ class ReplApplication(Cmd, ConsoleApplication):
 
     def do_ls(self, line):
         """
-        ls [-d] [PATH]
+        ls [-d] [-U] [PATH]
 
         List objects in current path.
         If an argument is given, list the specified path.
+        Use -U option to not sort results.
         """
-        if line.strip().partition(' ')[0] == '-d':
+        # TODO: real parsing of options
+        path = line.strip()
+        only = False
+        sort = True
+
+        if '-U' in line.strip().partition(' '):
+            path = line.strip().partition(' ')[-1]
+            sort = False
+
+        if '-d' in line.strip().partition(' '):
             path = None
-            only = line.strip().partition(' ')[2]
-        else:
-            path = line.strip()
-            only = False
+            only = line.strip().partition(' ')[-1]
+
 
         if path:
             # We have an argument, let's ch to the directory before the ls
@@ -961,6 +981,10 @@ class ReplApplication(Cmd, ConsoleApplication):
         objects, collections = self._fetch_objects(objs=self.COLLECTION_OBJECTS)
 
         self.objects = []
+
+        if sort:
+            objects.sort(cmp=comp_object)
+            collections.sort(cmp=comp_object)
 
         self.start_format()
         for collection in collections:
@@ -1114,9 +1138,6 @@ class ReplApplication(Cmd, ConsoleApplication):
 
     def format(self, result, alias=None):
         fields = self.selected_fields
-        # Do not format objects if they not respect conditions
-        if self.condition and not self.condition.is_valid(result):
-            return
         if '$direct' in fields or '$full' in fields:
             fields = None
         try:

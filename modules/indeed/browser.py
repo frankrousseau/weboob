@@ -31,11 +31,12 @@ __all__ = ['IndeedBrowser']
 class IndeedBrowser(BaseBrowser):
     PROTOCOL = 'http'
     DOMAIN = 'www.indeed.fr'
-    ENCODING = None
+    ENCODING = 'UTF-8'
     PAGES = {
         '%s://%s/Emplois-(.*?)' % (PROTOCOL, DOMAIN): SearchPage,
         '%s://%s/emplois(.*?)' % (PROTOCOL, DOMAIN): SearchPage,
         '%s://%s/cmp/(.*?)' % (PROTOCOL, DOMAIN): AdvertPage,
+        '%s://%s/voir-emploi\?(.*?)' % (PROTOCOL, DOMAIN): AdvertPage,
     }
 
     def search_job(self, pattern=None, metier=None, place=None, contrat=None):
@@ -44,9 +45,9 @@ class IndeedBrowser(BaseBrowser):
         assert self.is_on_page(SearchPage)
         return self.page.iter_job_adverts()
 
-    def advanced_search_job(self, metier=None, contrat=None, limit_date=None):
-        self.location('http://www.indeed.fr/emplois?as_ttl=%s&limit=50&sort=date&st=employer&sr=directhire&jt=%s&fromage=%s'
-                      % (metier.replace(' ', '+'), contrat, limit_date))
+    def advanced_search_job(self, metier=None, contrat=None, limit_date=None, radius=None, place=None):
+        self.location(
+            'http://www.indeed.fr/emplois?as_ttl=%s&limit=50&sort=date&st=employer&sr=directhire&jt=%s&fromage=%s&radius=%s&l=%s' % (metier.replace(' ', '+'), contrat, limit_date, radius, place))
         assert self.is_on_page(SearchPage)
         return self.page.iter_job_adverts()
 
