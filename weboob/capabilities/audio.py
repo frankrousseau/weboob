@@ -20,6 +20,7 @@
 
 from datetime import timedelta
 
+from .image import BaseImage
 from .base import Field, StringField
 from .file import ICapFile, BaseFile
 
@@ -31,9 +32,10 @@ class BaseAudio(BaseFile):
     """
     Represent an audio file
     """
-    duration =  Field('Audio file duration', int, long, timedelta)
-    bitrate =   Field('Audio stream bit rate un Kbps', int)
-    format =    StringField('Audio stream format')
+    duration =  Field('file duration', int, long, timedelta)
+    bitrate =   Field('file bit rate in Kbps', int)
+    format =    StringField('file format')
+    thumbnail = Field('Image associated to the file', BaseImage)
 
 
 class ICapAudio(ICapFile):
@@ -51,7 +53,7 @@ class ICapAudio(ICapFile):
         """
         return self.search_file(pattern, sortby)
 
-    def get_audio(self, id):
+    def get_audio(self, _id):
         """
         Get an audio file from an ID.
 
@@ -59,4 +61,4 @@ class ICapAudio(ICapFile):
         :type id: str
         :rtype: :class:`BaseAudio`]
         """
-        return self.get_file(id)
+        return self.get_file(_id)

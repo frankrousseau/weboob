@@ -34,7 +34,7 @@ class CragrBackend(BaseBackend, ICapBank):
     NAME = 'cragr'
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
-    VERSION = '0.h'
+    VERSION = '0.i'
     DESCRIPTION = u'Crédit Agricole'
     LICENSE = 'AGPLv3+'
     website_choices = OrderedDict([(k, u'%s (%s)' % (v, k)) for k, v in sorted({
@@ -79,8 +79,8 @@ class CragrBackend(BaseBackend, ICapBank):
         'm.lefil.com': u'Pyrénées Gascogne',
         }.iteritems())])
     CONFIG = BackendConfig(Value('website',  label=u'Région', choices=website_choices),
-                           ValueBackendPassword('login',    label='N° de compte', masked=False),
-                           ValueBackendPassword('password', label='Code personnel'))
+                           ValueBackendPassword('login',    label=u'N° de compte', masked=False),
+                           ValueBackendPassword('password', label=u'Code personnel'))
     BROWSER = Cragr
 
     def create_default_browser(self):

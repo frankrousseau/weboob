@@ -20,7 +20,8 @@
 
 import lxml.etree
 from weboob.capabilities.radio import ICapRadio, Radio
-from weboob.capabilities.audiostream import BaseAudioStream, AudioStreamInfo
+from weboob.capabilities.audiostream import BaseAudioStream
+from weboob.tools.capabilities.streaminfo import StreamInfo
 from weboob.capabilities.collection import ICapCollection
 from weboob.tools.backend import BaseBackend
 from weboob.tools.browser import StandardBrowser
@@ -39,7 +40,7 @@ class SomaFMBackend(BaseBackend, ICapRadio, ICapCollection):
     NAME = 'somafm'
     MAINTAINER = u'Roger Philibert'
     EMAIL = 'roger.philibert@gmail.com'
-    VERSION = '0.h'
+    VERSION = '0.i'
     DESCRIPTION = u'SomaFM web radio'
     LICENSE = 'AGPLv3+'
     BROWSER = StandardBrowser
@@ -69,7 +70,7 @@ class SomaFMBackend(BaseBackend, ICapRadio, ICapCollection):
             radio.description = channel.findtext('description')
 
             current_data = channel.findtext('lastPlaying')
-            current = AudioStreamInfo(0)
+            current = StreamInfo(0)
             current.what, current.who = self._parse_current(current_data)
             radio.current = current
 

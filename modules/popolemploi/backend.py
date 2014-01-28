@@ -34,7 +34,7 @@ class PopolemploiBackend(BaseBackend, ICapJob):
     DESCRIPTION = u'Pole Emploi website'
     MAINTAINER = u'Bezleputh'
     EMAIL = 'carton_ben@yahoo.fr'
-    VERSION = '0.h'
+    VERSION = '0.i'
 
     BROWSER = PopolemploiBrowser
 
@@ -220,13 +220,13 @@ class PopolemploiBackend(BaseBackend, ICapJob):
     }.iteritems())])
 
     limit_date_choices = OrderedDict([(k, u'%s' % (v)) for k, v in sorted({
-        '': u'Aucune limite',
-        'UN_JOUR': u'Hier',
-        'TROIS_JOUR': u'3 jours',
-        'UNE_SEMAINE': u'1 semaine',
-        'DEUX_SEMAINES': u'2 semaines',
-        'UN_MOIS': u'1 mois',
-        'TROIS_MOIS': u'3 mois',
+        ' ': u'Aucune limite',
+        '1': u'Hier',
+        '3': u'3 jours',
+        '7': u'1 semaine',
+        '14': u'2 semaines',
+        '31': u'1 mois',
+        '93': u'3 mois',
     }.iteritems())])
 
     domain_choices = OrderedDict([(k, u'%s' % (v)) for k, v in sorted({

@@ -35,7 +35,7 @@ class NolifeTVBackend(BaseBackend, ICapVideo, ICapCollection):
     NAME = 'nolifetv'
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
-    VERSION = '0.h'
+    VERSION = '0.i'
     DESCRIPTION = 'NolifeTV French video streaming website'
     LICENSE = 'AGPLv3+'
     BROWSER = NolifeTVBrowser
@@ -46,7 +46,12 @@ class NolifeTVBackend(BaseBackend, ICapVideo, ICapCollection):
                                  default = '5' ))
 
     def create_default_browser(self):
-        return self.create_browser(self.config['username'].get(), self.config['password'].get())
+        username = self.config['username'].get()
+        if username:
+            password = self.config['password'].get()
+        else:
+            password = None
+        return self.create_browser(username, password)
 
     def iter_resources(self, objs, split_path):
         with self.browser:

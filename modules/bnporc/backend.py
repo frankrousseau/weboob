@@ -37,12 +37,12 @@ class BNPorcBackend(BaseBackend, ICapBank, ICapMessages):
     NAME = 'bnporc'
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
-    VERSION = '0.h'
+    VERSION = '0.i'
     LICENSE = 'AGPLv3+'
     DESCRIPTION = 'BNP Paribas'
     CONFIG = BackendConfig(
-        ValueBackendPassword('login',      label='Numéro client', masked=False),
-        ValueBackendPassword('password',   label='Code secret', regexp='^(\d{6}|)$'),
+        ValueBackendPassword('login',      label=u'Numéro client', masked=False),
+        ValueBackendPassword('password',   label=u'Code secret', regexp='^(\d{6}|)$'),
         ValueBackendPassword('rotating_password', default='',
             label='Password to set when the allowed uses are exhausted (6 digits)',
             regexp='^(\d{6}|)$'),

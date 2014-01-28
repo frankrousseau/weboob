@@ -36,7 +36,7 @@ class VoyagesSNCFBackend(BaseBackend, ICapTravel):
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
     LICENSE = 'AGPLv3+'
-    VERSION = '0.h'
+    VERSION = '0.i'
     CONFIG = BackendConfig(Value('age', label='Passenger age', default='ADULT',
                                  choices=OrderedDict((('ADULT', '26-59 ans'),
                                                       ('SENIOR', '60 et +'),
@@ -104,7 +104,11 @@ class VoyagesSNCFBackend(BaseBackend, ICapTravel):
             station = self.STATIONS[int(station_id)]
             arrival = self.STATIONS[int(arrival_id)]
         except (IndexError, ValueError):
-            raise UserError('Unknown station')
+            try:
+                station = list(self.iter_station_search(station_id))[0].name
+                arrival = list(self.iter_station_search(arrival_id))[0].name
+            except IndexError:
+                raise UserError('Unknown station')
 
         with self.browser:
             for i, d in enumerate(self.browser.iter_departures(station, arrival, date,

@@ -22,6 +22,7 @@ import atexit
 from cmd import Cmd
 import logging
 import locale
+import re
 from optparse import OptionGroup, OptionParser, IndentedHelpFormatter
 import os
 import sys
@@ -241,7 +242,14 @@ class ReplApplication(Cmd, ConsoleApplication):
             else:
                 try:
                     backend = self.weboob.get_backend(obj.backend)
-                    return backend.fillobj(obj, fields)
+                    actual_method = getattr(backend, method, None)
+                    if actual_method is None:
+                        return None
+                    else:
+                        if callable(actual_method):
+                            return backend.fillobj(obj, fields)
+                        else:
+                            return None
                 except UserError as e:
                     self.bcall_error_handler(backend, e, '')
 
@@ -254,6 +262,17 @@ class ReplApplication(Cmd, ConsoleApplication):
         # if backend's service returns several objects, try to find the one
         # with wanted ID. If not found, get the last not None object.
         obj = None
+
+        # remove backends that do not have the required method
+        new_backend_names = []
+        for backend in backend_names:
+            if isinstance(backend, (str, unicode)):
+                actual_backend = self.weboob.get_backend(backend)
+            else:
+                actual_backend = backend
+            if getattr(actual_backend, method, None) is not None:
+                new_backend_names.append(backend)
+        backend_names = tuple(new_backend_names)
         for backend, objiter in self.do(method, _id, backends=backend_names, fields=fields, **kargs):
             if objiter:
                 obj = objiter
@@ -324,7 +343,15 @@ class ReplApplication(Cmd, ConsoleApplication):
         Call Weboob.do(), passing count and selected fields given by user.
         """
         backends = kwargs.pop('backends', None)
-        kwargs['backends'] = self.enabled_backends if backends is None else backends
+        if backends is None:
+            kwargs['backends'] = []
+            for backend in self.enabled_backends:
+                actual_function = getattr(backend, function, None)
+                if actual_function is not None and callable(actual_function):
+                    kwargs['backends'].append(backend)
+        else:
+            kwargs['backends'] = backends
+
         fields = kwargs.pop('fields', self.selected_fields) or self.selected_fields
         if '$direct' in fields:
             fields = []
@@ -814,8 +841,8 @@ class ReplApplication(Cmd, ConsoleApplication):
                         self.options.count = count
                         self._is_default_count = False
                     else:
-                        print >>sys.stderr, 'Number must be at least 1.'
-                        return 2
+                        self.options.count = None
+                        self._is_default_count = False
         else:
             if self.options.count is None:
                 print 'Counting disabled.'
@@ -952,6 +979,7 @@ class ReplApplication(Cmd, ConsoleApplication):
             page = Page(core=browser, data=data, uri=browser._response.geturl())
             browser = Browser(view=page.view)
 
+    @defaultcount(40)
     def do_ls(self, line):
         """
         ls [-d] [-U] [PATH]
@@ -1069,6 +1097,37 @@ class ReplApplication(Cmd, ConsoleApplication):
         """
         obj_collections = [obj for obj in self.objects if isinstance(obj, BaseCollection)]
         return obj_collections + self.collections
+
+    def obj_to_filename(self, obj, dest=None, default=None):
+        """
+        This method can be used to get a filename from an object, using a mask
+        filled by information of this object.
+
+        All patterns are braces-enclosed, and are name of available fields in
+        the object.
+
+        :param obj: object
+        :type obj: CapBaseObject
+        :param dest: dest given by user (default None)
+        :type dest: str
+        :param default: default file mask (if not given, this is '{id}-{title}.{ext}')
+        :type default: str
+        :rtype: str
+        """
+        if default is None:
+            default = '{id}-{title}.{ext}'
+        if dest is None:
+            dest = '.'
+        if os.path.isdir(dest):
+            dest = os.path.join(dest, default)
+
+        def repl(m):
+            field = m.group(1)
+            if hasattr(obj, field):
+                return re.sub('[?:/]', '-', '%s' % getattr(obj, field))
+            else:
+                return m.group(0)
+        return re.sub(r'\{(.+?)\}', repl, dest)
 
     # for cd & ls
     def complete_path(self, text, line, begidx, endidx):

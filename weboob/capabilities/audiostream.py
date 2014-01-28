@@ -18,37 +18,20 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBaseObject, Field, StringField
+from weboob.tools.capabilities.streaminfo import StreamInfo
+from .base import Field
 from .file import ICapFile
 from .audio import ICapAudio, BaseAudio
 
 
-__all__ = ['AudioStreamInfo', 'BaseAudioStream', 'ICapAudioStream']
-
-
-class AudioStreamInfo(CapBaseObject):
-    """
-    AudioStream related information.
-    """
-    who = StringField('Who is currently on air')
-    what = StringField('What is currently on air')
-
-    def __iscomplete__(self):
-        # This volatile information may be reloaded everytimes.
-        return False
-
-    def __unicode__(self):
-        if self.who:
-            return u'%s - %s' % (self.who, self.what)
-        else:
-            return self.what
+__all__ = ['BaseAudioStream', 'ICapAudioStream']
 
 
 class BaseAudioStream(BaseAudio):
     """
     Audio stream object
     """
-    current = Field('Information related to current broadcast', AudioStreamInfo)
+    current = Field('Information related to current broadcast', StreamInfo)
 
     def __unicode__(self):
         return u'%s (%s)' % (self.title, self.url)
@@ -72,7 +55,7 @@ class ICapAudioStream(ICapAudio):
         """
         return self.search_audio(pattern, sortby)
 
-    def get_audiostream(self, id):
+    def get_audiostream(self, _id):
         """
         Get an audio stream
 
@@ -80,4 +63,4 @@ class ICapAudioStream(ICapAudio):
         :type id: str
         :rtype: :class:`BaseAudioStream`
         """
-        return self.get_audio(id)
+        return self.get_audio(_id)
