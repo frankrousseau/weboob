@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2013 Romain Bignon, Florent Fourcot
+# Copyright(C) 2010-2014 Romain Bignon, Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -19,14 +19,14 @@
 
 
 from weboob.capabilities.bank import ICapBank, AccountNotFound,\
-        Account, Recipient
+    Account, Recipient
 from weboob.capabilities.bill import ICapBill, Bill, Subscription,\
-        SubscriptionNotFound, BillNotFound
-from weboob.capabilities.base import UserError
+    SubscriptionNotFound, BillNotFound
+from weboob.capabilities.base import UserError, find_object
 from weboob.tools.backend import BaseBackend, BackendConfig
 from weboob.tools.value import ValueBackendPassword
 
-from .browser import Ing
+from .browser import IngBrowser
 
 __all__ = ['INGBackend']
 
@@ -48,8 +48,8 @@ class INGBackend(BaseBackend, ICapBank, ICapBill):
                                                 label='Date de naissance',
                                                 regexp='^(\d{8}|)$',
                                                 masked=False)
-                          )
-    BROWSER = Ing
+                           )
+    BROWSER = IngBrowser
 
     def create_default_browser(self):
         return self.create_browser(self.config['login'].get(),
@@ -65,64 +65,46 @@ class INGBackend(BaseBackend, ICapBank, ICapBill):
             return self.iter_subscription()
 
     def iter_accounts(self):
-        for account in self.browser.get_accounts_list():
-            yield account
+        return self.browser.get_accounts_list()
 
     def get_account(self, _id):
-        with self.browser:
-            account = self.browser.get_account(_id)
-        if account:
-            return account
-        else:
-            raise AccountNotFound()
+        return find_object(self.browser.get_accounts_list(), id=_id, error=AccountNotFound)
 
     def iter_history(self, account):
-        with self.browser:
-            for history in self.browser.get_history(account.id):
-                yield history
+        if not isinstance(account, Account):
+            account = self.get_account(account)
+        return self.browser.get_history(account)
 
     def iter_transfer_recipients(self, account):
-        with self.browser:
-            if not isinstance(account, Account):
-                account = self.get_account(account)
-            for recipient in self.browser.get_recipients(account):
-                yield recipient
+        if not isinstance(account, Account):
+            account = self.get_account(account)
+        return self.browser.get_recipients(account)
 
     def transfer(self, account, recipient, amount, reason):
-        with self.browser:
-            if not reason:
-                raise UserError('Reason is mandatory to do a transfer on ING website')
-            if not isinstance(account, Account):
-                account = self.get_account(account)
-            if not isinstance(recipient, Recipient):
-                # Remove weboob identifier prefix (LA-, CC-...)
-                if "-" in recipient:
-                    recipient = recipient.split('-')[1]
-            return self.browser.transfer(account, recipient, amount, reason)
+        if not reason:
+            raise UserError('Reason is mandatory to do a transfer on ING website')
+        if not isinstance(account, Account):
+            account = self.get_account(account)
+        if not isinstance(recipient, Recipient):
+            # Remove weboob identifier prefix (LA-, CC-...)
+            if "-" in recipient:
+                recipient = recipient.split('-')[1]
+        return self.browser.transfer(account, recipient, amount, reason)
 
     def iter_investment(self, account):
-        with self.browser:
-            if not isinstance(account, Account):
-                account = self.get_account(account)
-            for investment in self.browser.get_investments(account):
-                yield investment
+        if not isinstance(account, Account):
+            account = self.get_account(account)
+        return self.browser.get_investments(account)
 
     def iter_subscription(self):
-        for subscription in self.browser.get_subscriptions():
-            yield subscription
+        return self.browser.get_subscriptions()
 
     def get_subscription(self, _id):
-        for subscription in self.browser.get_subscriptions():
-            if subscription.id == _id:
-                return subscription
-        raise SubscriptionNotFound()
+        return find_object(self.browser.get_subscriptions(), id=_id, error=SubscriptionNotFound)
 
-    def get_bill(self, id):
-        subscription = self.get_subscription(id.split('-')[0])
-        for bill in self.browser.get_bills(subscription):
-            if bill.id == id:
-                return bill
-        raise BillNotFound()
+    def get_bill(self, _id):
+        subscription = self.get_subscription(_id.split('-')[0])
+        return find_object(self.browser.get_bills(subscription), id=_id, error=BillNotFound)
 
     def iter_bills(self, subscription):
         if not isinstance(subscription, Subscription):
@@ -133,5 +115,4 @@ class INGBackend(BaseBackend, ICapBank, ICapBill):
         if not isinstance(bill, Bill):
             bill = self.get_bill(bill)
         self.browser.predownload(bill)
-        with self.browser:
-            return self.browser.readurl("https://secure.ingdirect.fr" + bill._url)
+        return self.browser.open("https://secure.ingdirect.fr" + bill._url, stream=True).content

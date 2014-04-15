@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2013 Bezleputh
+# Copyright(C) 2014  Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -17,13 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.capabilities.job import BaseJobAdvert
+
+from .backend import ColispriveBackend
 
 
-class RegionsJobAdvert(BaseJobAdvert):
-    @classmethod
-    def id2url(cls, _id):
-        splitted_id = _id.split('|')
-        return 'http://%s/offre_emploi/detailoffre.aspx?numoffre=%s&de=consultation' \
-               % (splitted_id[0], splitted_id[1])
-
+__all__ = ['ColispriveBackend']

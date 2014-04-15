@@ -46,6 +46,23 @@ def empty(value):
             return True
     return False
 
+def find_object(mylist, error=None, **kwargs):
+    """
+    Very simple tools to return an object with the matching parameters in
+    kwargs.
+    """
+    for a in mylist:
+        found = True
+        for key, value in kwargs.iteritems():
+            if getattr(a, key) != value:
+                found = False
+                break
+        if found:
+            return a
+
+    if error is not None:
+        raise error()
+    return None
 
 class UserError(Exception):
     """
@@ -82,9 +99,18 @@ class AttributeCreationWarning(UserWarning):
     """
 
 
-class NotAvailableMeta(type):
+class NotAvailableType(object):
+    """
+    NotAvailable is a constant to use on non available fields.
+    """
     def __str__(self):
         return unicode(self).decode('utf-8')
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
 
     def __unicode__(self):
         return u'Not available'
@@ -92,17 +118,25 @@ class NotAvailableMeta(type):
     def __nonzero__(self):
         return False
 
+NotAvailable = NotAvailableType()
 
-class NotAvailable(object):
+
+class NotLoadedType(object):
     """
-    Constant to use on non available fields.
+    NotLoaded is a constant to use on not loaded fields.
+
+    When you use :func:`weboob.tools.backend.BaseBackend.fillobj` on a object based on :class:`CapBaseObject`,
+    it will request all fields with this value.
     """
-    __metaclass__ = NotAvailableMeta
 
-
-class NotLoadedMeta(type):
     def __str__(self):
         return unicode(self).decode('utf-8')
+
+    def __copy__(self):
+        return self
+
+    def __deepcopy__(self, memo):
+        return self
 
     def __unicode__(self):
         return u'Not loaded'
@@ -110,15 +144,7 @@ class NotLoadedMeta(type):
     def __nonzero__(self):
         return False
 
-
-class NotLoaded(object):
-    """
-    Constant to use on not loaded fields.
-
-    When you use :func:`weboob.tools.backend.BaseBackend.fillobj` on a object based on :class:`CapBaseObject`,
-    it will request all fields with this value.
-    """
-    __metaclass__ = NotLoadedMeta
+NotLoaded = NotLoadedType()
 
 
 class IBaseCap(object):
@@ -309,7 +335,7 @@ class CapBaseObject(object):
     backend = None
     _fields = None
 
-    def __init__(self, id, backend=None):
+    def __init__(self, id=u'', backend=None):
         self.id = to_unicode(id)
         self.backend = backend
         self._fields = deepcopy(self._fields)
@@ -428,17 +454,11 @@ class CapBaseObject(object):
 
 
 class Currency(object):
-    CUR_UNKNOWN        = 0
-    CUR_EUR            = 1
-    CUR_CHF            = 2
-    CUR_USD            = 3
-
-    TXT2CUR = OrderedDict(((u'€',   CUR_EUR),
-                           (u'EUR', CUR_EUR),
-                           (u'CHF', CUR_CHF),
-                           (u'$',   CUR_USD),
-                           (u'USD', CUR_USD),
-              ))
+    CURRENCIES = {u'EUR': u'€',
+                  u'CHF': u'CHF',
+                  u'USD': u'$',
+                  u'GBP': u'£',
+                 }
 
     EXTRACTOR = re.compile(r'[\d\s,\.\-]', re.UNICODE)
 
@@ -446,30 +466,27 @@ class Currency(object):
     def get_currency(klass, text):
         u"""
         >>> Currency.get_currency(u'42')
-        0
+        None
         >>> Currency.get_currency(u'42 €')
-        1
+        u'EUR'
         >>> Currency.get_currency(u'$42')
-        3
+        u'USD'
         >>> Currency.get_currency(u'42.000,00€')
-        1
+        u'EUR'
         >>> Currency.get_currency(u'$42 USD')
-        3
+        u'USD'
         >>> Currency.get_currency(u'%42 USD')
-        3
+        u'USD'
         >>> Currency.get_currency(u'US1D')
-        0
+        None
         """
         curtexts = klass.EXTRACTOR.sub(' ', text.upper()).split()
         for curtext in curtexts:
-            cur = klass.TXT2CUR.get(curtext)
-            if cur is not None:
-                return cur
-        return klass.CUR_UNKNOWN
+            for currency, symbol in klass.CURRENCIES.iteritems():
+                if curtext in (currency, symbol):
+                    return currency
+        return None
 
     @classmethod
     def currency2txt(klass, currency):
-        for txt, value in klass.TXT2CUR.iteritems():
-            if value == currency:
-                return txt
-        return u''
+        return klass.CURRENCIES.get(currency, u'')

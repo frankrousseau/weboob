@@ -35,6 +35,11 @@ STATUS = {Parcel.STATUS_PLANNED:    ('PLANNED', 'red'),
           Parcel.STATUS_UNKNOWN:    ('', 'white'),
          }
 
+
+def get_backend_name(backend):
+    return backend.name
+
+
 class HistoryFormatter(IFormatter):
     MANDATORY_FIELDS = ()
 
@@ -47,7 +52,7 @@ class HistoryFormatter(IFormatter):
             result += u'%sStatus:%s  %s\n' % (self.BOLD, self.NC, self.colored(status, status_color))
             result += u'%sInfo:%s  %s\n\n' % (self.BOLD, self.NC, obj.info)
             result += u' Date                  Location          Activity                                          \n'
-            result += u'---------------------+-----------------+---------------------------------------------------\n'
+            result += u'---------------------+-----------------+---------------------------------------------------'
             return result
 
         return ' %s   %s %s' % (self.colored('%-19s' % obj.date, 'blue'),
@@ -117,22 +122,34 @@ class Parceloob(ReplApplication):
 
         Stop tracking a parcel.
         """
-        parcel = self.get_object(line, 'get_parcel_tracking')
-        if not parcel:
-            print >>sys.stderr, 'Error: the parcel "%s" is not found' % line
-            return 2
-
+        removed = False
+        # Always try to first remove the parcel, the untrack should always success
         parcels = set(self.storage.get('tracking', default=[]))
         try:
-            parcels.remove(parcel.fullid)
+            parcels.remove(line)
+            removed = True
         except KeyError:
-            print >>sys.stderr, "Error: parcel \"%s\" wasn't tracked" % parcel.fullid
-            return 2
+            pass
+
+        if not removed:
+            parcel = self.get_object(line, 'get_parcel_tracking')
+            if not parcel:
+                print >>sys.stderr, 'Error: the parcel "%s" is not found' % line
+                return 2
+
+            try:
+                parcels.remove(parcel.fullid)
+            except KeyError:
+                print >>sys.stderr, "Error: parcel \"%s\" wasn't tracked" % parcel.fullid
+                return 2
 
         self.storage.set('tracking', list(parcels))
         self.storage.save()
 
-        print "Parcel \"%s\" isn't tracked anymore." % parcel.fullid
+        if removed:
+            print "Parcel \"%s\" isn't tracked anymore." % line
+        else:
+            print "Parcel \"%s\" isn't tracked anymore." % parcel.fullid
 
     def do_status(self, line):
         """
@@ -140,8 +157,17 @@ class Parceloob(ReplApplication):
 
         Display status for all of the tracked parcels.
         """
+        backends = map(get_backend_name, self.enabled_backends)
         self.start_format()
         for id in self.storage.get('tracking', default=[]):
+            # It should be safe to do it here, since all objects in storage
+            # are stored with the fullid
+            _id, backend_name = id.rsplit('@', 1)
+            # If the user use the -b or -e option, do not try to get
+            # the status of parcel of not loaded backends
+            if backend_name not in backends:
+                continue
+
             p = self.get_object(id, 'get_parcel_tracking')
             if p is None:
                 continue

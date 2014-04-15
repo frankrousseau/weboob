@@ -55,15 +55,15 @@ class GaugeFormatter(IFormatter):
             for sensor in obj.sensors:
                 sensorname = sensor.name
                 # This is a int value, do not display it as a float
-                if sensor.lastvalue.level:
+                if not empty(sensor.lastvalue.level):
                     if int(sensor.lastvalue.level) == sensor.lastvalue.level:
                         lastvalue = "%d " % sensor.lastvalue.level
                     else:
                         lastvalue = "%r " % sensor.lastvalue.level
+                    if not empty(sensor.unit):
+                        lastvalue += "%s" % sensor.unit
                 else:
                     lastvalue = u"? "
-                if not empty(sensor.unit):
-                    lastvalue += "%s" % sensor.unit
                 if first:
                     result = u' %s %s %s ' %\
                              (self.colored('%-27s' % name[:27], 'red'),
@@ -109,7 +109,7 @@ class Boobsize(ReplApplication):
 
     def bcall_error_handler(self, backend, error, backtrace):
         if isinstance(error, SensorNotFound):
-            msg = unicode(error) or 'Sensor not found (hint: try sensors command)'
+            msg = unicode(error) or 'Sensor not found (hint: try details command)'
             print >>sys.stderr, 'Error(%s): %s' % (backend.name, msg)
         else:
             return ReplApplication.bcall_error_handler(self, backend, error, backtrace)

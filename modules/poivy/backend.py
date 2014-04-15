@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2013 Florent Fourcot
+# Copyright(C) 2013-2014 Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -19,7 +19,7 @@
 
 
 from weboob.capabilities.bill import ICapBill, Subscription, SubscriptionNotFound, Detail
-from weboob.capabilities.base import Currency
+from weboob.capabilities.base import find_object
 from weboob.tools.backend import BaseBackend, BackendConfig
 from weboob.tools.value import ValueBackendPassword
 
@@ -49,21 +49,16 @@ class PoivyBackend(BaseBackend, ICapBill):
                                    self.config['password'].get())
 
     def iter_subscription(self):
-        for subscription in self.browser.get_subscription_list():
-            yield subscription
+        return self.browser.get_subscription_list()
 
     def get_subscription(self, _id):
-        with self.browser:
-            subscription = self.browser.get_subscription(_id)
-        if subscription:
-            return subscription
-        else:
-            raise SubscriptionNotFound()
+        return find_object(self.iter_subscription(), id=_id, error=SubscriptionNotFound)
 
     def iter_bills_history(self, subscription):
-        with self.browser:
-            for history in self.browser.get_history():
-                yield history
+        # Try if we have a real subscription before to load the history
+        if not isinstance(subscription, Subscription):
+            subscription = self.get_subscription(subscription)
+        return self.browser.get_history()
 
     # No details on the website
     def get_details(self, subscription):
@@ -76,5 +71,5 @@ class PoivyBackend(BaseBackend, ICapBill):
         balance.id = "%s-balance" % subscription.id
         balance.price = subscription._balance
         balance.label = u"Balance %s" % subscription.id
-        balance.currency = Currency.CUR_EUR
+        balance.currency = u'EUR'
         return balance

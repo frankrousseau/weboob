@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Roger Philibert
+# Copyright(C) 2013      Vincent A
 #
 # This file is part of weboob.
 #
@@ -18,18 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.capabilities.video import BaseVideo
+from .backend import ImgurBackend
 
 
-__all__ = ['YoujizzVideo']
-
-
-class YoujizzVideo(BaseVideo):
-    def __init__(self, *args, **kwargs):
-        BaseVideo.__init__(self, *args, **kwargs)
-        self.nsfw = True
-        self.ext = u'flv'
-
-    @classmethod
-    def id2url(cls, _id):
-        return 'http://www.youjizz.com/videos/%s.html' % _id
+__all__ = ['ImgurBackend']

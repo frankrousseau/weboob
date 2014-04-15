@@ -18,8 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, StringField, FloatField, DateField, Field, UserError
-
+from .base import IBaseCap, CapBaseObject, StringField, FloatField, DateField, Field, UserError, empty
 
 __all__ = ['Gauge', 'GaugeSensor', 'GaugeMeasure', 'ICapGauge', 'SensorNotFound']
 
@@ -49,13 +48,13 @@ class GaugeMeasure(CapBaseObject):
     alarm =     StringField('Alarm level')
 
     def __init__(self):
-        CapBaseObject.__init__(self, None)
+        CapBaseObject.__init__(self)
 
     def __repr__(self):
-        if self.level:
-            return "<GaugeMeasure level=%f alarm=%s date=%s>" % (self.level, self.alarm, self.date)
+        if empty(self.level):
+            return "<GaugeMeasure is %s>" % self.level
         else:
-            return "<GaugeMeasure NotAvailable>"
+            return "<GaugeMeasure level=%f alarm=%s date=%s>" % (self.level, self.alarm, self.date)
 
 
 class GaugeSensor(CapBaseObject):

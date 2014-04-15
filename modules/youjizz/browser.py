@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Roger Philibert
+# Copyright(C) 2010-2014 Roger Philibert
 #
 # This file is part of weboob.
 #
@@ -18,40 +18,39 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-import urllib
-
-from weboob.tools.browser import BaseBrowser
-from weboob.tools.browser.decorators import id2url
+from weboob.tools.browser2 import PagesBrowser, URL
 
 from .pages.index import IndexPage
 from .pages.video import VideoPage
-from .video import YoujizzVideo
 
 
 __all__ = ['YoujizzBrowser']
 
 
-class YoujizzBrowser(BaseBrowser):
-    DOMAIN = 'youjizz.com'
-    ENCODING = None
-    PAGES = {r'http://.*youjizz\.com/?': IndexPage,
-             r'http://.*youjizz\.com/index.php': IndexPage,
-             r'http://.*youjizz\.com/search/(?P<pattern>.+)\.html': IndexPage,
-             r'http://.*youjizz\.com/videos/(?P<id>.+)\.html': VideoPage,
-            }
+class YoujizzBrowser(PagesBrowser):
+    BASEURL = 'http://www.youjizz.com'
 
-    @id2url(YoujizzVideo.id2url)
+    index = URL(r'/?(index.php)?$',
+                r'/page/\d+.html',
+                IndexPage)
+    search = URL(r'/search/(?P<pattern>.+)-(?P<pagenum>\d+).html', IndexPage)
+    video = URL(r'/videos/(?P<id>.*).html', VideoPage)
+
+    @video.id2url
     def get_video(self, url, video=None):
         self.location(url)
-        assert self.is_on_page(VideoPage), 'Should be on video page.'
+        assert self.video.is_here()
+
         return self.page.get_video(video)
 
     def search_videos(self, pattern):
-        self.location('/search/%s-1.html' % (urllib.quote_plus(pattern.encode('utf-8'))))
-        assert self.is_on_page(IndexPage)
+        self.search.go(pattern=pattern, pagenum=1)
+        assert self.search.is_here(pattern=pattern, pagenum=1)
+
         return self.page.iter_videos()
 
     def latest_videos(self):
-        self.home()
-        assert self.is_on_page(IndexPage)
+        self.index.go()
+        assert self.index.is_here()
+
         return self.page.iter_videos()

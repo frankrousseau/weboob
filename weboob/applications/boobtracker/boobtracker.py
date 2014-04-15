@@ -26,12 +26,14 @@ from smtplib import SMTP
 import sys
 import os
 import re
+import unicodedata
 
 from weboob.capabilities.base import empty, CapBaseObject
 from weboob.capabilities.bugtracker import ICapBugTracker, Query, Update, Project, Issue, IssueError
 from weboob.tools.application.repl import ReplApplication, defaultcount
 from weboob.tools.application.formatters.iformatter import IFormatter, PrettyFormatter
 from weboob.tools.misc import html2text
+from weboob.tools.date import parse_french_date
 
 
 __all__ = ['BoobTracker']
@@ -63,7 +65,9 @@ class IssueFormatter(IFormatter):
         result += '\n%s\n\n' % obj.body
         result += self.format_key('Author', '%s (%s)' % (obj.author.name, obj.creation))
         result += self.format_attr(obj, 'status')
+        result += self.format_attr(obj, 'priority')
         result += self.format_attr(obj, 'version')
+        result += self.format_attr(obj, 'tracker')
         result += self.format_attr(obj, 'category')
         result += self.format_attr(obj, 'assignee')
         if hasattr(obj, 'fields') and not empty(obj.fields):
@@ -122,8 +126,12 @@ class BoobTracker(ReplApplication):
         group.add_option('--title')
         group.add_option('--assignee')
         group.add_option('--target-version', dest='version')
+        group.add_option('--tracker')
         group.add_option('--category')
         group.add_option('--status')
+        group.add_option('--priority')
+        group.add_option('--start')
+        group.add_option('--due')
 
     @defaultcount(10)
     def do_search(self, line):
@@ -246,8 +254,12 @@ class BoobTracker(ReplApplication):
     ISSUE_FIELDS = (('title',    (None,       False)),
                     ('assignee', ('members',  True)),
                     ('version',  ('versions', True)),
+                    ('tracker',  (None,       False)),#XXX
                     ('category', ('categories', False)),
                     ('status',   ('statuses', True)),
+                    ('priority', (None,       False)),#XXX
+                    ('start',    (None,       False)),
+                    ('due',      (None,       False)),
                    )
 
     def get_list_item(self, objects_list, name):
@@ -263,6 +275,12 @@ class BoobTracker(ReplApplication):
 
         raise ValueError('"%s" is not found' % name)
 
+    def sanitize_key(self, key):
+        if isinstance(key, str):
+            key = unicode(key, "utf8")
+        key = unicodedata.normalize('NFKD', key).encode("ascii", "ignore")
+        return key.replace(' ', '-').capitalize()
+
     def issue2text(self, issue, backend=None):
         if backend is not None and 'username' in backend.config:
             sender = backend.config['username'].get()
@@ -270,6 +288,7 @@ class BoobTracker(ReplApplication):
             sender = os.environ.get('USERNAME', 'boobtracker')
         output = u'From: %s\n' % sender
         for key, (list_name, is_list_object) in self.ISSUE_FIELDS:
+            value = None
             if not self.interactive:
                 value = getattr(self.options, key)
             if not value:
@@ -284,14 +303,15 @@ class BoobTracker(ReplApplication):
                 if len(objects_list) == 0:
                     continue
 
-            output += '%s: %s\n' % (key.capitalize(), value)
+            output += '%s: %s\n' % (self.sanitize_key(key), value)
             if list_name is not None:
                 availables = ', '.join(['<%s>' % (o if isinstance(o, basestring) else o.name)
                                         for o in objects_list])
-                output += 'X-Available-%s: %s\n' % (key.capitalize(), availables)
+                output += 'X-Available-%s: %s\n' % (self.sanitize_key(key), availables)
 
         for key, value in issue.fields.iteritems():
-            output += '%s: %s\n' % (key, value or '')
+            output += '%s: %s\n' % (self.sanitize_key(key), value or '')
+            # TODO: Add X-Available-* for lists
 
         output += '\n%s' % (issue.body or 'Please write your bug report here.')
         return output
@@ -311,17 +331,25 @@ class BoobTracker(ReplApplication):
                 if part[1]:
                     new_value += unicode(part[0], part[1])
                 else:
-                    new_value += unicode(part[0])
+                    new_value += part[0].decode('utf-8')
             value = new_value
 
             if is_list_object:
                 objects_list = getattr(issue.project, list_name)
                 value = self.get_list_item(objects_list, value)
 
+            # FIXME: autodetect
+            if key in ['start', 'due']:
+                if len(value) > 0:
+                    #value = datetime.strptime(value, "%Y-%m-%d %H:%M:%S")
+                    value = parse_french_date(value)
+                else:
+                    value = None
+
             setattr(issue, key, value)
 
         for key in issue.fields.keys():
-            value = m.get(key)
+            value = m.get(self.sanitize_key(key))
             if value is not None:
                 issue.fields[key] = value.decode('utf-8')
 
@@ -335,7 +363,7 @@ class BoobTracker(ReplApplication):
                         if charset is not None:
                             content += unicode(s, charset)
                         else:
-                            content += unicode(s)
+                            content += unicode(s, encoding='utf-8')
                     except UnicodeError as e:
                         self.logger.warning('Unicode error: %s' % e)
                         continue
@@ -347,9 +375,9 @@ class BoobTracker(ReplApplication):
 
         issue.body = content
 
-        emails = re.findall('<(.*@.*)>', m['From'] or '')
-        if len(emails) > 0:
-            return emails[0]
+        m = re.search('([^< ]+@[^ >]+)', m['From'] or '')
+        if m:
+            return m.group(1)
 
     def edit_issue(self, issue, edit=True):
         backend = self.weboob.get_backend(issue.backend)
@@ -366,7 +394,7 @@ class BoobTracker(ReplApplication):
             except ValueError as e:
                 if not sys.stdin.isatty():
                     raise
-                raw_input("%s -- Press Enter to continue..." % e)
+                raw_input("%s -- Press Enter to continue..." % unicode(e).encode("utf-8"))
                 continue
 
             try:
@@ -381,7 +409,7 @@ class BoobTracker(ReplApplication):
             except IssueError as e:
                 if not sys.stdin.isatty():
                     raise
-                raw_input("%s -- Press Enter to continue..." % e)
+                raw_input("%s -- Press Enter to continue..." % unicode(e).encode("utf-8"))
 
     def send_notification(self, email_to, issue):
         text = """Hi,
@@ -398,7 +426,7 @@ Regards,
 
 Weboob Team
 """ % (issue.title, issue.id)
-        msg = MIMEText(text)
+        msg = MIMEText(text, 'plain', 'utf-8')
         msg['Subject'] = 'Issue #%s reported' % issue.id
         msg['From'] = 'Weboob <weboob@weboob.org>'
         msg['To'] = email_to

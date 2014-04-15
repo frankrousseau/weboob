@@ -191,9 +191,9 @@ class ApecBackend(BaseBackend, ICapJob):
 
     type_contrat_choices = OrderedDict([(k, u'%s' % (v)) for k, v in sorted({
         ' ': u'-- Indifférent --',
-        '101888': u'CDI',
-        '101887': u'CDD',
-        '101889': u'Travail Temporaire',
+        '143694': u'CDI',
+        '143695': u'CDD',
+        '143696': u'Travail Temporaire',
     }.iteritems())])
 
     salary_choices = OrderedDict([(k, u'%s' % (v)) for k, v in sorted({

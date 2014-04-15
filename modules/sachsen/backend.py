@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2012 Romain Bignon, Florent Fourcot
+# Copyright(C) 2010-2014 Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -17,12 +17,10 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
 from .browser import SachsenBrowser
 from weboob.capabilities.gauge import ICapGauge, GaugeSensor, Gauge,\
         SensorNotFound
+from weboob.capabilities.base import find_object
 from weboob.tools.backend import BaseBackend
 
 
@@ -49,22 +47,16 @@ class SachsenLevelBackend(BaseBackend, ICapGauge):
                         or lowpattern in gauge.object.lower():
                     yield gauge
 
-    def _get_gauge_by_id(self, id):
-        for gauge in self.browser.get_rivers_list():
-            if id == gauge.id:
-                return gauge
-        return None
-
     def _get_sensor_by_id(self, id):
         for gauge in self.browser.get_rivers_list():
             for sensor in gauge.sensors:
                 if id == sensor.id:
                     return sensor
-        return None
+        raise SensorNotFound()
 
     def iter_sensors(self, gauge, pattern=None):
         if not isinstance(gauge, Gauge):
-            gauge = self._get_gauge_by_id(gauge)
+            gauge = find_object(self.browser.get_rivers_list(), id=gauge, error=SensorNotFound)
         if pattern is None:
             for sensor in gauge.sensors:
                 yield sensor
@@ -77,13 +69,9 @@ class SachsenLevelBackend(BaseBackend, ICapGauge):
     def iter_gauge_history(self, sensor):
         if not isinstance(sensor, GaugeSensor):
             sensor = self._get_sensor_by_id(sensor)
-        if sensor is None:
-            raise SensorNotFound()
         return self.browser.iter_history(sensor)
 
     def get_last_measure(self, sensor):
         if not isinstance(sensor, GaugeSensor):
             sensor = self._get_sensor_by_id(sensor)
-        if sensor is None:
-            raise SensorNotFound()
         return sensor.lastvalue

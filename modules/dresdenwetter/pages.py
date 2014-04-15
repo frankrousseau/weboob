@@ -17,7 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser import BasePage
+from weboob.tools.browser2.page import HTMLPage, method, ListElement, ItemElement
+from weboob.tools.browser2.filters import CleanText, Regexp, Field, Filter
 from weboob.capabilities.gauge import GaugeMeasure, GaugeSensor
 from weboob.capabilities.base import NotAvailable
 
@@ -25,43 +26,40 @@ from weboob.capabilities.base import NotAvailable
 __all__ = ['StartPage']
 
 
-class StartPage(BasePage):
-    name = [u"Temperatur", u"Wind", u"Luftdruck", u"Luftfeuchtigkeit",
-            u"Niederschlag", u"Globalstrahlung"]
-    unit = [u"°C", u"km/h", u"hPa", u"%", u"mm", u"W/m²"]
+class Split(Filter):
+    def __init__(self, selector, mode):
+        super(Split, self).__init__(selector)
+        self.mode = mode
 
-    def get_sensors_list(self):
-        paraphs = self.document.xpath('//p[@align="center"]')
-        sensors = []
-        for i in range(len(paraphs)):
-            sensor = GaugeSensor("dd-%s" % self.name[i].lower())
-            sensor.name = self.name[i]
-            sensor.unit = self.unit[i]
-            sensor.forecast = NotAvailable
-            sensor.history = NotAvailable
-            sensor.gaugeid = u"wetter"
-            paraph = paraphs[i]
-            lastvalue = GaugeMeasure()
-            lastvalue.alarm = NotAvailable
-            if i == 0:
-                text = paraph.xpath('b/span/font[@size="4"]')[1].text
-                lastvalue.level = float(text.split('\n')[1].split(u'°')[0])
-            if i == 1:
-                text = paraph.xpath('b/span/font')[2].text
-                lastvalue.level = float(text.split('\n')[1])
-            if i == 2:
-                text = paraph.xpath('span/font/b')[0].text
-                lastvalue.level = float(text.split('\n')[2].split('hPa')[0])
-            if i == 3:
-                text = paraph.xpath('span/font[@size="4"]/b')[0].text
-                lastvalue.level = float(text.split('\n')[2].split(u'%')[0]
-                        .split(':')[1])
-            if i == 4:
-                text = paraph.xpath('b/font[@size="4"]/span')[0].text
-                lastvalue.level = float(text.split('\n')[0])
-            if i == 5:
-                text = paraph.xpath('b/font/span')[0].text
-                lastvalue.level = float(text.split('\n')[1])
-            sensor.lastvalue = lastvalue
-            sensors.append(sensor)
-        return sensors
+    def filter(self, txt):
+        if u"Temperatur" in txt:
+            value = txt.split(': ')[1].split(u'°')[0]
+            unit = u'°C'
+        else:
+            value = txt.split(':')[-1].split()[0]
+            unit = txt.split(':')[-1].split()[1]
+            if unit == u"W/m":
+                unit = u"W/m²"
+        return [value, unit][self.mode]
+
+
+class StartPage(HTMLPage):
+
+    @method
+    class get_sensors_list(ListElement):
+        item_xpath = '//p[@align="center"]'
+
+        class item(ItemElement):
+            klass = GaugeSensor
+
+            obj_name = Regexp(CleanText('.'), '(.*?) {0,}: .*', "\\1")
+            obj_id = CleanText(Regexp(Field('name'), '(.*)', "dd-\\1"), " .():")
+            obj_gaugeid = u"wetter"
+            obj_forecast = NotAvailable
+            obj_unit = Split(CleanText('.'), 1)
+
+            def obj_lastvalue(self):
+                lastvalue = GaugeMeasure()
+                lastvalue.level = float(Split(CleanText('.'), 0)(self))
+                lastvalue.alarm = NotAvailable
+                return lastvalue

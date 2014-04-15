@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2013      Romain Bignon
+# Copyright(C) 2013-2014      Romain Bignon
 #
 # This file is part of weboob.
 #
@@ -21,7 +21,8 @@
 from decimal import Decimal
 import re
 
-from weboob.tools.browser import BasePage
+from weboob.capabilities.bank import Account
+from weboob.tools.browser import BasePage, BrokenPageError
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard, VirtKeyboardError
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
@@ -35,7 +36,7 @@ class VirtKeyboard(MappedVirtKeyboard):
              '2':('b560b0cce2ca74d3d499d73775152ab7',),
              '3':('d16e426e71fc29b1b55d0fbded99a473',),
              '4':('19c68066e414e08d17c86fc5c4acc949','c43354a7f7739508f76c538d5b3bce26'),
-             '5':('4b9abf98e30a1475997ec770cbe5e702',),
+             '5':('4b9abf98e30a1475997ec770cbe5e702','2059b4aa95c7b3156b171255fa10bbdd'),
              '6':('804be4171d61f9cc10e9978c43b1d2a0','a41b091d4a11a318406a5a8bd3ed3837'),
              '7':('8adf951f4eea5f446f714214e101d555',),
              '8':('568135f3844213c30f2c7880be867d3d',),
@@ -69,7 +70,7 @@ class VirtKeyboard(MappedVirtKeyboard):
             except VirtKeyboardError:
                 continue
             else:
-                return ''.join(re.findall("'(\d+)'", code)[1:])
+                return ''.join(re.findall("'(\d+)'", code)[-2:])
         raise VirtKeyboardError('Symbol not found')
 
     def get_string_code(self, string):
@@ -83,9 +84,27 @@ class LoginPage(BasePage):
         vk = VirtKeyboard(self)
 
         form = self.document.xpath('//form[@id="formulaire-login"]')[0]
-        self.browser.location(self.browser.buildurl(form.attrib['action'], identifiant=login, code=vk.get_string_code(password)), no_login=True)
+        code = vk.get_string_code(password)
+        assert len(code)==10, BrokenPageError("Wrong number of character.")
+        self.browser.location(self.browser.buildurl(form.attrib['action'], identifiant=login, code=code), no_login=True)
 
 class IndexPage(BasePage):
+    def get_list(self):
+        for line in self.document.xpath('//li[@id="menu-n2-mesproduits"]//li//a'):
+            if line.get('onclick') is None:
+                continue
+            account = Account()
+            account.id = line.get('onclick').split("'")[1]
+            account.label = self.parser.tocleanstring(line)
+            yield account
+
+    def get_loan_balance(self):
+        xpath = '//table//td/strong[contains(text(), "Montant emprunt")]/../../td[2]'
+        try:
+            return - Decimal(FrenchTransaction.clean_amount(self.parser.tocleanstring(self.document.xpath(xpath)[0])))
+        except IndexError:
+            return None
+
     def get_card_name(self):
         return self.parser.tocleanstring(self.document.xpath('//h1')[0])
 

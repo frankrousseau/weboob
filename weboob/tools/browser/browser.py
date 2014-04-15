@@ -21,7 +21,6 @@
 
 from copy import copy
 from httplib import BadStatusLine
-from logging import warning
 
 try:
     import mechanize
@@ -40,8 +39,8 @@ import hashlib
 import time
 import urllib
 import urllib2
-from urlparse import urlsplit
 import mimetypes
+import logging
 from contextlib import closing
 from gzip import GzipFile
 import warnings
@@ -56,7 +55,7 @@ from weboob.tools.parsers import get_parser
 try:
     from .firefox_cookies import FirefoxCookieJar
 except ImportError as e:
-    warning("Unable to store cookies: %s" % e)
+    logging.warning("Unable to store cookies: %s", e)
     HAVE_COOKIES = False
 else:
     HAVE_COOKIES = True
@@ -195,14 +194,10 @@ class StandardBrowser(mechanize.Browser):
         'wget': 'Wget/1.11.4',
     }
     USER_AGENT = USER_AGENTS['desktop_firefox']
-    SAVE_RESPONSES = False
     DEBUG_HTTP = False
     DEBUG_MECHANIZE = False
     DEFAULT_TIMEOUT = 15
     INSECURE = False  # if True, do not validate SSL
-
-    responses_dirname = None
-    responses_count = 0
 
     logger = None
 
@@ -223,15 +218,8 @@ class StandardBrowser(mechanize.Browser):
 
         # Use a proxy
         self.proxy = proxy
-        if proxy:
-            proto = 'http'
-            if '://' in proxy:
-                v = urlsplit(proxy)
-                proto = v.scheme
-                domain = v.netloc
-            else:
-                domain = proxy
-            self.set_proxies({proto: domain})
+        if proxy is not None:
+            self.set_proxies(proxy)
 
         # Share cookies with firefox
         if firefox_cookies and HAVE_COOKIES:
@@ -252,11 +240,14 @@ class StandardBrowser(mechanize.Browser):
             # display messages from httplib
             self.set_debug_http(True)
 
-        if self.DEBUG_MECHANIZE:
+        if logging.root.level == logging.DEBUG:
             # Enable log messages from mechanize.Browser
             self.set_debug_redirects(True)
+            mech_logger = logging.getLogger("mechanize")
+            mech_logger.setLevel(logging.INFO)
 
         self.responses_dirname = responses_dirname
+        self.responses_count = 0
 
     def __enter__(self):
         self.lock.acquire()
@@ -312,7 +303,7 @@ class StandardBrowser(mechanize.Browser):
         result = self.openurl(url, *args, **kwargs)
 
         if result:
-            if self.SAVE_RESPONSES:
+            if self.logger.settings['save_responses']:
                 self.save_response(result)
             return result.read()
         else:
@@ -439,7 +430,7 @@ class StandardBrowser(mechanize.Browser):
             return
 
     def lowsslcheck(self, domain, hsh):
-        if self.INSECURE:
+        if self.INSECURE or (self.logger is not None and self.logger.settings['ssl_insecure']):
             return
         certhash = self._certhash(domain)
         if self.logger:
@@ -481,7 +472,7 @@ class BaseBrowser(StandardBrowser):
                     does not keep history
     :type history: object
     :param proxy: proxy URL to use
-    :type proxy: str
+    :type proxy: dictionnary
     :param logger: logger to use for logging
     :type logger: :class:`logging.Logger`
     :param factory: mechanize factory. None to use Mechanize's default
@@ -554,9 +545,9 @@ class BaseBrowser(StandardBrowser):
         """
         Submit the selected form.
         """
-        nologin = kwargs.pop('nologin', False)
+        no_login = kwargs.pop('nologin', kwargs.pop('no_login', False))
         try:
-            self._change_location(mechanize.Browser.submit(self, *args, **kwargs), no_login=nologin)
+            self._change_location(mechanize.Browser.submit(self, *args, **kwargs), no_login=no_login)
         except (mechanize.response_seek_wrapper, urllib2.HTTPError, urllib2.URLError, BadStatusLine, ssl.SSLError) as e:
             self.page = None
             raise self.get_exception(e)(e)
@@ -615,7 +606,7 @@ class BaseBrowser(StandardBrowser):
         keep_args = copy(args)
         keep_kwargs = kwargs.copy()
 
-        no_login = kwargs.pop('no_login', False)
+        no_login = kwargs.pop('no_login', kwargs.pop('nologin', False))
         kwargs['timeout'] = kwargs.get('timeout', self.DEFAULT_TIMEOUT)
 
         try:
@@ -706,7 +697,7 @@ class BaseBrowser(StandardBrowser):
         self.logger.debug('[user_id=%s] Went on %s' % (self.username, result.geturl()))
         self.last_update = time.time()
 
-        if self.SAVE_RESPONSES:
+        if self.logger.settings['save_responses']:
             self.save_response(result)
 
         document = self.get_document(result, parser, encoding=pageCls.ENCODING)

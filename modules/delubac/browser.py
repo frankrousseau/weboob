@@ -20,7 +20,7 @@
 
 from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword
 
-from .pages import LoginPage, DashboardPage, OperationsPage
+from .pages import LoginPage, DashboardPage, OperationsPage, LCRPage
 
 
 __all__ = ['DelubacBrowser']
@@ -39,6 +39,7 @@ class DelubacBrowser(BaseBrowser):
         '%s://%s/(simpleIndex|index).do(\;.*)?' % (PROTOCOL, DOMAIN): LoginPage,
         '%s://%s/tbord.do(\?.*)?' % (PROTOCOL, DOMAIN): DashboardPage,
         '%s://%s/releve.do(\?.*)?' % (PROTOCOL, DOMAIN): OperationsPage,
+        '%s://%s/encoursList.do(\?.*)?' % (PROTOCOL, DOMAIN): LCRPage,
     }
 
     PAGES_REV = {
@@ -78,6 +79,7 @@ class DelubacBrowser(BaseBrowser):
         return self.page.get_account(_id)
 
     def iter_history(self, account):
+        self.stay_or_go(DashboardPage)
         self.location(account._url)
 
         while True:

@@ -49,8 +49,8 @@ class Recipient(CapBaseObject, Currency):
     Recipient of a transfer.
     """
 
-    label = StringField('Name')
-    currency =  IntField('Currency', default=Currency.CUR_UNKNOWN)
+    label =     StringField('Name')
+    currency =  StringField('Currency', default=None)
 
     def __init__(self):
         CapBaseObject.__init__(self, 0)
@@ -74,6 +74,7 @@ class Account(Recipient):
     TYPE_LOAN             = 4
     TYPE_MARKET           = 5  # Stock market or other variable investments
     TYPE_JOINT            = 6  # Joint account
+    TYPE_CARD             = 7  # Card account
 
     type =      IntField('Type of account', default=TYPE_UNKNOWN)
     balance =   DecimalField('Balance on this bank account')

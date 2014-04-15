@@ -20,6 +20,7 @@
 
 import time
 from weboob.capabilities.messages import ICapMessages, Message, Thread
+from weboob.capabilities.base import find_object
 from weboob.tools.backend import BaseBackend
 from weboob.tools.newsfeed import Newsfeed
 
@@ -38,17 +39,12 @@ class GenericNewspaperBackend(BaseBackend, ICapMessages):
     URL2ID = None
     RSSSIZE = 0
 
-    def _get_thread(self, id):
-        for thread in self.iter_threads():
-            if thread.id == id:
-                return thread
-
     def get_thread(self, _id):
         if isinstance(_id, Thread):
             thread = _id
             id = thread.id
         else:
-            thread = self._get_thread(_id)
+            thread = find_object(self.iter_threads(), id=_id)
             id = _id
 
         with self.browser:
@@ -76,7 +72,7 @@ class GenericNewspaperBackend(BaseBackend, ICapMessages):
             date=thread.date,
             parent=None,
             content=content.body,
-            signature='<a href="%s">URL</a> \n' % content.url,
+            signature= u'<a href="%s">URL</a> \n' % content.url,
             flags=flags,
             children=[])
         return thread

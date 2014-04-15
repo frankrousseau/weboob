@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Roger Philibert
+# Copyright(C) 2010-2014 Roger Philibert
 #
 # This file is part of weboob.
 #
@@ -18,50 +18,38 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-import datetime
-import lxml.html
 import re
 
-from weboob.capabilities.base import NotAvailable
-from weboob.tools.browser import BasePage, BrokenPageError
+from weboob.tools.browser2 import HTMLPage
+from weboob.tools.browser2.page import method, ItemElement
+from weboob.tools.browser2.filters import CleanText, Env, Duration
+from weboob.capabilities.video import BaseVideo
 from weboob.tools.misc import to_unicode
-
-from ..video import YoujizzVideo
 
 
 __all__ = ['VideoPage']
 
 
-class VideoPage(BasePage):
-    def get_video(self, video=None):
-        _id = to_unicode(self.group_dict['id'])
-        if video is None:
-            video = YoujizzVideo(_id)
-        title_el = self.parser.select(self.document.getroot(), 'title', 1)
-        video.title = to_unicode(title_el.text.strip())
+class VideoPage(HTMLPage):
+    @method
+    class get_video(ItemElement):
+        klass = BaseVideo
 
-        # youjizz HTML is crap, we must parse it with regexps
-        data = lxml.html.tostring(self.document.getroot())
-        m = re.search(r'<strong>.*?Runtime.*?</strong> (.+?)</div>', data)
-        if m:
-            txt = m.group(1).strip()
-            if txt == 'Unknown':
-                video.duration = NotAvailable
+        obj_id = Env('id')
+        obj_title = CleanText('//title')
+        obj_nsfw = True
+        obj_ext = u'flv'
+        obj_duration = Duration(CleanText('//div[@id="video_text"]'))
+
+        def obj_url(self):
+            real_id = int(self.env['id'].split('-')[-1])
+            response = self.page.browser.open('http://www.youjizz.com/videos/embed/%s' % real_id)
+            data = response.text
+
+            video_file_urls = re.findall(r'"(http://[^",]+\.youjizz\.com[^",]+\.flv(?:\?[^"]*)?)"', data)
+            if len(video_file_urls) == 0:
+                raise ValueError('Video URL not found')
+            elif len(video_file_urls) > 1:
+                raise ValueError('Many video file URL found')
             else:
-                minutes, seconds = (int(v) for v in to_unicode(txt).split(':'))
-                video.duration = datetime.timedelta(minutes=minutes, seconds=seconds)
-        else:
-            raise BrokenPageError('Unable to retrieve video duration')
-
-        real_id = int(_id.split('-')[-1])
-        data = self.browser.readurl('http://www.youjizz.com/videos/embed/%s' % real_id)
-
-        video_file_urls = re.findall(r'"(http://[^",]+\.youjizz\.com[^",]+\.flv(?:\?[^"]*)?)"', data)
-        if len(video_file_urls) == 0:
-            raise BrokenPageError('Video URL not found')
-        elif len(video_file_urls) > 1:
-            raise BrokenPageError('Many video file URL found')
-        else:
-            video.url = to_unicode(video_file_urls[0])
-
-        return video
+                return to_unicode(video_file_urls[0])

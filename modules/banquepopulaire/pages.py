@@ -220,8 +220,11 @@ class HomePage(BasePage):
 class AccountsPage(BasePage):
     ACCOUNT_TYPES = {u'Mes comptes d\'épargne':     Account.TYPE_SAVINGS,
                      u'Mon épargne':                Account.TYPE_SAVINGS,
+                     u'Placements':                 Account.TYPE_SAVINGS,
                      u'Mes comptes':                Account.TYPE_CHECKING,
+                     u'Comptes en euros':           Account.TYPE_CHECKING,
                      u'Mes emprunts':               Account.TYPE_LOAN,
+                     u'Financements':               Account.TYPE_LOAN,
                      u'Mes services':               None,    # ignore this kind of accounts (no bank ones)
                     }
 
@@ -250,12 +253,20 @@ class AccountsPage(BasePage):
         for field in self.document.xpath('//input'):
             params[field.attrib['name']] = field.attrib.get('value', '')
 
-        for div in self.document.xpath('//div[@class="btit"]'):
+        for div in self.document.getroot().cssselect('div.btit'):
+            if div.text is None:
+                continue
             account_type = self.ACCOUNT_TYPES.get(div.text.strip(), Account.TYPE_UNKNOWN)
 
             if account_type is None:
                 # ignore services accounts
                 continue
+
+            currency = None
+            for th in div.getnext().xpath('.//thead//th'):
+                m = re.match('.*\((\w+)\)$', th.text)
+                if m and currency is None:
+                    currency = Account.get_currency(m.group(1))
 
             for tr in div.getnext().xpath('.//tbody/tr'):
                 if not 'id' in tr.attrib:
@@ -276,7 +287,7 @@ class AccountsPage(BasePage):
 
                 balance = FrenchTransaction.clean_amount(u''.join([txt.strip() for txt in tds[3].itertext()]))
                 account.balance = Decimal(balance or '0.0')
-                account.currency = account.get_currency(balance)
+                account.currency = currency
                 if account.type == account.TYPE_LOAN:
                     account.balance = - abs(account.balance)
 
@@ -406,7 +417,7 @@ class TransactionsPage(BasePage):
         if len(self.document.xpath('//table[@id="TabFact"]')) > 0:
             return self.get_card_history(account, coming)
 
-        raise BrokenPageError('Unable to find what kind of history it is.')
+        raise NotImplementedError('Unable to find what kind of history it is.')
 
     COL_COMPTA_DATE = 0
     COL_LABEL = 1

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Christophe Benz
+# Copyright(C) 2012 Laurent Bachelier
 #
 # This file is part of weboob.
 #
@@ -17,11 +17,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.capabilities.collection import Collection
+from .browser import BaseBrowser, DomainBrowser, Wget, Firefox, UrlNotAllowed, Profile
+from .page import PagesBrowser, BasePage, URL, HTMLPage, LoginBrowser, need_login, JsonPage, LoggedPage, XMLPage
 
-__all__ = ['ArteLiveCollection']
 
-class ArteLiveCollection(Collection):
-    @classmethod
-    def id2url(cls, _id, lang):
-        return 'http://liveweb.arte.tv/%s/cat/%s/' % (lang, _id)
+__all__ = ['BaseBrowser', 'DomainBrowser', 'Wget', 'Firefox', 'UrlNotAllowed', 'Profile', 'XMLPage',
+           'PagesBrowser', 'BasePage', 'URL', 'HTMLPage', 'LoginBrowser', 'need_login', 'JsonPage', 'LoggedPage']

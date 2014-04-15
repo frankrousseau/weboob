@@ -353,7 +353,7 @@ class ConsoleApplication(BaseApplication):
             print >>sys.stderr, 'Backend "%s" already exists.' % name
             return 1
 
-    def ask(self, question, default=None, masked=False, regexp=None, choices=None, tiny=None):
+    def ask(self, question, default=None, masked=None, regexp=None, choices=None, tiny=None):
         """
         Ask a question to user.
 
@@ -370,7 +370,8 @@ class ConsoleApplication(BaseApplication):
             v = copy(question)
             if default is not None:
                 v.default = default
-            v.masked = masked
+            if masked is not None:
+                v.masked = masked
             if regexp is not None:
                 v.regexp = regexp
             if choices is not None:
@@ -394,6 +395,8 @@ class ConsoleApplication(BaseApplication):
             question = u'[%s] %s' % (v.id, question)
 
         if isinstance(v, ValueBackendPassword):
+            print question.encode(sys.stdout.encoding or locale.getpreferredencoding()) + ':'
+            question = v.label
             choices = OrderedDict()
             choices['c'] = 'Run an external tool during backend load'
             if not v.noprompt:
@@ -407,7 +410,7 @@ class ConsoleApplication(BaseApplication):
             else:
                 d = 's'
 
-            r = self.ask('%s: How do you want to store it?' % question, choices=choices, tiny=True, default=d)
+            r = self.ask('*** How do you want to store it?', choices=choices, tiny=True, default=d)
             if r == 'p':
                 return ''
             if r == 'c':
@@ -440,10 +443,10 @@ class ConsoleApplication(BaseApplication):
                 question = u'%s (%s)' % (question, '/'.join((s.upper() if s == v.default else s)
                                                             for s in (v.choices.iterkeys())))
                 for key, value in v.choices.iteritems():
-                    print '%s%s%s: %s' % (self.BOLD, key, self.NC, value)
+                    print '     %s%s%s: %s' % (self.BOLD, key, self.NC, value)
             else:
                 for n, (key, value) in enumerate(v.choices.iteritems()):
-                    print '%s%2d)%s %s' % (self.BOLD, n + 1, self.NC, value)
+                    print '     %s%2d)%s %s' % (self.BOLD, n + 1, self.NC, value)
                     aliases[str(n + 1)] = key
                 question = u'%s (choose in list)' % question
         if v.masked:
@@ -459,7 +462,7 @@ class ConsoleApplication(BaseApplication):
                 if sys.platform == 'win32':
                     line = getpass.getpass(str(question))
                 else:
-                    line = getpass.getpass(question)
+                    line = getpass.getpass(question.encode(sys.stdout.encoding or locale.getpreferredencoding()))
             else:
                 self.stdout.write(question.encode(sys.stdout.encoding or locale.getpreferredencoding()))
                 self.stdout.flush()
@@ -536,7 +539,7 @@ class ConsoleApplication(BaseApplication):
         elif isinstance(error, NotImplementedError):
             print >>sys.stderr, u'Error(%s): this feature is not supported yet by this backend.' % backend.name
             print >>sys.stderr, u'      %s   To help the maintainer of this backend implement this feature,' % (' ' * len(backend.name))
-            print >>sys.stderr, u'      %s   please contact: %s <%s>' % (' ' * len(backend.name), backend.MAINTAINER, backend.EMAIL)
+            print >>sys.stderr, u'      %s   please contact: %s <%s@issues.weboob.org>' % (' ' * len(backend.name), backend.MAINTAINER, backend.NAME)
         elif isinstance(error, UserError):
             print >>sys.stderr, u'Error(%s): %s' % (backend.name, to_unicode(error))
         elif isinstance(error, MoreResultsAvailable):

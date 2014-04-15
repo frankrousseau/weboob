@@ -75,6 +75,13 @@ class _AccountsPage(BasePage):
     COL_VALUE    = 4
     COL_CURRENCY = 5
 
+    TYPES = {'CCHQ':   Account.TYPE_CHECKING,
+             'LIV A':  Account.TYPE_SAVINGS,
+             'LDD':    Account.TYPE_SAVINGS,
+             'PEL':    Account.TYPE_MARKET,
+             'TITR':   Account.TYPE_MARKET,
+            }
+
     def get_list(self):
         for tr in self.document.xpath('//table[@class="ca-table"]/tr'):
             if not tr.attrib.get('class', '').startswith('colcelligne'):
@@ -87,6 +94,7 @@ class _AccountsPage(BasePage):
             account = Account()
             account.id = self.parser.tocleanstring(cols[self.COL_ID])
             account.label = self.parser.tocleanstring(cols[self.COL_LABEL])
+            account.type = self.TYPES.get(account.label, Account.TYPE_UNKNOWN)
             balance = self.parser.tocleanstring(cols[self.COL_VALUE])
             # we have to ignore those accounts, because using NotAvailable
             # makes boobank and probably many others crash
@@ -148,6 +156,7 @@ class CardsPage(BasePage):
             get = lambda name: self.parser.tocleanstring(table.xpath(xpaths[name])[0])
 
             account = Account()
+            account.type = account.TYPE_CARD
             account.id = ''.join(get('_id').split()[1:])
             account.label = '%s - %s' % (get('label1'),
                                          re.sub('\s*-\s*$', '', get('label2')))
@@ -251,6 +260,7 @@ class TransactionsPage(BasePage):
              'Remise De Cheque':            Transaction.TYPE_DEPOSIT,
              'Prelevement':                 Transaction.TYPE_ORDER,
              'Prelevt':                     Transaction.TYPE_ORDER,
+             'Prelevmnt':                   Transaction.TYPE_ORDER,
             }
 
     def get_history(self, date_guesser):
@@ -315,11 +325,13 @@ class TransactionsPage(BasePage):
             t.type = self.TYPES.get(t.category, t.TYPE_UNKNOWN)
 
             # Parse operation date in label (for card transactions for example)
-            m = re.match('(.*) (\d{2})/(\d{2})$', t.label)
+            m = re.match('(?P<text>.*) (?P<dd>[0-3]\d)/(?P<mm>[0-1]\d)$', t.label)
+            if not m:
+                m = re.match('^(?P<dd>[0-3]\d)/(?P<mm>[0-1]\d) (?P<text>.*)$', t.label)
             if m:
-                if t.type == t.TYPE_CARD:
-                    t.rdate = date_guesser.guess_date(int(m.group(2)), int(m.group(3)), change_current_date=False)
-                t.label = m.group(1).strip()
+                if t.type in (t.TYPE_CARD, t.TYPE_WITHDRAWAL):
+                    t.rdate = date_guesser.guess_date(int(m.groupdict()['dd']), int(m.groupdict()['mm']), change_current_date=False)
+                t.label = m.groupdict()['text'].strip()
 
             # Strip city or other useless information from label.
             t.label = re.sub('(.*)  .*', r'\1', t.label).strip()

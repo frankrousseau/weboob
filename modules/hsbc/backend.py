@@ -20,6 +20,7 @@
 
 
 from weboob.capabilities.bank import ICapBank, AccountNotFound
+from weboob.capabilities.base import find_object
 from weboob.tools.backend import BaseBackend, BackendConfig
 from weboob.tools.value import ValueBackendPassword, Value
 
@@ -51,22 +52,8 @@ class HSBCBackend(BaseBackend, ICapBank):
             yield account
 
     def get_account(self, _id):
-        with self.browser:
-            account = self.browser.get_account(_id)
-        if account:
-            return account
-        else:
-            raise AccountNotFound()
+        return find_object(self.browser.get_accounts_list(), id=_id, error=AccountNotFound)
 
     def iter_history(self, account):
-        with self.browser:
-            for tr in self.browser.get_history(account):
-                # If there are deferred cards, strip CB invoices.
-                if not tr._coming and (not tr.raw.startswith('FACTURES CB') or len(account._card_links) == 0):
-                    yield tr
-
-    def iter_coming(self, account):
-        with self.browser:
-            for tr in self.browser.get_history(account):
-                if tr._coming:
-                    yield tr
+        for tr in self.browser.get_history(account):
+            yield tr

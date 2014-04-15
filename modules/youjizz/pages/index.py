@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2012 Roger Philibert
+# Copyright(C) 2010-2014 Roger Philibert
 #
 # This file is part of weboob.
 #
@@ -18,44 +18,34 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-import datetime
-import re
-
-from weboob.tools.browser import BasePage, BrokenPageError
+from weboob.tools.browser2 import HTMLPage
+from weboob.tools.browser2.page import ListElement, method, ItemElement, pagination
+from weboob.tools.browser2.filters import Link, CleanText, Duration, Regexp
+from weboob.capabilities.base import NotAvailable
 from weboob.capabilities.image import BaseImage
-from weboob.tools.misc import to_unicode
-
-from ..video import YoujizzVideo
+from weboob.capabilities.video import BaseVideo
 
 
 __all__ = ['IndexPage']
 
 
-class IndexPage(BasePage):
-    def iter_videos(self):
-        span_list = self.parser.select(self.document.getroot(), 'span#miniatura')
-        for span in span_list:
-            a = self.parser.select(span, 'a', 1)
-            url = a.attrib['href']
-            _id = re.sub(r'/videos/(.+)\.html', r'\1', url)
+class IndexPage(HTMLPage):
+    @pagination
+    @method
+    class iter_videos(ListElement):
+        item_xpath = '//span[@id="miniatura"]'
 
-            video = YoujizzVideo(_id)
+        next_page = Link(u'//a[text()="Next »"]')
 
-            video.thumbnail = BaseImage(span.find('.//img').attrib['data-original'])
-            video.thumbnail.url = video.thumbnail.id
+        class item(ItemElement):
+            klass = BaseVideo
 
-            title_el = self.parser.select(span, 'span#title1', 1)
-            video.title = to_unicode(title_el.text.strip())
+            obj_id = Regexp(Link('.//a'), r'/videos/(.+)\.html')
+            obj_title = CleanText('.//span[@id="title1"]')
+            obj_duration = Duration(CleanText('.//span[@class="thumbtime"]//span'), default=NotAvailable)
+            obj_nsfw = True
 
-            time_span = self.parser.select(span, 'span.thumbtime span', 1)
-            time_txt = time_span.text.strip().replace(';', ':')
-            if time_txt == 'N/A':
-                minutes, seconds = 0, 0
-            elif ':' in time_txt:
-                minutes, seconds = (int(v) for v in time_txt.split(':'))
-            else:
-                raise BrokenPageError('Unable to parse the video duration: %s' % time_txt)
-
-            video.duration = datetime.timedelta(minutes=minutes, seconds=seconds)
-
-            yield video
+            def obj_thumbnail(self):
+                thumbnail = BaseImage(self.xpath('.//img')[0].attrib['data-original'])
+                thumbnail.url = thumbnail.id
+                return thumbnail

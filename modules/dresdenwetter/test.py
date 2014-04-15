@@ -36,21 +36,21 @@ class DresdenWetterTest(BackendTest):
         self.assertTrue(len(l[0].sensors) > 5, msg="Not enough sensors")
 
     def test_sensors_value(self):
-        temperature = self.backend.get_last_measure("dd-temperatur").level
+        temperature = self.backend.get_last_measure("dd-Temperatur2m").level
         self.assertTrue(temperature > -50., msg="To cold")
         self.assertTrue(temperature < 50., msg="Temperature to high")
-        self.assertTrue(self.backend.get_last_measure("dd-wind").level >= 0)
-        self.assertTrue(self.backend.get_last_measure("dd-luftdruck").level > 800.)
-        self.assertTrue(self.backend.get_last_measure("dd-luftfeuchtigkeit").level >= 0.)
-        self.assertTrue(self.backend.get_last_measure("dd-niederschlag").level >= 0.)
-        self.assertTrue(self.backend.get_last_measure("dd-globalstrahlung").level >= 0.)
+        self.assertTrue(self.backend.get_last_measure(u"dd-Wind10minØ").level >= 0)
+        self.assertTrue(self.backend.get_last_measure("dd-RelLuftdruck").level > 800.)
+        self.assertTrue(self.backend.get_last_measure("dd-RelLuftfeuchtigkeit").level >= 0.)
+        self.assertTrue(self.backend.get_last_measure("dd-Niederschlagseit001Uhr").level >= 0.)
+        self.assertTrue(self.backend.get_last_measure("dd-Globalstrahlung").level >= 0.)
 
     def test_temperature(self):
         """
         test the first sensor return by module"
         """
         temperature = list(self.backend.iter_sensors("wetter", "Temperatur"))
-        assert temperature[0].name == u"Temperatur"
+        assert temperature[0].name == u"Temperatur 2m"
         assert temperature[0].unit == u"°C"
 
     def test_globalstrahlung(self):

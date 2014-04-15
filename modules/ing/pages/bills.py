@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2009-2012  Romain Bignon, Florent Fourcot
+# Copyright(C) 2009-2014  Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -17,64 +17,73 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.mech import ClientForm
 from weboob.capabilities.bill import Bill, Subscription
-from weboob.tools.browser import BasePage
+from weboob.tools.browser2 import HTMLPage, LoggedPage
+from weboob.tools.browser2.filters import Filter, Attr, CleanText, Format, Field, Env
+from weboob.tools.browser2.page import ListElement, ItemElement, method
 
 
 __all__ = ['BillsPage']
 
 
-class BillsPage(BasePage):
-    def on_loaded(self):
-        pass
+class FormId(Filter):
+    def filter(self, txt):
+        formid = txt.split("parameters")[1]
+        formid = formid.split("'")[2]
+        return formid
 
-    def iter_account(self):
-        ul = self.document.xpath('//ul[@class="unstyled striped"]')
-        javax = self.document.xpath("//form[@id='accountsel_form']/input[@name='javax.faces.ViewState']")
-        javax = javax[0].attrib['value']
-        #subscriber = unicode(self.document.find('//h5').text)
-        for li in ul[0].xpath('li'):
-            inputs = li.xpath('input')[0]
-            label = li.xpath('label')[0]
-            label = unicode(label.text)
-            formid = inputs.attrib['onclick']
-            formid = formid.split("parameters")[1]
-            formid = formid.split("'")[2]
-            id = inputs.attrib['value']
-            subscription = Subscription(id)
-            subscription.label = label
-            subscription._formid = formid
-            subscription._javax = javax
-            yield subscription
 
-    def postpredown(self, id):
-        self.browser.select_form("statements_form")
-        self.browser.set_all_readonly(False)
-        self.browser.controls.append(ClientForm.TextControl('text', 'AJAXREQUEST', {'value': 'statements_form:stat_region'}))
-        self.browser.controls.append(ClientForm.TextControl('text', id, {'value': id}))
-        self.browser.submit(nologin=True)
+class BillsPage(LoggedPage, HTMLPage):
+    @method
+    class iter_account(ListElement):
+        item_xpath = '//ul[@class="unstyled striped"]/li'
 
-    def islast(self):
-        return True
+        class item(ItemElement):
+            klass = Subscription
 
-    def next_page(self):
-        pass
+            obj__javax = Attr("//form[@id='accountsel_form']/input[@name='javax.faces.ViewState']", 'value')
+            obj_id = Attr('input', "value")
+            obj_label = CleanText('label')
+            obj__formid = FormId(Attr('input', 'onclick'))
 
-    def iter_bills(self, subscriptionid):
-        ul = self.document.xpath('//ul[@id="statements_form:statementsel"]')
-        lis = ul[0].xpath('li')
-        lis.pop(0)  # Select alls
-        for li in lis:
-            acheck = li.xpath('a')[0]
-            adirect = li.xpath('a')[1]
-            label = unicode(acheck.text_content())
-            id = subscriptionid + '-' + label.replace(' ', '-')
-            bill = Bill()
-            bill.id = id
-            bill.label = label
-            bill.format = u"pdf"
-            onmouse = adirect.attrib['onmouseover']
-            bill._localid = onmouse.split("'")[5]
-            bill._url = adirect.attrib['href']
-            yield bill
+    def postpredown(self, _id):
+        _id = _id.split("'")[5]
+        form = self.get_form(name="statements_form")
+        form['AJAXREQUEST'] = 'statements_form:stat_region'
+        form[_id] = _id
+        form.submit()
+
+    @method
+    class iter_bills(ListElement):
+        item_xpath = '//ul[@id="statements_form:statementsel"]/li'
+
+        def next_page(self):
+            lis = self.page.doc.xpath('//form[@name="years_form"]//li')
+            selected = False
+            ref = None
+            for li in lis:
+                if "rich-list-item selected" in li.attrib['class']:
+                    selected = True
+                else:
+                    if selected:
+                        ref = li.find('a').attrib['id']
+                        break
+            if ref is None:
+                return
+            form = self.page.get_form(name="years_form")
+            form.pop('years_form:j_idcl')
+            form.pop('years_form:_link_hidden_')
+            form['AJAXREQUEST'] = "years_form:year_region"
+            form[ref] = ref
+            return form.request
+
+        class item(ItemElement):
+            klass = Bill
+
+            condition = lambda self: not (u"tous les relev" in CleanText('a[1]')(self.el))
+
+            obj_label = CleanText('a[1]', replace=[(' ', '-')])
+            obj_id = Format(u"%s-%s", Env('subid'), Field('label'))
+            obj_format = u"pdf"
+            obj__url = Attr('a[2]', 'href')
+            obj__localid = Attr('a[2]', 'onmouseover')

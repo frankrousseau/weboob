@@ -19,6 +19,7 @@
 
 import re
 import datetime
+import time
 import urllib
 
 from weboob.capabilities import NotAvailable
@@ -27,7 +28,7 @@ from weboob.tools.json import json as simplejson
 from weboob.tools.browser import BaseBrowser
 from weboob.tools.browser.decorators import id2url
 
-from .pages import ArteLivePage, ArteLiveCategorieVideoPage, ArteLiveVideoPage
+from .pages import ArteLivePage, ArteLiveVideoPage
 from .video import ArteVideo, ArteLiveVideo
 
 __all__ = ['ArteBrowser']
@@ -36,14 +37,14 @@ __all__ = ['ArteBrowser']
 class ArteBrowser(BaseBrowser):
     DOMAIN = u'videos.arte.tv'
     ENCODING = None
-    PAGES = {r'http://liveweb.arte.tv/\w+': ArteLivePage,
-             r'http://liveweb.arte.tv/\w+/cat/.*': ArteLiveCategorieVideoPage,
-             r'http://arte.vo.llnwd.net/o21/liveweb/events/event-(?P<id>.+).xml': ArteLiveVideoPage,
-             }
+    PAGES = {r'http://concert.arte.tv/\w+': ArteLivePage,
+             r'http://concert.arte.tv/(?P<id>.+)': ArteLiveVideoPage,
+            }
 
     LIVE_LANG = {'F': 'fr',
                  'D': 'de'
                  }
+
     API_URL = 'http://arte.tv/papi/tvguide'
 
     def __init__(self, lang, quality, order, *args, **kwargs):
@@ -61,17 +62,19 @@ class ArteBrowser(BaseBrowser):
             video = self.create_video(result['video'])
         try:
             video.url = u'%s' % result['video']['VSR'][0]['VUR']
+            video.ext = u'%s' % result['video']['VSR'][0]['VMT']
         except:
-            video.url = self.get_default_url(url)
+            video.url, video.ext = self.get_default_url(url)
 
         return video
 
     def get_default_url(self, url):
         result = self.get_video_by_quality(url, 'ALL')
         try:
-            return u'%s' % result['video']['VSR'][0]['VUR']
+            return u'%s' % result['video']['VSR'][0]['VUR'], \
+                   u'%s' % result['video']['VSR'][0]['VMT']
         except:
-            return NotAvailable
+            return NotAvailable, NotAvailable
 
     def get_video_by_quality(self, url, quality):
         _url = url \
@@ -85,7 +88,44 @@ class ArteBrowser(BaseBrowser):
     def get_live_video(self, url, video=None):
         self.location(url)
         assert self.is_on_page(ArteLiveVideoPage)
-        return self.page.get_video(video, self.lang, self.quality)
+        json_url, video = self.page.get_video(video)
+        return self.fill_live_video(video, json_url)
+
+    def fill_live_video(self, video, json_url):
+        response = self.openurl(json_url)
+        result = simplejson.loads(response.read(), self.ENCODING)
+
+        quality = None
+        if 'VSR' in result['videoJsonPlayer']:
+            for item in result['videoJsonPlayer']['VSR']:
+                if self.quality in item:
+                    quality = item
+                    break
+
+            if not quality:
+                url = result['videoJsonPlayer']['VSR'][0]['url']
+                ext = result['videoJsonPlayer']['VSR'][0]['mediaType']
+            else:
+                url = result['videoJsonPlayer']['VSR'][quality]['url']
+                ext = result['videoJsonPlayer']['VSR'][quality]['mediaType']
+
+            video.url = u'%s' % url
+            video.ext = u'%s' % ext
+            if 'VDA' in result['videoJsonPlayer']:
+                date_string = result['videoJsonPlayer']['VDA'][:-6]
+
+                try:
+                    video.date = datetime.datetime.strptime(date_string, '%d/%m/%Y %H:%M:%S')
+                except TypeError:
+                    video.date = datetime.datetime(*(time.strptime(date_string, '%d/%m/%Y %H:%M:%S')[0:6]))
+
+            if 'VDU' in result['videoJsonPlayer'].keys():
+                video.duration = int(result['videoJsonPlayer']['VDU'])
+
+            if 'IUR' in result['videoJsonPlayer']['VTU'].keys():
+                video.thumbnail = BaseImage(result['videoJsonPlayer']['VTU']['IUR'])
+                video.thumbnail.url = video.thumbnail.id
+        return video
 
     def home(self):
         self.location('http://videos.arte.tv/%s/videos/toutesLesVideos' % self.lang)
@@ -132,9 +172,12 @@ class ArteBrowser(BaseBrowser):
         else:
             video.title = u'%s' % (item['VTI'])
         video.rating = int(item['VRT'])
-        url = u'%s' % item['programImage']
-        video.thumbnail = BaseImage(url)
-        video.thumbnail.url=video.thumbnail.id
+
+        if 'programImage' in item:
+            url = u'%s' % item['programImage']
+            video.thumbnail = BaseImage(url)
+            video.thumbnail.url=video.thumbnail.id
+
         video.duration = datetime.timedelta(seconds=int(item['videoDurationSeconds']))
         video.set_empty_fields(NotAvailable, ('url',))
         if 'VDE' in item:
@@ -182,11 +225,11 @@ class ArteBrowser(BaseBrowser):
         return self.create_video_from_plus7(result['videoList'])
 
     def get_arte_live_categories(self):
-        self.location('http://liveweb.arte.tv/%s' % self.LIVE_LANG[self.lang])
+        self.location('http://concert.arte.tv/%s' % self.LIVE_LANG[self.lang])
         assert self.is_on_page(ArteLivePage)
         return self.page.iter_resources()
 
-    def live_videos(self, url):
-        self.location(url)
-        assert self.is_on_page(ArteLiveCategorieVideoPage)
-        return self.page.iter_videos(self.LIVE_LANG[self.lang])
+    def live_videos(self, cat):
+        self.location('http://concert.arte.tv/%s' % self.LIVE_LANG[self.lang])
+        assert self.is_on_page(ArteLivePage)
+        return self.page.iter_videos(cat, lang=self.LIVE_LANG[self.lang])
