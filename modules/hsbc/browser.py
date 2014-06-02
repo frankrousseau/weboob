@@ -22,7 +22,7 @@ import ssl
 from datetime import timedelta
 
 from weboob.tools.date import LinearDateGuesser
-from weboob.tools.browser import  BrowserIncorrectPassword
+from weboob.tools.exceptions import  BrowserIncorrectPassword
 from weboob.tools.browser2 import LoginBrowser, URL, need_login
 from .pages import AccountsPage, CBOperationPage, CPTOperationPage, LoginPage
 
@@ -79,16 +79,7 @@ class HSBC(LoginBrowser):
     def get_accounts_list(self):
         return self.accounts.stay_or_go().iter_accounts()
 
-    def get_account(self, id):
-        assert isinstance(id, basestring)
-        l = self.get_accounts_list()
-
-        for a in l:
-            if a.id == id:
-                return a
-
-        return None
-
+    @need_login
     def get_history(self, account):
         if account._link_id is None:
             return

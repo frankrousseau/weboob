@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2011 Laurent Bachelier
+# Copyright(C) 2014 Romain Bignon
 #
 # This file is part of weboob.
 #
@@ -18,16 +18,33 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.capabilities.paste import BasePaste
+class BrowserIncorrectPassword(Exception):
+    pass
 
 
-__all__ = ['PastealaconPaste']
+class BrowserForbidden(Exception):
+    pass
 
 
-class PastealaconPaste(BasePaste):
-    # all pastes are public
-    public = True
+class BrowserBanned(BrowserIncorrectPassword):
+    pass
 
-    @classmethod
-    def id2url(cls, _id):
-        return 'http://pastealacon.com/%s' % _id
+
+class BrowserPasswordExpired(BrowserIncorrectPassword):
+    pass
+
+
+class BrowserUnavailable(Exception):
+    pass
+
+
+class BrowserHTTPNotFound(BrowserUnavailable):
+    pass
+
+
+class BrowserHTTPError(BrowserUnavailable):
+    pass
+
+
+class ParseError(Exception):
+    pass

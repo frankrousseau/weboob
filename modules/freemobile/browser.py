@@ -18,19 +18,19 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 from weboob.tools.browser2 import LoginBrowser, URL, need_login
-from weboob.tools.browser import BrowserIncorrectPassword
+from weboob.tools.exceptions import BrowserIncorrectPassword
 from .pages import HomePage, LoginPage, HistoryPage, DetailsPage
 
 __all__ = ['Freemobile']
 
 
 class Freemobile(LoginBrowser):
-    BASEURL = 'https://mobile.free.fr'
+    BASEURL = 'https://mobile.free.fr/moncompte/'
 
-    homepage = URL('/moncompte/index.php\?page=home', HomePage)
-    detailspage = URL('/moncompte/index.php\?page=suiviconso', DetailsPage)
-    loginpage = URL('/moncompte/index.php', LoginPage)
-    historypage = URL('/moncompte/ajax.php\?page=consotel_current_month', HistoryPage)
+    homepage = URL('index.php\?page=home', HomePage)
+    detailspage = URL('index.php\?page=suiviconso', DetailsPage)
+    loginpage = URL('index.php', LoginPage)
+    historypage = URL('ajax.php\?page=consotel_current_month', HistoryPage)
 
     def do_login(self):
         assert isinstance(self.username, basestring)

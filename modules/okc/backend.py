@@ -21,19 +21,18 @@
 
 import time
 import datetime
-from html2text import unescape
 from dateutil import tz
 from dateutil.parser import parse as _parse_dt
 
-from weboob.capabilities.base import NotLoaded
 from weboob.capabilities.messages import ICapMessages, ICapMessagesPost, Message, Thread
-#from weboob.capabilities.dating import ICapDating, OptimizationNotFound, Event
-from weboob.capabilities.contact import ICapContact, ContactPhoto, Contact
+from weboob.capabilities.dating import ICapDating, OptimizationNotFound, Event
+from weboob.capabilities.contact import ICapContact, ContactPhoto, Contact, Query, QueryError
 from weboob.tools.backend import BaseBackend, BackendConfig
 from weboob.tools.value import Value, ValueBackendPassword
 from weboob.tools.misc import local2utc
 
 from .browser import OkCBrowser
+from .optim.profiles_walker import ProfilesWalker
 
 
 __all__ = ['OkCBackend']
@@ -64,16 +63,17 @@ def parse_dt(s):
     return local2utc(d)
 
 
-class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
+class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost, ICapDating):
     NAME = 'okc'
     MAINTAINER = u'Roger Philibert'
     EMAIL = 'roger.philibert@gmail.com'
-    VERSION = '0.i'
+    VERSION = '0.j'
     LICENSE = 'AGPLv3+'
     DESCRIPTION = u'OkCupid dating website'
     CONFIG = BackendConfig(Value('username',                label='Username'),
                            ValueBackendPassword('password', label='Password'))
-    STORAGE = {
+    STORAGE = {'profiles_walker': {'viewed': []},
+            'queries_queue': {'queue': []},
                'sluts': {},
                #'notes': {},
               }
@@ -81,6 +81,31 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
 
     def create_default_browser(self):
         return self.create_browser(self.config['username'].get(), self.config['password'].get())
+
+    # ---- ICapDating methods ---------------------
+    def init_optimizations(self):
+        self.add_optimization('PROFILE_WALKER', ProfilesWalker(self.weboob.scheduler, self.storage, self.browser))
+
+    def iter_events(self):
+        all_events = {}
+        with self.browser:
+            all_events[u'visits'] =  (self.browser.get_visits, 'Visited by %s')
+        for type, (events, message) in all_events.iteritems():
+            for event in events():
+                e = Event(event['who']['id'])
+
+                e.date = parse_dt(event['date'])
+                e.type = type
+                # if 'who' in event:
+                #     e.contact = self._get_partial_contact(event['who'])
+                # else:
+                #     e.contact = self._get_partial_contact(event)
+
+                # if not e.contact:
+                #     continue
+
+                # e.message = message % e.contact.name
+                yield e
 
     # ---- ICapMessages methods ---------------------
 
@@ -113,20 +138,25 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
             thread = id
             id = thread.id
 
+        if not thread and isinstance(id, basestring) and not id.isdigit():
+            for t in self.browser.get_threads_list():
+                if t['username'] == id:
+                    id = t['id']
+                    break
+            else:
+                return None
+
         if not thread:
             thread = Thread(int(id))
             thread.flags = Thread.IS_DISCUSSION
-            full = False
-        else:
-            full = True
 
         with self.browser:
-            mails = self.browser.get_thread_mails(id, 100)
+            mails = self.browser.get_thread_mails(id)
             my_name = self.browser.get_my_name()
 
         child = None
         msg = None
-        slut = self._get_slut(mails['member']['pseudo'])
+        slut = self._get_slut(thread.id)
         if contacts is None:
             contacts = {}
 
@@ -134,8 +164,8 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
             thread.title = u'Discussion with %s' % mails['member']['pseudo']
 
         for mail in mails['messages']:
-            flags = Message.IS_HTML
-            if parse_dt(mail['date']) > slut['lastmsg'] and mail['id_from'] != self.browser.get_my_name():
+            flags = 0
+            if mail['date'] > slut['lastmsg']:
                 flags |= Message.IS_UNREAD
 
                 if get_profiles:
@@ -146,16 +176,16 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
             signature = u''
             if mail.get('src', None):
                 signature += u'Sent from my %s\n\n' % mail['src']
-            if mail['id_from'] in contacts:
+            if contacts.get(mail['id_from'], None) is not None:
                 signature += contacts[mail['id_from']].get_text()
 
             msg = Message(thread=thread,
-                          id=int(time.strftime('%Y%m%d%H%M%S', parse_dt(mail['date']).timetuple())),
+                          id=int(time.strftime('%Y%m%d%H%M%S', mail['date'].timetuple())),
                           title=thread.title,
                           sender=mail['id_from'],
                           receivers=[my_name if mail['id_from'] != my_name else mails['member']['pseudo']],
-                          date=parse_dt(mail['date']),
-                          content=unescape(mail['message']).strip(),
+                          date=mail['date'],
+                          content=mail['message'],
                           signature=signature,
                           children=[],
                           flags=flags)
@@ -165,51 +195,26 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
 
             child = msg
 
-        if full and msg:
-            # If we have get all the messages, replace NotLoaded with None as
-            # parent.
+        if msg:
             msg.parent = None
-        if not full and not msg:
-            # Perhaps there are hidden messages
-            msg = NotLoaded
 
         thread.root = msg
 
         return thread
 
-    #def iter_unread_messages(self, thread=None):
-    #    try:
-    #        contacts = {}
-    #        with self.browser:
-    #            threads = self.browser.get_threads_list()
-    #        for thread in threads:
-    #            if thread['member'].get('isBan', thread['member'].get('dead', False)):
-    #                with self.browser:
-    #                    self.browser.delete_thread(int(thread['member']['id']))
-    #                continue
-    #            if self.antispam and not self.antispam.check_thread(thread):
-    #                self.logger.info('Skipped a spam-unread-thread from %s' % thread['member']['pseudo'])
-    #                self.report_spam(thread['member']['pseudo'])
-    #                continue
-    #            slut = self._get_slut(thread['member']['pseudo'])
-    #            if parse_dt(thread['date']) > slut['lastmsg']:
-    #                t = self.get_thread(thread['member']['pseudo'], contacts, get_profiles=True)
-    #                for m in t.iter_all_messages():
-    #                    if m.flags & m.IS_UNREAD:
-    #                        yield m
-
-    #    except BrowserUnavailable as e:
-    #        self.logger.debug('No messages, browser is unavailable: %s' % e)
-    #        pass # don't care about waiting
+    def iter_unread_messages(self, thread=None):
+        contacts = {}
+        for thread in self.browser.get_threads_list():
+            t = self.get_thread(thread['username'], contacts, get_profiles=True)
+            for m in t.iter_all_messages():
+                if m.flags & m.IS_UNREAD:
+                    yield m
 
     def set_message_read(self, message):
-        if message.sender == self.browser.get_my_name():
-            return
-
-        slut = self._get_slut(message.sender)
+        slut = self._get_slut(message.thread.id)
         if slut['lastmsg'] < message.date:
             slut['lastmsg'] = message.date
-            self.storage.set('sluts', message.sender, slut)
+            self.storage.set('sluts', message.thread.id, slut)
             self.storage.save()
 
     def _get_slut(self, id):
@@ -230,7 +235,7 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
             # Check wether we already have a thread with this user
             threads = self.browser.get_threads_list()
             for thread in threads:
-                if thread['username'] == message.thread.id:
+                if thread['id'] == message.thread.id:
                     self.browser.post_reply(thread['id'], content)
                     break
             else:
@@ -281,7 +286,7 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
                 contact = Contact(_id, profile['id'], Contact.STATUS_OFFLINE)
             contact.url = 'http://%s/profile/%s' % (self.browser.DOMAIN, _id)
             contact.profile = profile['data']
-            contact.summary = profile['summary']
+            contact.summary = profile.get('summary', '')
 
             if contact.profile['details']['last_online'].value == u'Online now!':
                 contact.status = Contact.STATUS_ONLINE
@@ -323,33 +328,33 @@ class OkCBackend(BaseBackend, ICapMessages, ICapContact, ICapMessagesPost):
 
     def iter_contacts(self, status=Contact.STATUS_ALL, ids=None):
         with self.browser:
-            threads = self.browser.get_threads_list(count=100)
+            threads = self.browser.get_threads_list()
 
         for thread in threads:
-            c = self._get_partial_contact(thread['member'])
+            c = self.get_contact(thread['username'])
             if c and (c.status & status) and (not ids or c.id in ids):
                 yield c
 
-    #def send_query(self, id):
-    #    if isinstance(id, Contact):
-    #        id = id.id
+    def send_query(self, id):
+        if isinstance(id, Contact):
+            id = id.id
 
-    #    queries_queue = None
-    #    try:
-    #        queries_queue = self.get_optimization('QUERIES_QUEUE')
-    #    except OptimizationNotFound:
-    #        pass
+        queries_queue = None
+        try:
+            queries_queue = self.get_optimization('QUERIES_QUEUE')
+        except OptimizationNotFound:
+            pass
 
-    #    if queries_queue and queries_queue.is_running():
-    #        if queries_queue.enqueue_query(id):
-    #            return Query(id, 'A charm has been sent')
-    #        else:
-    #            return Query(id, 'Unable to send charm: it has been enqueued')
-    #    else:
-    #        with self.browser:
-    #            if not self.browser.send_charm(id):
-    #                raise QueryError('No enough charms available')
-    #            return Query(id, 'A charm has been sent')
+        if queries_queue and queries_queue.is_running():
+            if queries_queue.enqueue_query(id):
+                return Query(id, 'A profile was visited')
+            else:
+                return Query(id, 'Unable to visit profile: it has been enqueued')
+        else:
+            with self.browser:
+                if not self.browser.visit_profile(id):
+                    raise QueryError('Could not visit profile')
+                return Query(id, 'Profile was visited')
 
     #def get_notes(self, id):
     #    if isinstance(id, Contact):

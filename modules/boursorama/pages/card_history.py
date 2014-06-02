@@ -29,7 +29,7 @@ __all__ = ['CardHistory']
 
 
 class Transaction(FrenchTransaction):
-    PATTERNS = [(re.compile('^(ACHAT|PAIEMENT) CARTE (?P<dd>\d{2})(?P<mm>\d{2})(?P<yy>\d{2}) (?P<text>.*)'),
+    PATTERNS = [(re.compile('^(ACHAT |PAIEMENT )?CARTE (?P<dd>\d{2})(?P<mm>\d{2})(?P<yy>\d{2}) (\d{2} )?(?P<text>.*)'),
                                                             FrenchTransaction.TYPE_CARD),
                 (re.compile('^RETRAIT DAB (?P<dd>\d{2})(?P<mm>\d{2})(?P<yy>\d{2}) (?P<text>.*)'),
                                                             FrenchTransaction.TYPE_WITHDRAWAL)
@@ -42,7 +42,7 @@ class CardHistory(BasePage):
             for tr in form.xpath('.//tbody/tr'):
                 tds = tr.xpath('./td')
 
-                if tr.attrib.get('class', '') == 'total' or 'style' in tr.attrib or len(tds) < 3:
+                if tr.attrib.get('class', '') in ('total gras', 'visible-phone') or 'style' in tr.attrib or len(tds) < 3:
                     continue
 
                 date = self.parser.tocleanstring(tds[0])
@@ -61,4 +61,15 @@ class CardHistory(BasePage):
                 yield operation
 
     def get_next_url(self):
-        return None
+        items = self.document.getroot().cssselect('ul.menu-lvl-1 li')
+
+        current = False
+        for li in reversed(items):
+            if li.attrib.get('class', '') == 'active':
+                current = True
+            elif current:
+                a = li.find('a')
+                if 'year' in a.attrib.get('href', ''):
+                    return a.attrib['href']
+                else:
+                    return None

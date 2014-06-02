@@ -18,6 +18,8 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
+from __future__ import print_function
+
 import os
 import sys
 import subprocess
@@ -105,7 +107,7 @@ class IFormatter(object):
     def output(self, formatted):
         if self.outfile != sys.stdout:
             with open(self.outfile, "a+") as outfile:
-                outfile.write(formatted.encode('utf-8'))
+                outfile.write(formatted.encode('utf-8') + os.linesep)
 
         else:
             for line in formatted.split('\n'):
@@ -118,7 +120,7 @@ class IFormatter(object):
 
                 if isinstance(line, unicode):
                     line = line.encode('utf-8')
-                print line
+                print(line)
                 self.print_lines += 1
 
     def start_format(self, **kwargs):
@@ -214,7 +216,7 @@ class PrettyFormatter(IFormatter):
                                     self.colored(title, 'yellow', 'bold'))
 
         if desc is not None:
-            result += u'\n\t%s' % self.colored(desc, 'white')
+            result += u'%s\t%s' % (os.linesep, self.colored(desc, 'white'))
 
         return result
 

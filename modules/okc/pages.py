@@ -18,10 +18,12 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 import re
+from datetime import datetime
 
 from weboob.tools.browser import BasePage
 from weboob.tools.ordereddict import OrderedDict
 from weboob.capabilities.contact import ProfileNode
+from weboob.tools.misc import local2utc, html2text
 
 
 class LoginPage(BasePage):
@@ -41,30 +43,38 @@ class ThreadPage(BasePage):
             _class = elem.get('class', '')
             if 'clearfix' in _class.split():
                 threads.append({
-                        u'username' : unicode(elem.getchildren()[0].get('href').split('/')[-1]),
+                        u'username' : unicode(elem.getchildren()[0].get('href').split('/')[-1].split('?')[0]),
                         u'id' : unicode(elem.get('id', '').split('_')[1]),
+                        u'date' : unicode(elem.find('.//p[@class="date"]').text)
                 })
 
         return threads
 
 
 class MessagesPage(BasePage):
-    def get_thread_mails(self, count):
-        ul_item = self.parser.select(self.document.getroot(), "//ul[@id='rows']", method='xpath')[0]
-
+    def get_thread_mails(self):
         mails = {
             'member' : {},
             'messages' : [],
         }
 
-        for li_msg in ul_item.getchildren():
-            div = li_msg.getchildren()[1]
-            txt = self.parser.tostring(div.getchildren()[1])
-            date = div.getchildren()[2].text
-            id_from = li_msg.getchildren()[0].get('href').split('/')[-1]
+        try:
+            mails['member']['pseudo'] = self.parser.tocleanstring(self.document.getroot().cssselect('div#message_heading div.username span.name')[0])
+        except IndexError:
+            mails['member']['pseudo'] = 'Unknown'
 
-            if date is not None:
-                date = unicode(date)
+        for li in reversed(self.document.xpath('//ul[@id="thread"]//li[contains(@id, "message_")]')):
+            try:
+                txt = self.parser.tostring(li.xpath('.//div[@class="message_body"]')[0])
+            except IndexError:
+                continue # 'Match' message
+            txt = html2text(txt).strip()
+
+            m = re.search(r'(\d+), ', li.xpath('.//span[@class="timestamp"]//script')[0].text)
+            assert m
+            date = local2utc(datetime.fromtimestamp(int(m.group(1))))
+
+            id_from = li.find('a').attrib['href'].split('/')[-1].split('?')[0]
 
             mails['messages'].append({
                 'date' : date,
@@ -100,6 +110,21 @@ class MessagesPage(BasePage):
 
 
 class ProfilePage(BasePage):
+    def get_visit_button_params(self):
+        links = self.parser.select(self.document.getroot(), "//a", method='xpath')
+        for a in links:
+            # Premium users can browse anonymusly, need to click on a button to let the other person her profile was visited
+            onclick = a.get("onclick")
+
+            if onclick is None:
+                continue
+            for line in onclick.splitlines():
+                match = re.match("^Profile\.action\({stalk:(\d*),u:'(\w*)',tuid:'(\d+)'}", line)
+                if match is not None:
+                    return match.groups()
+        # Default case : no premium, profile already visited
+        return None, None, None
+
     def get_profile(self):
         title = self.parser.select(self.document.getroot(), 'title', 1)
         if title.text == 'OkCupid: Account Not Found':
@@ -125,34 +150,25 @@ class ProfilePage(BasePage):
 
         div_essays = self.parser.select(self.document.getroot(), "//div[@class='essay']", method='xpath')
         h3_essays = self.parser.select(self.document.getroot(), "//div[@id='page_content']//h3", method='xpath')
-        essays = dict(zip(h3_essays, div_essays))
+        essays = OrderedDict(zip(h3_essays, div_essays))
 
-        profile['summary'] = unicode(div_essays[0].text.strip())
-
+        profile['data']['look_for'] = ProfileNode('look_for', u'Look for', OrderedDict(), flags=ProfileNode.SECTION)
+        profile['data']['details'] = ProfileNode('details', u'Details', OrderedDict(), flags=ProfileNode.SECTION)
         profile['data']['essays'] = ProfileNode('essays', u'Essays', OrderedDict(), flags=ProfileNode.SECTION)
 
         for label, val in essays.iteritems():
             label = unicode(label.text).strip()
-            val = unicode(val.text).strip()
-            key = label.replace(' ', '_')
-            profile['data']['essays'].value[key] = ProfileNode(key, label, val)
-        #profile['data']['look_for'].value['orientation'] = ProfileNode('orientation', 'Orientation', div_essays[9].getchildren()[0].getchildren()[0].text.strip())
-        #profile['data']['look_for'].value['location'] = ProfileNode('location', 'Location', div_essays[9].getchildren()[0].getchildren()[2].text.strip())
-        #profile['data']['look_for'].value['relationship'] = ProfileNode('relationship', 'Relationship', div_essays[9].getchildren()[0].getchildren()[3].text.strip())
-        #profile['data']['look_for'].value['what_for'] = ProfileNode('what_for', 'What for', div_essays[9].getchildren()[0].getchildren()[4].text.split('\n')[1].strip().split(', '))
-
-        #age = div_essays[9].getchildren()[0].getchildren()[1].text[5:].strip().split(u'–')
-        #profile['data']['look_for'].value['age_min'] = ProfileNode('age_min', 'Age min', int(age[0]))
-        #profile['data']['look_for'].value['age_max'] = ProfileNode('age_max', 'Age max', int(age[1]))
-
-        #div_essays = div_essays[1:-1]
-        #h3_essays = h3_essays[1:-1]
-
-        #for i, title in enumerate(h3_essays):
-        #    profile['data']['essays'].value['essay_%i' % i] = ProfileNode('essay_%i' % i, title.text, div_essays[i].text.strip())
+            txt = self.parser.tocleanstring(val)
+            if 'looking for' in label:
+                for i, li in enumerate(val.xpath('.//li')):
+                    profile['data']['look_for'].value['look_for_%s' % i] = ProfileNode('look_for_%s' % i, '', li.text.strip())
+            elif 'summary' in label and not 'summary' in profile:
+                profile['summary'] = txt
+            else:
+                key = label.replace(' ', '_')
+                profile['data']['essays'].value[key] = ProfileNode(key, label, txt)
 
         details_div = self.parser.select(self.document.getroot(), "//div[@id='details']//li", method='xpath')
-        profile['data']['details'] = ProfileNode('details', u'Details', OrderedDict(), flags=ProfileNode.SECTION)
         for elem in details_div:
             label = unicode(elem.getchildren()[0].text.strip())
             val = unicode(elem.getchildren()[1].text.strip())
@@ -171,6 +187,77 @@ class PhotosPage(BasePage):
 class PostMessagePage(BasePage):
     def post_mail(self, id, content):
         self.browser.select_form(name='f2')
-        self.browser['r1'] = id
-        self.browser['body'] = content
+        self.browser['r1'] = id.encode('utf-8')
+        self.browser['body'] = content.encode('utf-8')
         self.browser.submit()
+
+class VisitsPage(BasePage):
+    def get_visits(self):
+        ul_item = self.parser.select(self.document.getroot(), '//*[@id="page_content"]/ul[3]', method='xpath')[0]
+        visitors = []
+        for li in ul_item:
+            visitor_id = unicode(li.get('id')[4:])
+            visitor_timestamp = unicode(self.parser.select(li, './/div/span', method='xpath')[0].text.strip())
+            visitors.append({
+                'who': {
+                    'id': visitor_id
+                },
+                'date': visitor_timestamp
+            })
+        return visitors
+
+class QuickMatchPage(BasePage):
+    def get_id(self):
+        element = self.parser.select(self.document.getroot(), '//*[@id="sn"]', method='xpath')[0]
+        visitor_id = unicode(element.get('value'))
+        return visitor_id
+
+    def get_rating_params(self):
+        # initialization
+        userid = None
+        tuid = None
+
+        # looking for CURRENTUSERID
+        js = self.parser.select(self.document.getroot(), "//script", method='xpath')
+        for script in js:
+            script = script.text
+
+            if script is None:
+                continue
+            for line in script.splitlines():
+                match = re.match('.*var\s*CURRENTUSERID\s*=\s*"(\d+)"', line)
+                if match is not None:
+                    (userid,) = match.groups()
+
+        # Looking for target userid (tuid)
+        element = self.parser.select(self.document.getroot(), '//*[@id="star_5_top"]', method='xpath')[0]
+        onclick = element.get("onclick")
+
+        if onclick is None:
+            pass
+        for line in onclick.splitlines():
+            match = re.match("^Quickmatch\.vote\(\d,\s*'(\w*)'*", line)
+            if match is not None:
+                (tuid,) = match.groups()
+
+        # Building params hash
+        if userid and tuid:
+            params = {
+                'voterid': userid,
+                'target_userid': tuid,
+                'target_objectid': 0,
+                'type': 'vote',
+                'vote_type': 'personality',
+                'score': 5,
+            }
+            return '/vote_handler', 1,params
+        else:
+            raise Exception('Unexpected reply page')
+
+
+        # VoteHandler.process('vote', 'personality', stars, tuid, pass.succeed, pass.failure);
+        # var params = {voterid: CURRENTUSERID,target_userid: tuid,target_objectid: 0,type: vote_or_note,vote_type: vote_type,score: rating}
+
+
+class SentPage(BasePage):
+    pass

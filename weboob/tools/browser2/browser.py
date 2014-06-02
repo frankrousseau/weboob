@@ -17,10 +17,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 
 import re
-from urlparse import urlparse, urljoin
+try:
+    from urllib.parse import urlparse, urljoin
+except ImportError:
+    from urlparse import urlparse, urljoin
 import mimetypes
 import os
 import tempfile
@@ -157,7 +160,7 @@ class BaseBrowser(object):
     def _save(self, response, warning=False, **kwargs):
         if self.responses_dirname is None:
             self.responses_dirname = tempfile.mkdtemp(prefix='weboob_session_')
-            print >>sys.stderr, 'Debug data will be saved in this directory: %s' % self.responses_dirname
+            print('Debug data will be saved in this directory: %s' % self.responses_dirname, file=sys.stderr)
         elif not os.path.isdir(self.responses_dirname):
             os.makedirs(self.responses_dirname)
 
@@ -170,7 +173,7 @@ class BaseBrowser(object):
             # try to get an extension (and avoid adding 'None')
             ext = mimetypes.guess_extension(mimetype, False) or ''
 
-        path = re.sub('[^A-z0-9\.-_]+', '_', urlparse(response.url).path.rpartition('/')[2])[-10:]
+        path = re.sub(r'[^A-z0-9\.-_]+', '_', urlparse(response.url).path.rpartition('/')[2])[-10:]
         if path.endswith(ext):
             ext = ''
         filename = '%02d-%d%s%s%s' % \
@@ -254,6 +257,7 @@ class BaseBrowser(object):
                    verify=None,
                    cert=None,
                    proxies=None,
+                   data_encoding=None,
                    **kwargs):
         """
         Make an HTTP request like a browser does:
@@ -284,7 +288,7 @@ class BaseBrowser(object):
 
         :rtype: :class:`requests.Response`
         """
-        req = self.build_request(url, referrer, **kwargs)
+        req = self.build_request(url, referrer, data_encoding=data_encoding, **kwargs)
         preq = self.prepare_request(req)
 
         if hasattr(preq, '_cookies'):
@@ -318,7 +322,7 @@ class BaseBrowser(object):
 
         return response
 
-    def build_request(self, url, referrer=None, **kwargs):
+    def build_request(self, url, referrer=None, data_encoding=None, **kwargs):
         """
         Does the same job as open(), but returns a Request without
         submitting it.
@@ -337,6 +341,13 @@ class BaseBrowser(object):
             else:
                 req.method = 'GET'
 
+        # convert unicode strings to proper encoding
+        if isinstance(req.data, unicode) and data_encoding:
+            req.data = req.data.encode(data_encoding)
+        if isinstance(req.data, dict) and data_encoding:
+            req.data = dict([(k, v.encode(data_encoding) if isinstance(v, unicode) else v)
+                             for k, v in req.data.iteritems()])
+
         if referrer is None:
             referrer = self.get_referrer(self.url, url)
         if referrer:
@@ -353,7 +364,7 @@ class BaseBrowser(object):
         """
         return self.session.prepare_request(req)
 
-    REFRESH_RE = re.compile("^(?P<sleep>[\d\.]+)(; url=[\"']?(?P<url>.*?)[\"']?)?$", re.IGNORECASE)
+    REFRESH_RE = re.compile(r"^(?P<sleep>[\d\.]+)(; url=[\"']?(?P<url>.*?)[\"']?)?$", re.IGNORECASE)
 
     def handle_refresh(self, response):
         """

@@ -22,7 +22,7 @@ import re
 
 from weboob.tools.browser import BasePage
 from weboob.capabilities.collection import Collection
-from weboob.capabilities.base import NotAvailable
+from weboob.capabilities.base import NotAvailable, NotLoaded
 from weboob.capabilities.image import BaseImage
 
 from .video import CanalplusVideo
@@ -58,7 +58,7 @@ class ChannelsPage(BasePage):
 
 
 class VideoPage(BasePage):
-    def parse_video(self, el, video=None, quality=None):
+    def parse_video(self, el, video=None):
         _id = el.find('ID').text
         if _id == '-1':
             # means the video is not found
@@ -84,16 +84,14 @@ class VideoPage(BasePage):
             video.thumbnail.url = video.thumbnail.id
         else:
             video.thumbnail = NotAvailable
-        lastest_format = None
         for format in media.find('VIDEOS'):
             if format.text is None:
                 continue
-            if format.tag == quality:
+
+            if format.tag == 'HLS':
+                video.ext = u'm3u8'
                 video.url = unicode(format.text)
                 break
-            lastest_format = format
-        if not video.url and lastest_format is not None:
-            video.url = unicode(lastest_format.text)
 
         day, month, year = map(int, infos.find('PUBLICATION').find('DATE').text.split('/'))
         hour, minute, second = map(int, infos.find('PUBLICATION').find('HEURE').text.split(':'))
@@ -103,7 +101,9 @@ class VideoPage(BasePage):
 
     def iter_results(self):
         for vid in self.document.getchildren():
-            yield self.parse_video(vid)
+            video = self.parse_video(vid)
+            video.url = NotLoaded
+            yield video
 
     def iter_channel(self):
         for vid in self.document.getchildren():
@@ -112,13 +112,13 @@ class VideoPage(BasePage):
     def parse_video_channel(self, el):
         _id = el[0].text
         video = CanalplusVideo(_id)
-        video.title = el[2][3][0].text
+        video.title = u'%s' % el[2][5][0].text
         video.date = datetime.now()
         return video
 
-    def get_video(self, video, quality):
+    def get_video(self, video):
         _id = self.group_dict['id']
         for vid in self.document.getchildren():
             if not _id in vid.find('ID').text:
                 continue
-            return self.parse_video(vid, video, quality)
+            return self.parse_video(vid, video)

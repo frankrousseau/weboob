@@ -18,10 +18,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
+import logging
 import os
 import tempfile
-import logging
+
+import weboob.tools.date
 import yaml
+
+from .iconfig import ConfigError, IConfig
 
 try:
     from yaml import CLoader as Loader
@@ -30,10 +34,20 @@ except ImportError:
     from yaml import Loader
     from yaml import Dumper
 
-from .iconfig import IConfig, ConfigError
 
 
 __all__ = ['YamlConfig']
+
+
+class WeboobDumper(Dumper):
+    pass
+
+
+WeboobDumper.add_representer(weboob.tools.date.date,
+                             WeboobDumper.represent_date)
+
+WeboobDumper.add_representer(weboob.tools.date.datetime,
+                             WeboobDumper.represent_datetime)
 
 
 class YamlConfig(IConfig):
@@ -59,20 +73,16 @@ class YamlConfig(IConfig):
     def save(self):
         # write in a temporary file to avoid corruption problems
         with tempfile.NamedTemporaryFile(dir=os.path.dirname(self.path), delete=False) as f:
-            yaml.dump(self.values, f, Dumper=Dumper)
+            yaml.dump(self.values, f, Dumper=WeboobDumper)
         os.rename(f.name, self.path)
 
     def get(self, *args, **kwargs):
-        default = None
-        if 'default' in kwargs:
-            default = kwargs['default']
-
         v = self.values
         for a in args[:-1]:
             try:
                 v = v[a]
             except KeyError:
-                if not default is None:
+                if 'default' in kwargs:
                     v[a] = {}
                     v = v[a]
                 else:
@@ -83,7 +93,7 @@ class YamlConfig(IConfig):
         try:
             v = v[args[-1]]
         except KeyError:
-            v = default
+            v = kwargs.get('default')
 
         return v
 

@@ -26,7 +26,7 @@ from weboob.capabilities.bugtracker import ICapBugTracker, Issue, Project, User,
                                            Query, Change
 from weboob.capabilities.collection import ICapCollection, Collection, CollectionNotFound
 from weboob.tools.backend import BaseBackend, BackendConfig
-from weboob.tools.browser import BrowserHTTPNotFound
+from weboob.tools.exceptions import BrowserHTTPNotFound
 from weboob.tools.value import ValueBackendPassword, Value
 
 from .browser import RedmineBrowser
@@ -39,7 +39,7 @@ class RedmineBackend(BaseBackend, ICapContent, ICapBugTracker, ICapCollection):
     NAME = 'redmine'
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
-    VERSION = '0.i'
+    VERSION = '0.j'
     DESCRIPTION = 'The Redmine project management web application'
     LICENSE = 'AGPLv3+'
     CONFIG = BackendConfig(Value('url',      label='URL of the Redmine website', regexp=r'https?://.*'),

@@ -18,16 +18,23 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from decimal import Decimal
+from dateutil.relativedelta import relativedelta
+from decimal import Decimal, InvalidOperation
 import re
+from cStringIO import StringIO
 
 from weboob.capabilities.bank import Account
-from weboob.tools.browser import BasePage, BrokenPageError
+from weboob.tools.browser2.page import HTMLPage, method, ListElement, ItemElement, LoggedPage
+from weboob.tools.browser2.filters import ParseError, CleanText, Regexp, Attr, CleanDecimal, Env
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard, VirtKeyboardError
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
 
 __all__ = ['LoginPage', 'IndexPage', 'AccountsPage', 'OperationsPage']
+
+
+class Transaction(FrenchTransaction):
+    PATTERNS = [(re.compile(ur'^(?P<text>.*?) - traité le \d+/\d+$'), FrenchTransaction.TYPE_CARD)]
 
 
 class VirtKeyboard(MappedVirtKeyboard):
@@ -46,9 +53,9 @@ class VirtKeyboard(MappedVirtKeyboard):
     color=(0,0,0)
 
     def __init__(self, page):
-        img = page.document.find("//img[@usemap='#cv']")
-        img_file = page.browser.openurl(img.attrib['src'])
-        MappedVirtKeyboard.__init__(self, img_file, page.document, img, self.color, 'href', convert='RGB')
+        img = page.doc.find("//img[@usemap='#cv']")
+        res = page.browser.open(img.attrib['src'])
+        MappedVirtKeyboard.__init__(self, StringIO(res.content), page.doc, img, self.color, 'href', convert='RGB')
 
         self.check_symbols(self.symbols, page.browser.responses_dirname)
 
@@ -70,7 +77,7 @@ class VirtKeyboard(MappedVirtKeyboard):
             except VirtKeyboardError:
                 continue
             else:
-                return ''.join(re.findall("'(\d+)'", code)[-2:])
+                return ''.join(re.findall(r"'(\d+)'", code)[-2:])
         raise VirtKeyboardError('Symbol not found')
 
     def get_string_code(self, string):
@@ -79,39 +86,79 @@ class VirtKeyboard(MappedVirtKeyboard):
             code += self.get_symbol_code(self.symbols[c])
         return code
 
-class LoginPage(BasePage):
+class LoginPage(HTMLPage):
     def login(self, login, password):
         vk = VirtKeyboard(self)
 
-        form = self.document.xpath('//form[@id="formulaire-login"]')[0]
+        form = self.get_form('//form[@id="formulaire-login"]')
         code = vk.get_string_code(password)
-        assert len(code)==10, BrokenPageError("Wrong number of character.")
-        self.browser.location(self.browser.buildurl(form.attrib['action'], identifiant=login, code=code), no_login=True)
+        assert len(code)==10, ParseError("Wrong number of character.")
+        form['identifiant'] = login
+        form['code'] = code
+        form.submit()
 
-class IndexPage(BasePage):
-    def get_list(self):
-        for line in self.document.xpath('//li[@id="menu-n2-mesproduits"]//li//a'):
-            if line.get('onclick') is None:
-                continue
-            account = Account()
-            account.id = line.get('onclick').split("'")[1]
-            account.label = self.parser.tocleanstring(line)
-            yield account
+class IndexPage(LoggedPage, HTMLPage):
+    @method
+    class get_list(ListElement):
+        item_xpath = '//li[@id="menu-n2-mesproduits"]//li//a'
+
+        class item(ItemElement):
+            klass = Account
+            obj_id = Regexp(Attr('.', 'onclick'), r"^[^']+'([^']+)'.*", r"\1")
+            obj_label = CleanText('.')
+
+            def condition(self):
+                return self.el.get('onclick') is not None
+
+    loan_init_date = Transaction.Date(CleanText('//table//td[contains(text(), "Date de sous")]/../td[2]'))
+    loan_next_date = Transaction.Date(CleanText('//table//td[contains(text(), "Prochaine")]/../td[2]'))
+    loan_nb = CleanText('//table//td[contains(text(), "Nombre de mensu") and contains(text(), "rembours")]/../td[2]')
+    loan_total_amount = CleanDecimal('//table//td/strong[contains(text(), "Montant emprunt")]/../../td[2]', replace_dots=False)
+    loan_amount = CleanDecimal('//table//td/strong[contains(text(), "Montant de la")]/../../td[2]', replace_dots=False)
 
     def get_loan_balance(self):
-        xpath = '//table//td/strong[contains(text(), "Montant emprunt")]/../../td[2]'
         try:
-            return - Decimal(FrenchTransaction.clean_amount(self.parser.tocleanstring(self.document.xpath(xpath)[0])))
-        except IndexError:
+            total_amount = - self.loan_total_amount(self.doc)
+        except InvalidOperation:
             return None
 
-    def get_card_name(self):
-        return self.parser.tocleanstring(self.document.xpath('//h1')[0])
+        nb = int(self.loan_nb(self.doc))
+        amount = self.loan_amount(self.doc)
 
-class AccountsPage(BasePage):
+        return total_amount + (nb*amount)
+
+    def iter_loan_transactions(self):
+        init_date = self.loan_init_date(self.doc)
+        next_date = self.loan_next_date(self.doc)
+        nb = int(self.loan_nb(self.doc))
+        total_amount = - self.loan_total_amount(self.doc)
+        amount = self.loan_amount(self.doc)
+
+        for _ in xrange(nb):
+            next_date = next_date - relativedelta(months=1)
+            tr = Transaction()
+            tr.raw = tr.label = u'Mensualité'
+            tr.date = tr.rdate = tr.vdate = next_date
+            tr.amount = amount
+            yield tr
+
+        tr = Transaction()
+        tr.raw = tr.label = u'Emprunt initial'
+        tr.date = tr.rdate = init_date
+        tr.amount = total_amount
+        yield tr
+
+    def get_card_name(self):
+        return CleanText('//h1[1]')(self.doc)
+
+class AccountsPage(LoggedPage, HTMLPage):
     def get_balance(self):
         balance = Decimal('0.0')
-        for line in self.document.xpath('//div[@class="detail"]/table//tr'):
+        lines = self.doc.xpath('//div[@class="detail"]/table//tr')
+        if len(lines) == 0:
+            return None
+
+        for line in lines:
             try:
                 left = line.xpath('./td[@class="gauche"]')[0]
                 right = line.xpath('./td[@class="droite"]')[0]
@@ -119,35 +166,38 @@ class AccountsPage(BasePage):
                 #useless line
                 continue
 
-            if len(left.xpath('./span[@class="precision"]')) == 0 and (left.text is None or not 'total' in left.text.lower()):
+            if len(left.xpath('./span[@class="precision"]')) == 0 or \
+               (left.text is None or not 'total' in left.text.lower()):
                 continue
 
-            balance -= Decimal(FrenchTransaction.clean_amount(right.text))
+            balance -= CleanDecimal('.', replace_dots=False)(right)
         return balance
 
 
-class OperationsPage(BasePage):
-    def get_history(self):
-        for tr in self.document.xpath('//div[contains(@class, "mod-listeoperations")]//table/tbody/tr'):
-            cols = tr.findall('td')
+class OperationsPage(LoggedPage, HTMLPage):
+    @method
+    class iter_transactions(ListElement):
+        item_xpath = '//div[contains(@class, "mod-listeoperations")]//table/tbody/tr'
 
-            date = self.parser.tocleanstring(cols[0])
-            raw = self.parser.tocleanstring(cols[1])
-            label = re.sub(u' - traité le \d+/\d+', '', raw)
+        class credit(ItemElement):
+            klass = Transaction
+            obj_type = Transaction.TYPE_CARD
+            obj_date = Transaction.Date('./td[1]')
+            obj_raw = Transaction.Raw('./td[2]')
+            obj_amount = Env('amount')
 
-            debit = self.parser.tocleanstring(cols[3])
-            if len(debit) > 0:
-                t = FrenchTransaction(0)
-                t.parse(date, raw)
-                t.label = label
-                t.set_amount(debit)
-                yield t
+            def condition(self):
+                self.env['amount'] = Transaction.Amount('./td[4]')(self.el)
+                return self.env['amount'] > 0
 
-            amount = self.parser.tocleanstring(cols[2])
-            if len(amount) > 0:
-                t = FrenchTransaction(0)
-                t.parse(date, raw)
-                t.label = label
-                t.set_amount(amount)
-                t.amount = - t.amount
-                yield t
+
+        class debit(ItemElement):
+            klass = Transaction
+            obj_type = Transaction.TYPE_CARD
+            obj_date = Transaction.Date('./td[1]')
+            obj_raw = Transaction.Raw('./td[2]')
+            obj_amount = Env('amount')
+
+            def condition(self):
+                self.env['amount'] = Transaction.Amount('', './td[3]')(self.el)
+                return self.env['amount'] < 0

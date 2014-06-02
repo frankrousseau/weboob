@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
+import requests
 import urllib
 
 import lxml.etree
@@ -55,8 +55,8 @@ class CanalplusBrowser(BaseBrowser):
     #We need lxml.etree.XMLParser to read CDATA
     PARSER = XMLParser()
     FORMATS = {
-        'sd': 'BAS_DEBIT',
-        'hd': 'HD',
+        'sd': 0,
+        'hd': -1,
         }
 
     def __init__(self, quality, *args, **kwargs):
@@ -73,7 +73,15 @@ class CanalplusBrowser(BaseBrowser):
     @id2url(CanalplusVideo.id2url)
     def get_video(self, url, video=None):
         self.location(url)
-        return self.page.get_video(video, self.quality)
+        video = self.page.get_video(video)
+        video.url = u'%s' % self.read_url(video.url)[self.quality]
+        return video
+
+    def read_url(self, url):
+        r = requests.get(url, stream=True)
+        buf = r.iter_lines()
+        r.close()
+        return [line for line in buf if not line.startswith('#')]
 
     def iter_resources(self, split_path):
         if not self.is_on_page(ChannelsPage):
@@ -92,13 +100,12 @@ class CanalplusBrowser(BaseBrowser):
             subchannels = self.iter_resources(split_path[0:1])
             try:
                 channel = [subchannel for subchannel in subchannels
-                            if split_path == subchannel.split_path][0]
+                           if split_path == subchannel.split_path][0]
                 self.location("http://service.canal-plus.com/video/rest/getMEAs/cplus/%s" % channel._link_id)
                 assert self.is_on_page(VideoPage)
                 for video in self.page.iter_channel():
                     yield video
             except IndexError:
                 raise CollectionNotFound(split_path)
-
         else:
             raise CollectionNotFound(split_path)

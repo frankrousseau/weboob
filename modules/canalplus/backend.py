@@ -17,9 +17,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
 import re
 
 from weboob.capabilities.video import ICapVideo, BaseVideo
@@ -39,7 +36,7 @@ class CanalplusBackend(BaseBackend, ICapVideo, ICapCollection):
     NAME = 'canalplus'
     MAINTAINER = u'Nicolas Duhamel'
     EMAIL = 'nicolas@jombi.fr'
-    VERSION = '0.i'
+    VERSION = '0.j'
     DESCRIPTION = 'Canal Plus French TV'
     LICENSE = 'AGPLv3+'
     CONFIG = BackendConfig(Value('quality', label='Quality of videos', choices=['hd', 'sd'], default='hd'))

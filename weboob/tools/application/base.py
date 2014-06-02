@@ -18,6 +18,8 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
+from __future__ import print_function
+
 import logging
 import optparse
 from optparse import OptionGroup, OptionParser
@@ -26,8 +28,7 @@ import sys
 import tempfile
 import warnings
 
-from weboob.capabilities.base import ConversionWarning
-from weboob.tools.browser.browser import FormFieldConversionWarning
+from weboob.capabilities.base import ConversionWarning, CapBaseObject
 from weboob.core import Weboob, CallErrors
 from weboob.core.backendscfg import BackendsConfig
 from weboob.tools.config.iconfig import ConfigError
@@ -162,6 +163,7 @@ class BaseApplication(object):
         logging_options.add_option('-a', '--save-responses', action='store_true', help='save every response')
         self._parser.add_option_group(logging_options)
         self._parser.add_option('--shell-completion', action='store_true', help=optparse.SUPPRESS_HELP)
+        self._is_default_count = True
 
     def deinit(self):
         self.weboob.want_stop()
@@ -249,6 +251,8 @@ class BaseApplication(object):
     def _do_complete_obj(self, backend, fields, obj):
         if not obj:
             return obj
+        if not isinstance(obj, CapBaseObject):
+            return obj
 
         obj.backend = backend.name
         if fields is None or len(fields) > 0:
@@ -263,7 +267,10 @@ class BaseApplication(object):
                 modif += 1
             else:
                 if count and i - modif == count:
-                    raise MoreResultsAvailable()
+                    if self._is_default_count:
+                        raise MoreResultsAvailable()
+                    else:
+                        return
                 yield sub
 
     def _do_complete(self, backend, count, selected_fields, function, *args, **kwargs):
@@ -289,9 +296,9 @@ class BaseApplication(object):
         if isinstance(error, MoreResultsAvailable):
             return False
 
-        print >>sys.stderr, u'Error(%s): %s' % (backend.name, error)
+        print(u'Error(%s): %s' % (backend.name, error), file=sys.stderr)
         if logging.root.level == logging.DEBUG:
-            print >>sys.stderr, backtrace
+            print(backtrace, file=sys.stderr)
         else:
             return True
 
@@ -316,7 +323,7 @@ class BaseApplication(object):
                 ask_debug_mode = True
 
         if ask_debug_mode:
-            print >>sys.stderr, debugmsg
+            print(debugmsg, file=sys.stderr)
 
     def parse_args(self, args):
         self.options, args = self._parser.parse_args(args)
@@ -327,7 +334,7 @@ class BaseApplication(object):
                 if not option.help is optparse.SUPPRESS_HELP:
                     items.update(str(option).split('/'))
             items.update(self._get_completions())
-            print ' '.join(items)
+            print(' '.join(items))
             sys.exit(0)
 
         if self.options.debug or self.options.save_responses:
@@ -344,13 +351,18 @@ class BaseApplication(object):
         # this only matters to developers
         if not self.options.debug and not self.options.save_responses:
             warnings.simplefilter('ignore', category=ConversionWarning)
-            warnings.simplefilter('ignore', category=FormFieldConversionWarning)
+            try:
+                from weboob.tools.browser.browser import FormFieldConversionWarning
+            except ImportError:
+                pass
+            else:
+                warnings.simplefilter('ignore', category=FormFieldConversionWarning)
 
         handlers = []
 
         if self.options.save_responses:
             responses_dirname = tempfile.mkdtemp(prefix='weboob_session_')
-            print >>sys.stderr, 'Debug data will be saved in this directory: %s' % responses_dirname
+            print('Debug data will be saved in this directory: %s' % responses_dirname, file=sys.stderr)
             log_settings['save_responses'] = True
             log_settings['responses_dirname'] = responses_dirname
             handlers.append(self.create_logging_file_handler(os.path.join(responses_dirname, 'debug.log')))
@@ -418,12 +430,12 @@ class BaseApplication(object):
         cls.setup_logging(logging.INFO, [cls.create_default_logger()])
 
         if args is None:
-            args = [(sys.stdin.encoding and arg.decode(sys.stdin.encoding) or to_unicode(arg)) for arg in sys.argv]
+            args = [(sys.stdin.encoding and isinstance(arg, bytes) and arg.decode(sys.stdin.encoding) or to_unicode(arg)) for arg in sys.argv]
 
         try:
             app = cls()
         except BackendsConfig.WrongPermissions as e:
-            print >>sys.stderr, e
+            print(e, file=sys.stderr)
             sys.exit(1)
 
         try:
@@ -431,12 +443,12 @@ class BaseApplication(object):
                 args = app.parse_args(args)
                 sys.exit(app.main(args))
             except KeyboardInterrupt:
-                print >>sys.stderr, 'Program killed by SIGINT'
+                print('Program killed by SIGINT', file=sys.stderr)
                 sys.exit(0)
             except EOFError:
                 sys.exit(0)
             except ConfigError as e:
-                print >>sys.stderr, 'Configuration error: %s' % e
+                print('Configuration error: %s' % e, file=sys.stderr)
                 sys.exit(1)
             except CallErrors as e:
                 try:
@@ -445,7 +457,7 @@ class BaseApplication(object):
                     pass
                 sys.exit(1)
             except ResultsConditionError as e:
-                print >>sys.stderr, '%s' % e
+                print('%s' % e, file=sys.stderr)
                 sys.exit(1)
         finally:
             app.deinit()

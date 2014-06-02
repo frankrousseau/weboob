@@ -34,12 +34,12 @@ class HSBCBackend(BaseBackend, ICapBank):
     NAME = 'hsbc'
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
-    VERSION = '0.i'
+    VERSION = '0.j'
     LICENSE = 'AGPLv3+'
     DESCRIPTION = 'HSBC France'
     CONFIG = BackendConfig(ValueBackendPassword('login',      label='Identifiant', masked=False),
                            ValueBackendPassword('password',   label='Mot de passe'),
-                           Value(               'secret',     label=u'Réponse secrète (optionnel)', default=''))
+                           Value(               'secret',     label=u'Réponse secrète'))
     BROWSER = HSBC
 
     def create_default_browser(self):

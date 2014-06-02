@@ -25,15 +25,13 @@ from decimal import Decimal, InvalidOperation
 import re
 import lxml.html as html
 
+from weboob.tools.exceptions import ParseError
 from weboob.tools.misc import html2text
+from weboob.tools.compat import basestring
 from weboob.capabilities.base import empty
 
 
 _NO_DEFAULT = object()
-
-
-class ParseError(Exception):
-    pass
 
 
 class FilterError(ParseError):
@@ -159,6 +157,30 @@ class TableCell(_Filter):
 
         return self.default_or_raise(ColumnNotFound('Unable to find column %s' % ' or '.join(self.names)))
 
+class Dict(Filter):
+    @classmethod
+    def select(cls, selector, item):
+        if isinstance(selector, basestring):
+            if isinstance(item, dict):
+                content = item
+            else:
+                content = item.el
+
+            for el in selector.split('/'):
+                if el not in content:
+                    raise ParseError()
+
+                content = content.get(el)
+
+            return content
+        elif callable(selector):
+            return selector(item)
+        else:
+            return selector
+
+    def filter(self, txt):
+        return txt
+
 class CleanHTML(Filter):
     def filter(self, txt):
         if isinstance(txt, (tuple,list)):
@@ -234,7 +256,7 @@ class CleanDecimal(CleanText):
         if self.replace_dots:
             text = text.replace('.','').replace(',','.')
         try:
-            return Decimal(re.sub(ur'[^\d\-\.]', '', text))
+            return Decimal(re.sub(r'[^\d\-\.]', '', text))
         except InvalidOperation as e:
             return self.default_or_raise(e)
 
@@ -317,27 +339,33 @@ class Map(Filter):
 
 
 class DateTime(Filter):
-    def __init__(self, selector, default=_NO_DEFAULT, dayfirst=False):
+    def __init__(self, selector, default=_NO_DEFAULT, dayfirst=False, translations=None):
         super(DateTime, self).__init__(selector, default=default)
         self.dayfirst = dayfirst
+        self.translations = translations
 
     def filter(self, txt):
-        if empty(txt):
-            return txt
+        if empty(txt) or txt == '':
+            return self.default_or_raise(ParseError('Unable to parse %r' % txt))
         try:
+            if self.translations:
+                 for search, repl in self.translations:
+                     txt = search.sub(repl, txt)
             return parse_date(txt, dayfirst=self.dayfirst)
         except ValueError as e:
             return self.default_or_raise(ParseError('Unable to parse %r: %s' % (txt, e)))
 
 
 class Date(DateTime):
-    def __init__(self, selector, default=_NO_DEFAULT, dayfirst=False):
-        super(Date, self).__init__(selector, default=default, dayfirst=dayfirst)
+    def __init__(self, selector, default=_NO_DEFAULT, dayfirst=False, translations=None):
+        super(Date, self).__init__(selector, default=default, dayfirst=dayfirst, translations=translations)
 
     def filter(self, txt):
         datetime = super(Date, self).filter(txt)
-        if datetime is not None:
+        if hasattr(datetime, 'date'):
             return datetime.date()
+        else:
+            return datetime
 
 
 class DateGuesser(Filter):
@@ -364,7 +392,7 @@ class DateGuesser(Filter):
 
 class Time(Filter):
     klass = datetime.time
-    regexp = re.compile(ur'(?P<hh>\d+):?(?P<mm>\d+)(:(?P<ss>\d+))?')
+    regexp = re.compile(r'(?P<hh>\d+):?(?P<mm>\d+)(:(?P<ss>\d+))?')
     kwargs = {'hour': 'hh', 'minute': 'mm', 'second': 'ss'}
 
     def __init__(self, selector, default=_NO_DEFAULT):
@@ -383,7 +411,7 @@ class Time(Filter):
 
 class Duration(Time):
     klass = datetime.timedelta
-    regexp = re.compile(ur'((?P<hh>\d+)[:;])?(?P<mm>\d+)[;:](?P<ss>\d+)')
+    regexp = re.compile(r'((?P<hh>\d+)[:;])?(?P<mm>\d+)[;:](?P<ss>\d+)')
     kwargs = {'hours': 'hh', 'minutes': 'mm', 'seconds': 'ss'}
 
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2011  Romain Bignon
+# Copyright(C) 2014      Bezleputh
 #
 # This file is part of weboob.
 #
@@ -18,17 +18,15 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.capabilities.video import BaseVideo
+from weboob.tools.test import BackendTest
 
 
-__all__ = ['PluzzVideo']
+class GroupamaesTest(BackendTest):
+    BACKEND = 'groupamaes'
 
-
-class PluzzVideo(BaseVideo):
-    def __init__(self, *args, **kwargs):
-        BaseVideo.__init__(self, *args, **kwargs)
-        self.ext = u'wmv'
-
-    @classmethod
-    def id2url(cls, _id):
-        return 'http://pluzz.francetv.fr/videos/%s.html' % _id
+    def test_groupamaes(self):
+        l = list(self.backend.iter_accounts())
+        if len(l) > 0:
+            a = l[0]
+            self.assertTrue(self.backend.get_account(l[0].id) is not None)
+            list(self.backend.iter_history(a))

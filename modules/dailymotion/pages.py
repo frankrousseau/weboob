@@ -38,7 +38,7 @@ __all__ = ['IndexPage', 'VideoPage', 'KidsVideoPage']
 
 class IndexPage(BasePage):
     def iter_videos(self):
-        for div in self.parser.select(self.document.getroot(), 'div.pl_videos_videolistitem'):
+        for div in self.parser.select(self.document.getroot(), 'div.sd_video_listitem'):
             smalldiv = self.parser.select(div, 'div.sd_video_previewtwig', 1)
             _id = smalldiv.attrib.get('data-id', None)
 
@@ -94,6 +94,10 @@ class VideoPage(BasePage):
         self.set_video_url(video)
 
         video.set_empty_fields(NotAvailable)
+
+        # Dailymotion video url is protected by a redirection with cookie verification
+        # so we need to use the "play_proxy" method using urllib2 proxy streaming to handle this
+        video._play_proxy = True
 
         return video
 
@@ -152,7 +156,6 @@ class VideoPage(BasePage):
             raise BrokenPageError(u'Unable to extract video URL')
 
         video.url = unicode(info[max_quality])
-
 
 class KidsVideoPage(VideoPage):
 

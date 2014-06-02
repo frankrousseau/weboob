@@ -18,6 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
+from weboob.capabilities.base import find_object
 from weboob.capabilities.bank import ICapBank, AccountNotFound
 from weboob.tools.backend import BaseBackend, BackendConfig
 from weboob.tools.value import ValueBackendPassword
@@ -34,7 +35,7 @@ class BanqueAccordBackend(BaseBackend, ICapBank):
     MAINTAINER = u'Romain Bignon'
     EMAIL = 'romain@weboob.org'
     LICENSE = 'AGPLv3+'
-    VERSION = '0.i'
+    VERSION = '0.j'
     CONFIG = BackendConfig(ValueBackendPassword('login',    label='Identifiant', regexp='\d+', masked=False),
                            ValueBackendPassword('password', label=u"Code d'accès", regexp='\d+'))
 
@@ -45,18 +46,10 @@ class BanqueAccordBackend(BaseBackend, ICapBank):
                                    self.config['password'].get())
 
     def iter_accounts(self):
-        with self.browser:
-             return self.browser.get_accounts_list()
+         return self.browser.get_accounts_list()
 
     def get_account(self, _id):
-        with self.browser:
-            account = self.browser.get_account(_id)
-
-        if account:
-            return account
-        else:
-            raise AccountNotFound()
+        return find_object(self.browser.get_accounts_list(), id=_id, error=AccountNotFound)
 
     def iter_history(self, account):
-        with self.browser:
-            return self.browser.iter_history(account)
+        return self.browser.iter_history(account)

@@ -30,7 +30,7 @@ from weboob.tools.newsfeed import Newsfeed
 class NewspaperPresseuropBackend(GenericNewspaperBackend, ICapMessages):
     MAINTAINER = u'Florent Fourcot'
     EMAIL = 'weboob@flo.fourcot.fr'
-    VERSION = '0.i'
+    VERSION = '0.j'
     LICENSE = 'AGPLv3+'
     STORAGE = {'seen': {}}
     NAME = 'presseurop'
@@ -47,7 +47,7 @@ class NewspaperPresseuropBackend(GenericNewspaperBackend, ICapMessages):
 
     def __init__(self, *args, **kwargs):
         GenericNewspaperBackend.__init__(self, *args, **kwargs)
-        self.RSS_FEED = 'http://www.presseurop.eu/%s/rss.xml' % self.config['lang'].get()
+        self.RSS_FEED = 'http://www.voxeurop.eu/%s/rss.xml' % self.config['lang'].get()
 
     def iter_threads(self):
         daily = []

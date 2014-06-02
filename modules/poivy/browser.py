@@ -18,8 +18,9 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 from weboob.tools.browser2 import LoginBrowser, URL, need_login
-from weboob.tools.browser import BrowserIncorrectPassword
+from weboob.tools.exceptions import BrowserIncorrectPassword
 from .pages import HomePage, LoginPage, HistoryPage, BillsPage, ErrorPage
+
 
 __all__ = ['PoivyBrowser']
 
@@ -51,4 +52,4 @@ class PoivyBrowser(LoginBrowser):
     @need_login
     def get_history(self):
         self.history.stay_or_go()
-        return self.pagination(lambda: self.page.get_calls())
+        return self.page.get_calls()

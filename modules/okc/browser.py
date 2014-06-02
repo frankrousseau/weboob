@@ -22,13 +22,21 @@ import urllib
 from weboob.tools.browser import BaseBrowser, BasePage
 from weboob.tools.ordereddict import OrderedDict
 
-from .pages import LoginPage, ThreadPage, MessagesPage, PostMessagePage, ProfilePage, PhotosPage
+from .pages import LoginPage, ThreadPage, MessagesPage, PostMessagePage, ProfilePage, PhotosPage, VisitsPage, QuickMatchPage, SentPage
 
 __all__ = ['OkCBrowser']
 
 
 class OkCException(Exception):
     pass
+
+
+def check_login(func):
+    def inner(self, *args, **kwargs):
+        if not self.logged_in:
+            self.login()
+        return func(self, *args, **kwargs)
+    return inner
 
 
 class OkCBrowser(BaseBrowser):
@@ -40,9 +48,12 @@ class OkCBrowser(BaseBrowser):
             ('http://%s/home' % DOMAIN, BasePage),
             ('http://%s/messages' % DOMAIN, ThreadPage),
             ('http://%s/messages\?compose=1' % DOMAIN, PostMessagePage),
-            ('http://%s/messages\?.*' % DOMAIN, MessagesPage),
+            ('http://\w+.okcupid.com/messages\?.*', MessagesPage),
             ('http://%s/profile/.*/photos' % DOMAIN, PhotosPage),
             ('http://%s/profile/[^/]*' % DOMAIN, ProfilePage),
+            ('http://%s/visitors' % DOMAIN, VisitsPage),
+            ('http://%s/quickmatch' % DOMAIN, QuickMatchPage),
+            ('http://%s/mailbox' % DOMAIN, SentPage),
     ))
 
     logged_in = False
@@ -57,13 +68,6 @@ class OkCBrowser(BaseBrowser):
 
     def is_logged(self):
         return self.logged_in
-
-    def check_login(func):
-        def inner(self, *args, **kwargs):
-            if not self.logged_in:
-                self.login()
-            return func(self, *args, **kwargs)
-        return inner
 
     def get_consts(self):
         return { 'conts' : 'blah' }
@@ -120,28 +124,22 @@ class OkCBrowser(BaseBrowser):
     #    r = self.api_request('me', 'flashs')
     #    return r['result']['all']
 
-    #@check_login
-    #def get_visits(self):
-    #    r = self.api_request('me', 'visits')
-    #    return r['result']['news'] + r['result']['olds']
+    @check_login
+    def get_visits(self):
+       self.location('http://m.okcupid.com/visitors')
+       return self.page.get_visits()
 
     @check_login
-    def get_threads_list(self, count=30):
+    def get_threads_list(self):
         self.location('http://m.okcupid.com/messages')
         return self.page.get_threads()
 
     @check_login
-    def get_thread_mails(self, id, count=30):
+    def get_thread_mails(self, id):
         id = int(id)
-        self.location(self.absurl('/messages?readmsg=true&threadid=%i&folder=1' % id))
+        self.location('http://www.okcupid.com/messages?readmsg=true&threadid=%i&folder=1' % id)
 
-        # Find the peer username
-        mails = self.page.get_thread_mails(count)
-        for mail in mails['messages']:
-            if mail['id_from'] != self.get_my_name():
-                mails['member']['pseudo'] = mail['id_from']
-                break
-        return mails
+        return self.page.get_thread_mails()
 
     @check_login
     def post_mail(self, id, content):
@@ -181,21 +179,11 @@ class OkCBrowser(BaseBrowser):
     #    else:
     #        return True
 
-    #def search_profiles(self, **kwargs):
-    #    if self.search_query is None:
-    #        r = self.api_request('searchs', '[default]')
-    #        self.search_query = r['result']['search']['query']
-
-    #    params = {}
-    #    for key, value in json.loads(self.search_query).iteritems():
-    #        if isinstance(value, dict):
-    #            for k, v in value.iteritems():
-    #                params['%s%s' % (key, k.capitalize())] = v
-    #        else:
-    #            params[key] = value or ''
-    #    r = self.api_request('searchs', 'advanced', '30,0', params)
-    #    ids = [s['id'] for s in r['result']['search']]
-    #    return set(ids)
+    @check_login
+    def find_match_profile(self, **kwargs):
+        self.location(self.absurl('/quickmatch'))
+        user_id = self.page.get_id()
+        return user_id
 
     @check_login
     def get_profile(self, id):
@@ -251,3 +239,32 @@ class OkCBrowser(BaseBrowser):
     #        return True
     #    except ValueError:
     #        return False
+
+    @check_login
+    def visit_profile(self, id):
+        self.location(self.absurl('/profile/%s' % id))
+        stalk, u, tuid = self.page.get_visit_button_params()
+        if stalk and u and tuid:
+            # Premium users, need to click on "visit button" to let the other person know his profile was visited
+
+            data = urllib.urlencode({
+                'ajax' : 1,
+                'stalk': stalk,
+                'u':u,
+                'tuid': tuid
+                })
+            self.addheaders = [('Referer', self.page.url), ('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')]
+            self.open('http://m.okcupid.com/profile', data=data)
+        return True
+
+    @check_login
+    def do_rate(self, id):
+        # Need to be in quickmatch page
+        abs_url, rating,params = self.page.get_rating_params()
+        # print abs_url, rating, params
+        data = urllib.urlencode(params)
+        self.addheaders = [('Referer', self.page.url), ('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')]
+        self.open('http://m.okcupid.com%s' %abs_url, data=data)
+        return True
+
+

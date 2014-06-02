@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-
+from __future__ import print_function
 import imp
 import tarfile
 import posixpath
@@ -32,27 +32,21 @@ from tempfile import NamedTemporaryFile
 from datetime import datetime
 from contextlib import closing
 from compileall import compile_dir
-from StringIO import StringIO
+from io import BytesIO
 
 from .modules import Module
 from weboob.tools.log import getLogger
 from weboob.tools.misc import to_unicode
-from weboob.tools.browser import StandardBrowser, BrowserUnavailable
-from ConfigParser import RawConfigParser, DEFAULTSECT
+from weboob.tools.browser2.browser import BaseBrowser, Weboob as WeboobProfile
+from requests.exceptions import HTTPError
+try:
+    from configparser import RawConfigParser, DEFAULTSECT
+except ImportError:
+    from ConfigParser import RawConfigParser, DEFAULTSECT
 
 
 __all__ = ['IProgress', 'ModuleInstallError', 'ModuleInfo', 'RepositoryUnavailable',
            'Repository', 'Versions', 'Repositories', 'InvalidSignature', 'Keyring']
-
-
-class WeboobBrowser(StandardBrowser):
-    """
-    Browser with a specific useragent.
-    """
-
-    @classmethod
-    def set_version(klass, version):
-        klass.USER_AGENT = 'weboob/%s' % version
 
 
 class ModuleInfo(object):
@@ -159,7 +153,7 @@ class Repository(object):
             return self.url[len('file://'):]
         return self.url
 
-    def retrieve_index(self, repo_path):
+    def retrieve_index(self, browser, repo_path):
         """
         Retrieve the index file of this repository. It can use network
         if this is a remote repository.
@@ -179,10 +173,9 @@ class Repository(object):
                 fp = open(filename, 'r')
         else:
             # This is a remote repository, download file
-            browser = WeboobBrowser()
             try:
-                fp = browser.openurl(posixpath.join(self.url, self.INDEX))
-            except BrowserUnavailable as e:
+                fp = BytesIO(browser.open(posixpath.join(self.url, self.INDEX)).content)
+            except HTTPError as e:
                 raise RepositoryUnavailable(unicode(e))
 
         self.parse_index(fp)
@@ -194,7 +187,7 @@ class Repository(object):
         # Save the repository index in ~/.weboob/repositories/
         self.save(repo_path, private=True)
 
-    def retrieve_keyring(self, keyring_path):
+    def retrieve_keyring(self, browser, keyring_path):
         # ignore local
         if self.local:
             return
@@ -208,20 +201,19 @@ class Repository(object):
 
         if not keyring.exists() or self.key_update > keyring.version:
             # This is a remote repository, download file
-            browser = WeboobBrowser()
             try:
-                keyring_data = browser.readurl(posixpath.join(self.url, self.KEYRING))
-                sig_data = browser.readurl(posixpath.join(self.url, self.KEYRING + '.sig'))
-            except BrowserUnavailable as e:
+                keyring_data = browser.open(posixpath.join(self.url, self.KEYRING)).content
+                sig_data = browser.open(posixpath.join(self.url, self.KEYRING + '.sig')).content
+            except HTTPError as e:
                 raise RepositoryUnavailable(unicode(e))
             if keyring.exists():
                 if not keyring.is_valid(keyring_data, sig_data):
                     raise InvalidSignature('the keyring itself')
-                print 'The keyring was updated (and validated by the previous one).'
+                print('The keyring was updated (and validated by the previous one).')
             else:
-                print 'First time saving the keyring, blindly accepted.'
+                print('First time saving the keyring, blindly accepted.')
             keyring.save(keyring_data, self.key_update)
-            print keyring
+            print(keyring)
 
     def parse_index(self, fp):
         """
@@ -275,7 +267,7 @@ class Repository(object):
         :param filename: file to save index
         :type filename: str
         """
-        print 'Rebuild index'
+        print('Rebuild index')
         self.modules.clear()
 
         if os.path.isdir(os.path.join(path, self.KEYDIR)):
@@ -298,7 +290,7 @@ class Repository(object):
                     if fp:
                         fp.close()
             except Exception as e:
-                print >>sys.stderr, 'Unable to build module %s: [%s] %s' % (name, type(e).__name__, e)
+                print('Unable to build module %s: [%s] %s' % (name, type(e).__name__, e), file=sys.stderr)
             else:
                 m = ModuleInfo(module.name)
                 m.version = self.get_tree_mtime(module_path)
@@ -388,10 +380,10 @@ class Versions(object):
 
 class IProgress(object):
     def progress(self, percent, message):
-        print '=== [%3.0f%%] %s' % (percent*100, message)
+        print('=== [%3.0f%%] %s' % (percent*100, message))
 
     def error(self, message):
-        print >>sys.stderr, 'ERROR: %s' % message
+        print('ERROR: %s' % message, file=sys.stderr)
 
 
 class ModuleInstallError(Exception):
@@ -425,7 +417,11 @@ class Repositories(object):
     def __init__(self, workdir, datadir, version):
         self.logger = getLogger('repositories')
         self.version = version
-        WeboobBrowser.set_version(version)
+
+        class WeboobBrowser(BaseBrowser):
+            PROFILE = WeboobProfile(version)
+
+        self.browser = WeboobBrowser()
 
         self.workdir = workdir
         self.datadir = datadir
@@ -506,7 +502,7 @@ class Repositories(object):
                 repository = Repository(path)
                 self.repositories.append(repository)
             except RepositoryUnavailable as e:
-                print >>sys.stderr, 'Unable to load repository %s (%s), try to update repositories.' % (name, e)
+                print('Unable to load repository %s (%s), try to update repositories.' % (name, e), file=sys.stderr)
 
     def get_module_icon_path(self, module):
         return os.path.join(self.icons_dir, '%s.png' % module.name)
@@ -530,14 +526,13 @@ class Repositories(object):
             else:
                 icon_url = module.url.replace('.tar.gz', '.png')
 
-        browser = WeboobBrowser()
         try:
-            icon = browser.openurl(icon_url)
-        except BrowserUnavailable:
+            icon = self.browser.open(icon_url)
+        except HTTPError:
             pass  # no icon, no problem
         else:
             with open(dest_path, 'wb') as fp:
-                fp.write(icon.read())
+                fp.write(icon.content)
 
     def _parse_source_list(self):
         l = []
@@ -570,9 +565,9 @@ class Repositories(object):
             repo_path = os.path.join(self.repos_dir, prio_filename)
             keyring_path = os.path.join(self.keyrings_dir, filename)
             try:
-                repository.retrieve_index(repo_path)
+                repository.retrieve_index(self.browser, repo_path)
                 if gpgv:
-                    repository.retrieve_keyring(keyring_path)
+                    repository.retrieve_keyring(self.browser, keyring_path)
                 else:
                     progress.error('Cannot find gpgv to check for repository authenticity.\n'
                                     'You should install GPG for better security.')
@@ -657,17 +652,16 @@ class Repositories(object):
         else:
             raise ModuleInstallError('The latest version of %s is already installed' % module.name)
 
-        browser = WeboobBrowser()
         progress.progress(0.2, 'Downloading module...')
         try:
-            tardata = browser.readurl(module.url)
-        except BrowserUnavailable as e:
+            tardata = self.browser.open(module.url).content
+        except HTTPError as e:
             raise ModuleInstallError('Unable to fetch module: %s' % e)
 
         # Check signature
         if module.signed and Keyring.find_gpgv():
             progress.progress(0.5, 'Checking module authenticity...')
-            sig_data = browser.readurl(posixpath.join(module.url + '.sig'))
+            sig_data = self.browser.open(posixpath.join(module.url + '.sig')).content
             keyring_path = os.path.join(self.keyrings_dir, self.url2filename(module.repo_url))
             keyring = Keyring(keyring_path)
             if not keyring.exists():
@@ -679,7 +673,7 @@ class Repositories(object):
         if os.path.isdir(module_dir):
             shutil.rmtree(module_dir)
         progress.progress(0.7, 'Setting up module...')
-        with closing(tarfile.open('', 'r:gz', StringIO(tardata))) as tar:
+        with closing(tarfile.open('', 'r:gz', BytesIO(tardata))) as tar:
             tar.extractall(self.modules_dir)
         if not os.path.isdir(module_dir):
             raise ModuleInstallError('The archive for %s looks invalid.' % module.name)
@@ -776,7 +770,7 @@ class Keyring(object):
                 stderr=subprocess.PIPE)
             out, err = proc.communicate(data)
             if proc.returncode or 'GOODSIG' not in out or 'VALIDSIG' not in out:
-                print >>sys.stderr, out, err
+                print(out, err, file=sys.stderr)
                 return False
         return True
 

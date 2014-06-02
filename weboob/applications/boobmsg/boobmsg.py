@@ -29,7 +29,7 @@ from lxml import etree
 from weboob.core import CallErrors
 from weboob.capabilities.messages import ICapMessages, Message, Thread
 from weboob.capabilities.account import ICapAccount
-from weboob.capabilities.contact import ICapContact, Contact
+from weboob.capabilities.contact import ICapContact
 from weboob.tools.application.repl import ReplApplication, defaultcount
 from weboob.tools.application.formatters.iformatter import IFormatter
 from weboob.tools.misc import html2text
@@ -228,46 +228,13 @@ class ProfileFormatter(IFormatter):
     def flush(self):
         pass
 
-    def print_node(self, node, level=1):
-        result = u''
-        if node.flags & node.SECTION:
-            result += u'\t' * level + node.label + '\n'
-            for sub in node.value.itervalues():
-                result += self.print_node(sub, level+1)
-        else:
-            if isinstance(node.value, (tuple,list)):
-                value = ', '.join(unicode(v) for v in node.value)
-            else:
-                value = node.value
-            result += u'\t' * level + u'%-20s %s\n' % (node.label + ':', value)
-        return result
-
-    def format_obj(self, obj, alias):
-        result = u'Nickname: %s\n' % obj.name
-        if obj.status & Contact.STATUS_ONLINE:
-            s = 'online'
-        elif obj.status & Contact.STATUS_OFFLINE:
-            s = 'offline'
-        elif obj.status & Contact.STATUS_AWAY:
-            s = 'away'
-        else:
-            s = 'unknown'
-        result += u'Status: %s (%s)\n' % (s, obj.status_msg)
-        result += u'Photos:\n'
-        for name, photo in obj.photos.iteritems():
-            result += u'\t%s%s\n' % (photo, ' (hidden)' if photo.hidden else '')
-        result += u'Profile:\n'
-        for head in obj.profile.itervalues():
-            result += self.print_node(head)
-        result += u'Description:\n'
-        for s in obj.summary.split('\n'):
-            result += u'\t%s\n' % s
-        return result
+    def format_obj(self, obj, alias=None):
+        return obj.get_text()
 
 
 class Boobmsg(ReplApplication):
     APPNAME = 'boobmsg'
-    VERSION = '0.i'
+    VERSION = '0.j'
     COPYRIGHT = 'Copyright(C) 2010-2011 Christophe Benz'
     DESCRIPTION = "Console application allowing to send messages on various websites and " \
                   "to display message threads and contents."
@@ -363,6 +330,10 @@ class Boobmsg(ReplApplication):
                 # It's an original message
                 thread_id = receiver
                 parent_id = None
+                try:
+                    thread_id = self.threads[int(thread_id) - 1].id
+                except (IndexError,ValueError):
+                    pass
 
             thread = Thread(thread_id)
             message = Message(thread,

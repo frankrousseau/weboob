@@ -47,6 +47,10 @@ class date(real_date):
     def strftime(self, fmt):
         return strftime(self, fmt)
 
+    @classmethod
+    def from_date(cls, d):
+        return cls(d.year, d.month, d.day)
+
 
 class datetime(real_datetime):
     def strftime(self, fmt):
@@ -57,6 +61,10 @@ class datetime(real_datetime):
 
     def date(self):
         return date(self.year, self.month, self.day)
+
+    @classmethod
+    def from_datetime(cls, dt):
+        return cls(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.microsecond, dt.tzinfo)
 
 
 def new_date(d):
@@ -201,6 +209,7 @@ class LinearDateGuesser(object):
                 self.set_current_date(parsed_date)
         return parsed_date
 
+
 class ChaoticDateGuesser(LinearDateGuesser):
     """
     This class aim to find the guess the date when you know the
@@ -221,26 +230,35 @@ class ChaoticDateGuesser(LinearDateGuesser):
             raise ValueError("%s is inferior to min_date %s" % (parsed_date, self.min_date))
 
 
+DATE_TRANSLATE_FR = [(re.compile(ur'janvier', re.I),   ur'january'),
+                     (re.compile(ur'février', re.I),   ur'february'),
+                     (re.compile(ur'mars', re.I),      ur'march'),
+                     (re.compile(ur'avril', re.I),     ur'april'),
+                     (re.compile(ur'mai', re.I),       ur'may'),
+                     (re.compile(ur'juin', re.I),      ur'june'),
+                     (re.compile(ur'juillet', re.I),   ur'july'),
+                     (re.compile(ur'août', re.I),      ur'august'),
+                     (re.compile(ur'septembre', re.I), ur'september'),
+                     (re.compile(ur'octobre', re.I),   ur'october'),
+                     (re.compile(ur'novembre', re.I),  ur'november'),
+                     (re.compile(ur'décembre', re.I),  ur'december'),
+                     (re.compile(ur'jan\.', re.I),   ur'january'),
+                     (re.compile(ur'fév\.', re.I),   ur'february'),
+                     (re.compile(ur'avr\.', re.I),     ur'april'),
+                     (re.compile(ur'juil\.', re.I),   ur'july'),
+                     (re.compile(ur'juill\.', re.I),   ur'july'),
+                     (re.compile(ur'sep\.', re.I), ur'september'),
+                     (re.compile(ur'oct\.', re.I),   ur'october'),
+                     (re.compile(ur'nov\.', re.I),  ur'november'),
+                     (re.compile(ur'déc\.', re.I),  ur'december'),
+                     (re.compile(ur'lundi', re.I),     ur'monday'),
+                     (re.compile(ur'mardi', re.I),     ur'tuesday'),
+                     (re.compile(ur'mercredi', re.I),  ur'wednesday'),
+                     (re.compile(ur'jeudi', re.I),     ur'thursday'),
+                     (re.compile(ur'vendredi', re.I),  ur'friday'),
+                     (re.compile(ur'samedi', re.I),    ur'saturday'),
+                     (re.compile(ur'dimanche', re.I),  ur'sunday')]
 
-DATE_TRANSLATE_FR = [(re.compile(u'janvier', re.I),   u'january'),
-                     (re.compile(u'février', re.I),   u'february'),
-                     (re.compile(u'mars', re.I),      u'march'),
-                     (re.compile(u'avril', re.I),     u'april'),
-                     (re.compile(u'mai', re.I),       u'may'),
-                     (re.compile(u'juin', re.I),      u'june'),
-                     (re.compile(u'juillet', re.I),   u'july'),
-                     (re.compile(u'août', re.I),      u'august'),
-                     (re.compile(u'septembre', re.I), u'september'),
-                     (re.compile(u'octobre', re.I),   u'october'),
-                     (re.compile(u'novembre', re.I),  u'november'),
-                     (re.compile(u'décembre', re.I),  u'december'),
-                     (re.compile(u'lundi', re.I),     u'monday'),
-                     (re.compile(u'mardi', re.I),     u'tuesday'),
-                     (re.compile(u'mercredi', re.I),  u'wednesday'),
-                     (re.compile(u'jeudi', re.I),     u'thursday'),
-                     (re.compile(u'vendredi', re.I),  u'friday'),
-                     (re.compile(u'samedi', re.I),    u'saturday'),
-                     (re.compile(u'dimanche', re.I),  u'sunday')]
 
 def parse_french_date(date):
     for fr, en in DATE_TRANSLATE_FR:

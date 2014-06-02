@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Romain Bignon
+# Copyright(C) 2010-2014 Romain Bignon
 #
 # This file is part of weboob.
 #
@@ -18,6 +18,12 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
+from __future__ import print_function
+import sys
+
+if sys.version_info >= (3,0):
+    raise ImportError("This module isn't compatible with python3")
+
 
 from copy import copy
 from httplib import BadStatusLine
@@ -28,7 +34,6 @@ except ImportError:
     raise ImportError('Please install python-mechanize')
 
 import os
-import sys
 import re
 import tempfile
 from threading import RLock
@@ -45,6 +50,7 @@ from contextlib import closing
 from gzip import GzipFile
 import warnings
 
+from weboob.tools.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserPasswordExpired, BrowserForbidden, BrowserBanned, BrowserHTTPNotFound, BrowserHTTPError
 from weboob.tools.decorators import retry
 from weboob.tools.log import getLogger
 from weboob.tools.mech import ClientForm
@@ -62,37 +68,8 @@ else:
 
 
 __all__ = ['BrowserIncorrectPassword', 'BrowserForbidden', 'BrowserBanned', 'BrowserUnavailable', 'BrowserRetry',
-           'BrowserHTTPNotFound', 'BrowserHTTPError', 'BrokenPageError', 'BasePage',
+           'BrowserPasswordExpired', 'BrowserHTTPNotFound', 'BrowserHTTPError', 'BrokenPageError', 'BasePage',
            'StandardBrowser', 'BaseBrowser']
-
-
-# Exceptions
-class BrowserIncorrectPassword(Exception):
-    pass
-
-
-class BrowserForbidden(Exception):
-    pass
-
-
-class BrowserBanned(BrowserIncorrectPassword):
-    pass
-
-
-class BrowserPasswordExpired(BrowserIncorrectPassword):
-    pass
-
-
-class BrowserUnavailable(Exception):
-    pass
-
-
-class BrowserHTTPNotFound(BrowserUnavailable):
-    pass
-
-
-class BrowserHTTPError(BrowserUnavailable):
-    pass
 
 
 class BrowserRetry(Exception):
@@ -316,7 +293,7 @@ class StandardBrowser(mechanize.Browser):
         """
         if self.responses_dirname is None:
             self.responses_dirname = tempfile.mkdtemp(prefix='weboob_session_')
-            print >>sys.stderr, 'Debug data will be saved in this directory: %s' % self.responses_dirname
+            print('Debug data will be saved in this directory: %s' % self.responses_dirname, file=sys.stderr)
         elif not os.path.isdir(self.responses_dirname):
             os.makedirs(self.responses_dirname)
         # get the content-type, remove optionnal charset part
@@ -419,7 +396,7 @@ class StandardBrowser(mechanize.Browser):
                                 value = [self.str(is_list.index(args[label]))]
                             except ValueError as e:
                                 if args[label]:
-                                    print >>sys.stderr, '[%s] %s: %s' % (label, args[label], e)
+                                    print('[%s] %s: %s' % (label, args[label], e), file=sys.stderr)
                                 return
                         else:
                             value = [self.str(args[label])]
@@ -758,7 +735,7 @@ class HTTPSConnection2(httplib.HTTPSConnection):
     _HOSTS = {}
     _PROTOCOLS = [ssl.PROTOCOL_TLSv1, ssl.PROTOCOL_SSLv3]
 
-    def _create_connection(self):
+    def _my_create_connection(self):
         sock = socket.create_connection((self.host, self.port), self.timeout)
         if self._tunnel_host:
             self._tunnel()
@@ -769,7 +746,7 @@ class HTTPSConnection2(httplib.HTTPSConnection):
 
     def connect(self):
         for proto in self._get_protocols():
-            sock = self._create_connection()
+            sock = self._my_create_connection()
             try:
                 self.sock = ssl.wrap_socket(sock, self.key_file, self.cert_file, ssl_version=proto)
                 self._HOSTS['%s:%s' % (self.host, self.port)] = [proto]

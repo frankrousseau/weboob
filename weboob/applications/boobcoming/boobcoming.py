@@ -23,11 +23,9 @@ from datetime import time, datetime
 from weboob.tools.date import parse_date
 from weboob.tools.application.formatters.iformatter import IFormatter, PrettyFormatter
 from weboob.capabilities.base import empty
-from weboob.capabilities.calendar import ICapCalendarEvent, Query, CATEGORIES
+from weboob.capabilities.calendar import ICapCalendarEvent, Query, CATEGORIES, BaseCalendarEvent
 from weboob.tools.application.repl import ReplApplication, defaultcount
-from weboob.capabilities.collection import Collection, CollectionNotFound
 
-from weboob.core import CallErrors
 
 __all__ = ['Boobcoming']
 
@@ -141,7 +139,7 @@ class UpcomingFormatter(IFormatter):
 
 class Boobcoming(ReplApplication):
     APPNAME = 'boobcoming'
-    VERSION = '0.i'
+    VERSION = '0.j'
     COPYRIGHT = 'Copyright(C) 2012 Bezleputh'
     DESCRIPTION = "Console application to see upcoming events."
     SHORT_DESCRIPTION = "see upcoming events"
@@ -157,6 +155,17 @@ class Boobcoming(ReplApplication):
                            'info': 'upcoming',
                            'export': 'ical_formatter'
                            }
+
+    def comp_object(self, obj1, obj2):
+        if isinstance(obj1, BaseCalendarEvent) and isinstance(obj2, BaseCalendarEvent):
+            if obj1.start_date == obj2.start_date:
+                return 0
+            if obj1.start_date > obj2.start_date:
+                return 1
+            return -1
+        else:
+            return super(Boobcoming, self).comp_object(obj1, obj2)
+
 
     @defaultcount(10)
     def do_search(self, line):
@@ -346,58 +355,3 @@ class Boobcoming(ReplApplication):
         l = self.retrieve_events(args[0])
         for event in l:
             self.do('attends_event', event, False)
-
-    def _fetch_objects(self, objs):
-        objects = []
-        collections = []
-        split_path = self.working_path.get()
-        try:
-            if len(split_path) == 0:
-                for category in CATEGORIES.values:
-                    collection = Collection([category], category)
-                    collection.backend = u'boobcoming'
-                    collections.append(collection)
-            elif len(split_path) == 1 and split_path[0] in CATEGORIES.values:
-                query = Query()
-                query.categories = split_path
-                query.start_date = datetime.combine(parse_date('today'), time.min)
-                query.end_date = parse_date('')
-                query.city = ''
-                for backend, event in self.do('search_events', query):
-                    if event:
-                        objects.append(event)
-        except CallErrors as errors:
-            self.bcall_errors_handler(errors, CollectionNotFound)
-
-        return (objects, collections)
-
-    def do_cd(self, line):
-        """
-        cd [PATH]
-
-        Follow a path.
-        ".." is a special case and goes up one directory.
-        "" is a special case and goes home.
-        """
-        if not len(line.strip()):
-            self.working_path.home()
-        elif line.strip() == '..':
-            self.working_path.up()
-        else:
-            self.working_path.cd1(line)
-
-        split_path = self.working_path.get()
-
-        collections = []
-        if len(split_path) == 0 or (len(split_path) == 1 and split_path[0] in CATEGORIES.values):
-            collection = Collection(self.working_path.get(), None)
-            collections.append(collection)
-
-        if len(collections):
-            if len(collections) == 1:
-                self.working_path.split_path = collections[0].split_path
-            self._change_prompt()
-        else:
-            print >>sys.stderr, u"Path: %s not found" % unicode(self.working_path)
-            self.working_path.restore()
-            return 1

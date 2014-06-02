@@ -18,14 +18,18 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from urlparse import urlparse, parse_qs
+try:
+    from urlparse import urlparse, parse_qs
+except ImportError:
+    from urllib.parse import urlparse, parse_qs
+
 from decimal import Decimal
 import re
 from dateutil.relativedelta import relativedelta
 
 from weboob.tools.browser2.page import HTMLPage, method, ListElement, ItemElement, SkipItem, FormNotFound, LoggedPage
 from weboob.tools.browser2.filters import Filter, Env, CleanText, CleanDecimal, Link, Field, TableCell
-from weboob.tools.browser import  BrowserIncorrectPassword
+from weboob.tools.exceptions import  BrowserIncorrectPassword
 from weboob.capabilities import NotAvailable
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction

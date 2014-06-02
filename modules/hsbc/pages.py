@@ -24,7 +24,7 @@ from weboob.capabilities import NotAvailable
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
-from weboob.tools.browser import  BrowserIncorrectPassword
+from weboob.tools.exceptions import  BrowserIncorrectPassword
 from weboob.tools.browser2.page import HTMLPage, method, ListElement, ItemElement, SkipItem, LoggedPage, pagination
 from weboob.tools.browser2.filters import Filter, Env, CleanText, CleanDecimal, Link, Field, DateGuesser, TableCell
 
@@ -142,7 +142,7 @@ class CPTOperationPage(LoggedPage, HTMLPage):
 
 class LoginPage(HTMLPage):
     def on_load(self):
-        for message in self.doc.getroot().cssselect('div.csPanelErrors, div.csPanelAlert'):
+        for message in self.doc.getroot().cssselect('div.csPanelErrors'):
             raise BrowserIncorrectPassword(CleanText('.')(message))
 
     def login(self, login):
