@@ -19,10 +19,10 @@
 
 import re
 
-import requests
-
 from weboob.capabilities.paste import BasePaste, PasteNotFound
-from weboob.tools.browser2 import HTMLPage, PagesBrowser, URL
+from weboob.tools.browser2.filters import CleanText, DateTime, Env, RawText, Regexp
+from weboob.tools.browser2.page import HTMLPage, ItemElement, method, PagesBrowser, URL
+from weboob.tools.exceptions import BrowserHTTPNotFound
 
 
 class Spam(Exception):
@@ -42,20 +42,19 @@ class PastealaconPaste(BasePaste):
 
 
 class PastePage(HTMLPage):
-    # TODO use magic Browser2 methods (if possible)
-    def fill_paste(self, paste):
-        # there is no 404, try to detect if there really is a content
-        if len(self.doc.xpath('id("content")/div[@class="syntax"]//ol')) != 1:
-            raise PasteNotFound()
+    @method
+    class fill_paste(ItemElement):
+        klass = PastealaconPaste
 
-        header = self.doc.xpath('id("content")/h3')[0]
-        matches = re.match(r'Posted by (?P<author>.+) on (?P<date>.+) \(', header.text)
-        paste.title = matches.groupdict().get('author')
-        paste.contents = unicode(self.doc.xpath('//textarea[@id="code"]')[0].text)
-        return paste
+        obj_id = Env('id')
+        obj_title = Regexp(CleanText('id("content")/h3'), r'Posted by (.+) on .+ \(')
+        obj__date = DateTime(Regexp(CleanText('id("content")/h3'), r'Posted by .+ on (.+) \('))
+        obj_contents = RawText('//textarea[@id="code"]')
 
-    def get_id(self):
-        return self.params['id']
+        def parse(self, el):
+            # there is no 404, try to detect if there really is a content
+            if len(el.xpath('id("content")/div[@class="syntax"]//ol')) != 1:
+                raise PasteNotFound()
 
 
 class CaptchaPage(HTMLPage):
@@ -102,15 +101,11 @@ class PastealaconBrowser(PagesBrowser):
         """
         try:
             return self.raw.open(id=_id).text
-        # TODO maybe have Browser2 raise a specialized exception
-        except requests.exceptions.HTTPError as e:
-            if e.response.status_code == requests.codes.not_found:
-                raise PasteNotFound()
-            else:
-                raise e
+        except BrowserHTTPNotFound:
+            raise PasteNotFound()
 
     def post_paste(self, paste, expiration=None):
         self.post.stay_or_go().post(paste, expiration=expiration)
         if self.captcha.is_here():
             raise Spam()
-        paste.id = self.page.get_id()
+        self.page.fill_paste(paste)

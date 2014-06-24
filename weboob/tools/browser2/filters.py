@@ -19,17 +19,17 @@
 
 from __future__ import absolute_import
 
-from dateutil.parser import parse as parse_date
 import datetime
-from decimal import Decimal, InvalidOperation
 import re
-import lxml.html as html
+from decimal import Decimal, InvalidOperation
 
+import lxml.html as html
+from dateutil.parser import parse as parse_date
+
+from weboob.capabilities.base import empty
+from weboob.tools.compat import basestring
 from weboob.tools.exceptions import ParseError
 from weboob.tools.misc import html2text
-from weboob.tools.compat import basestring
-from weboob.capabilities.base import empty
-
 
 _NO_DEFAULT = object()
 
@@ -110,6 +110,20 @@ class Filter(_Filter):
         raise NotImplementedError()
 
 
+class Base(Filter):
+    """
+    Change the base element used in filters.
+    >>> Base(Env('header'), CleanText('./h1'))
+    """
+    def __call__(self, item):
+        base = self.select(self.base, item)
+        return self.selector(base)
+
+    def __init__(self, base, selector, default=_NO_DEFAULT):
+        super(Base, self).__init__(selector, default)
+        self.base = base
+
+
 class Env(_Filter):
     """
     Filter to get environment value of the item.
@@ -117,6 +131,7 @@ class Env(_Filter):
     It is used for example to get page parameters, or when there is a parse()
     method on ItemElement.
     """
+
     def __init__(self, name):
         super(Env, self).__init__()
         self.name = name
@@ -157,6 +172,7 @@ class TableCell(_Filter):
 
         return self.default_or_raise(ColumnNotFound('Unable to find column %s' % ' or '.join(self.names)))
 
+
 class Dict(Filter):
     @classmethod
     def select(cls, selector, item):
@@ -181,15 +197,28 @@ class Dict(Filter):
     def filter(self, txt):
         return txt
 
+
 class CleanHTML(Filter):
     def filter(self, txt):
-        if isinstance(txt, (tuple,list)):
-            return ' '.join([self.clean(item) for item in txt])
+        if isinstance(txt, (tuple, list)):
+            return u' '.join([self.clean(item) for item in txt])
         return self.clean(txt)
 
     @classmethod
     def clean(cls, txt):
         return html2text(html.tostring(txt, encoding=unicode))
+
+
+class RawText(Filter):
+    def filter(self, el):
+        if isinstance(el, (tuple, list)):
+            return u' '.join([self.filter(e) for e in el])
+
+        if el.text is None:
+            return self.default
+        else:
+            return unicode(el.text)
+
 
 class CleanText(Filter):
     """
@@ -199,6 +228,7 @@ class CleanText(Filter):
     string.
     Second, it replaces all symbols given in second argument.
     """
+
     def __init__(self, selector, symbols='', replace=[], childs=True, **kwargs):
         super(CleanText, self).__init__(selector, **kwargs)
         self.symbols = symbols
@@ -206,8 +236,8 @@ class CleanText(Filter):
         self.childs = childs
 
     def filter(self, txt):
-        if isinstance(txt, (tuple,list)):
-            txt = ' '.join([self.clean(item, childs=self.childs) for item in txt])
+        if isinstance(txt, (tuple, list)):
+            txt = u' '.join([self.clean(item, childs=self.childs) for item in txt])
 
         txt = self.clean(txt, childs=self.childs)
         txt = self.remove(txt, self.symbols)
@@ -247,6 +277,7 @@ class CleanDecimal(CleanText):
     """
     Get a cleaned Decimal value from an element.
     """
+
     def __init__(self, selector, replace_dots=True, default=_NO_DEFAULT):
         super(CleanDecimal, self).__init__(selector, default=default)
         self.replace_dots = replace_dots
@@ -254,7 +285,7 @@ class CleanDecimal(CleanText):
     def filter(self, text):
         text = super(CleanDecimal, self).filter(text)
         if self.replace_dots:
-            text = text.replace('.','').replace(',','.')
+            text = text.replace('.', '').replace(',', '.')
         try:
             return Decimal(re.sub(r'[^\d\-\.]', '', text))
         except InvalidOperation as e:
@@ -281,6 +312,7 @@ class Link(Attr):
 
     If the <a> tag is not found, an exception IndexError is raised.
     """
+
     def __init__(self, selector, default=_NO_DEFAULT):
         super(Link, self).__init__(selector, 'href', default=default)
 
@@ -289,6 +321,7 @@ class Field(_Filter):
     """
     Get the attribute of object.
     """
+
     def __init__(self, name):
         super(Field, self).__init__()
         self.name = name
@@ -306,6 +339,7 @@ class Regexp(Filter):
     >>> f(etree.fromstring('<html><body><p>Date: <span>13/08/1988</span></p></body></html>'))
     u'1988-08-13'
     """
+
     def __init__(self, selector, pattern, template=None, flags=0, default=_NO_DEFAULT):
         super(Regexp, self).__init__(selector, default=default)
         self.pattern = pattern
@@ -313,8 +347,8 @@ class Regexp(Filter):
         self.template = template
 
     def filter(self, txt):
-        if isinstance(txt, (tuple,list)):
-            txt = ' '.join([t.strip() for t in txt.itertext()])
+        if isinstance(txt, (tuple, list)):
+            txt = u' '.join([t.strip() for t in txt.itertext()])
 
         mobj = self.regex.search(txt)
         if not mobj:
@@ -327,6 +361,7 @@ class Regexp(Filter):
 
 
 class Map(Filter):
+
     def __init__(self, selector, map_dict, default=_NO_DEFAULT):
         super(Map, self).__init__(selector, default=default)
         self.map_dict = map_dict
@@ -349,8 +384,8 @@ class DateTime(Filter):
             return self.default_or_raise(ParseError('Unable to parse %r' % txt))
         try:
             if self.translations:
-                 for search, repl in self.translations:
-                     txt = search.sub(repl, txt)
+                for search, repl in self.translations:
+                    txt = search.sub(repl, txt)
             return parse_date(txt, dayfirst=self.dayfirst)
         except ValueError as e:
             return self.default_or_raise(ParseError('Unable to parse %r: %s' % (txt, e)))
@@ -386,7 +421,7 @@ class DateGuesser(Filter):
         if len(values) == 2:
             day, month = map(int, values)
         else:
-            raise ParseError('Unable to take (day,month) tuple from %r' % values)
+            raise ParseError('Unable to take (day, month) tuple from %r' % values)
         return date_guesser.guess_date(day, month, **self.kwargs)
 
 

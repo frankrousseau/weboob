@@ -27,7 +27,7 @@ from weboob.tools.browser2.page import HTMLPage, JsonPage, method, ListElement, 
 from weboob.tools.browser2.filters import CleanText, Format, Link, Regexp, Env, DateTime, Attr, Filter
 from weboob.capabilities.messages import Thread, Message
 from weboob.capabilities.base import CapBaseObject
-__all__ = ['LoginPage', 'LoginErrorPage', 'ThreadPage', 'TwitterBasePage', 'Tweet', 'TrendsPage', 'TimelinePage', 'HomeTimelinePage', 'SearchTimeLinePage']
+__all__ = ['LoginPage', 'LoginErrorPage', 'ThreadPage', 'Tweet', 'TrendsPage', 'TimelinePage', 'HomeTimelinePage', 'SearchTimelinePage']
 
 
 class DatetimeFromTimestamp(Filter):
@@ -52,27 +52,14 @@ class TwitterJsonHTMLPage(JsonPage):
                 self.scroll_cursor = self.doc['scroll_cursor']
 
             self.has_next = self.doc['has_more_items']
-            self.doc = html.parse(StringIO(self.doc['items_html']), parser)
+            if self.doc['items_html']:
+                el = html.parse(StringIO(self.doc['items_html']), parser)
+                self.doc = el if el.getroot() is not None else html.Element('brinbrin')
+            else:
+                self.doc = html.Element('brinbrin')
 
 
-class TwitterBasePage(HTMLPage):
-    @method
-    class iter_threads(ListElement):
-        item_xpath = '//*[@data-item-type="tweet"]/div'
-
-        class item(ItemElement):
-            klass = Thread
-
-            obj_id = Regexp(Link('./div/div/a[@class="details with-icn js-details"]|./div/div/span/a[@class="ProfileTweet-timestamp js-permalink js-nav js-tooltip"]'), '/(.+)/status/(.+)', '\\1#\\2')
-            obj_title = Format('%s \n\t %s',
-                               CleanText('./div/div[@class="stream-item-header"]/a|./div/div[@class="ProfileTweet-authorDetails"]/a',
-                                         replace=[('@ ', '@'), ('# ', '#'), ('http:// ', 'http://')]),
-                               CleanText('./div/p',
-                                         replace=[('@ ', '@'), ('# ', '#'), ('http:// ', 'http://')]))
-            obj_date = DatetimeFromTimestamp(Attr('./div/div[@class="stream-item-header"]/small/a/span|./div/div/span/a[@class="ProfileTweet-timestamp js-permalink js-nav js-tooltip"]/span', 'data-time'))
-
-
-class LoginPage(TwitterBasePage):
+class LoginPage(HTMLPage):
     def login(self, login, passwd):
         form = self.get_form(xpath='//form[@action="https://twitter.com/sessions"]')
         form['session[username_or_email]'] = login
@@ -138,6 +125,7 @@ class TrendsPage(TwitterJsonHTMLPage):
 
 class TimelineListElement(ListElement):
     item_xpath = '//*[@data-item-type="tweet"]/div'
+    ignore_duplicate = True
 
     def get_last_id(self):
         _el = self.page.doc.xpath('//*[@data-item-type="tweet"]/div')[-1]

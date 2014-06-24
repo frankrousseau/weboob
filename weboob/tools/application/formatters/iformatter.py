@@ -74,7 +74,11 @@ class MandatoryFieldsNotFound(Exception):
 
 
 class IFormatter(object):
+    # Tuple of fields mandatory to not crash
     MANDATORY_FIELDS = None
+    # Tuple of displayed field. Set to None if all available fields are
+    # displayed
+    DISPLAYED_FIELDS = None
 
     BOLD = ConsoleApplication.BOLD
     NC = ConsoleApplication.NC
@@ -142,7 +146,7 @@ class IFormatter(object):
         :type alias: unicode
         """
         if isinstance(obj, CapBaseObject):
-            if selected_fields is not None and not '*' in selected_fields:
+            if selected_fields:  # can be an empty list (nothing to do), or None (return all fields)
                 obj = obj.copy()
                 for name, value in obj.iter_fields():
                     if not name in selected_fields:
@@ -160,7 +164,7 @@ class IFormatter(object):
             except ValueError:
                 raise TypeError('Please give a CapBaseObject or a dict')
 
-            if selected_fields is not None and not '*' in selected_fields:
+            if selected_fields:
                 obj = obj.copy()
                 for name, value in obj.iteritems():
                     if not name in selected_fields:
@@ -199,6 +203,16 @@ class IFormatter(object):
         """
         return NotImplementedError()
 
+    def format_collection(self, collection, only):
+        """
+        Format a collection to be human-readable.
+
+        :param collection: collection to format
+        :type collection: BaseCollection
+        :rtype: str
+        """
+        return NotImplementedError()
+
 
 class PrettyFormatter(IFormatter):
     def format_obj(self, obj, alias):
@@ -225,3 +239,30 @@ class PrettyFormatter(IFormatter):
 
     def get_description(self, obj):
         return None
+
+    def format_collection(self, collection, only):
+        if only is False or collection.basename in only:
+            if collection.basename and collection.title:
+                self.output(u'%s~ (%s) %s (%s)%s' %
+                     (self.BOLD, collection.basename, collection.title, collection.backend, self.NC))
+            else:
+                self.output(u'%s~ (%s) (%s)%s' %
+                     (self.BOLD, collection.basename, collection.backend, self.NC))
+
+
+def formatter_test_output(Formatter, obj):
+    """
+    Formats an object and returns output as a string.
+    For test purposes only.
+    """
+    from tempfile import mkstemp
+    from os import remove
+    _, name = mkstemp()
+    fmt = Formatter()
+    fmt.outfile = name
+    fmt.format(obj)
+    fmt.flush()
+    with open(name) as f:
+        res = f.read()
+    remove(name)
+    return res

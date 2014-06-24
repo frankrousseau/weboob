@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2011 Laurent Bachelier
+# Copyright(C) 2014      Oleg Plakhotniuk
 #
 # This file is part of weboob.
 #
@@ -17,14 +17,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-from weboob.capabilities.paste import BasePaste
-
-
-__all__ = ['PastebinPaste']
+from weboob.tools.test import BackendTest
 
 
-class PastebinPaste(BasePaste):
-    @classmethod
-    def id2url(cls, _id):
-        return 'http://pastebin.com/%s' % _id
+class PaypalTest(BackendTest):
+    BACKEND = 'paypal'
+
+    def test_balance(self):
+        for account in self.backend.iter_accounts():
+            balance = sum(t.amount for t in self.backend.iter_history(account))
+            self.assertEqual(balance, account.balance)

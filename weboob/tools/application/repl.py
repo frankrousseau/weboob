@@ -193,7 +193,7 @@ class ReplApplication(Cmd, ConsoleApplication):
                 pass
             else:
                 if isinstance(obj, CapBaseObject):
-                    id = '%s@%s' % (obj.id, obj.backend)
+                    id = obj.fullid
         try:
             return ConsoleApplication.parse_id(self, id, unique_backend)
         except BackendNotGiven as e:
@@ -339,10 +339,26 @@ class ReplApplication(Cmd, ConsoleApplication):
         fields = kwargs.pop('fields', self.selected_fields)
         if not fields and fields != []:
             fields = self.selected_fields
-        if '$direct' in fields:
-            fields = []
-        elif '$full' in fields:
-            fields = None
+
+        fields = self.parse_fields(fields)
+
+        if fields and self.formatter.MANDATORY_FIELDS is not None:
+            missing_fields = set(self.formatter.MANDATORY_FIELDS) - set(fields)
+            # If a mandatory field is not selected, do not use the customized formatter
+            if missing_fields:
+                print('Warning: you do not select enough mandatory fields for the formatter. Fallback to another. Hint: use option -f', file=sys.stderr)
+                self.formatter = self.formatters_loader.build_formatter(ReplApplication.DEFAULT_FORMATTER)
+
+        if self.formatter.DISPLAYED_FIELDS is not None:
+            if fields is None:
+                missing_fields = True
+            else:
+                missing_fields = set(fields) - set(self.formatter.DISPLAYED_FIELDS + self.formatter.MANDATORY_FIELDS)
+            # If a selected field is not displayed, do not use the customized formatter
+            if missing_fields:
+                print('Warning: some selected fields will not be displayed by the formatter. Fallback to another. Hint: use option -f', file=sys.stderr)
+                self.formatter = self.formatters_loader.build_formatter(ReplApplication.DEFAULT_FORMATTER)
+
         return self.weboob.do(self._do_complete, self.options.count, fields, function, *args, **kwargs)
 
     # -- command tools ------------
@@ -988,9 +1004,9 @@ class ReplApplication(Cmd, ConsoleApplication):
 
         List objects in current path.
         If an argument is given, list the specified path.
-        Use -U option to not sort results. It allows to use a "fast path" to
+        Use -U option to not sort results. It allows you to use a "fast path" to
         return results as soon as possible.
-        Use -d option to display informations about a collection (and to not
+        Use -d option to display information about a collection (and to not
         display the content of it). It has the same behavior than the well
         know UNIX "ls" command.
         """
@@ -1022,7 +1038,7 @@ class ReplApplication(Cmd, ConsoleApplication):
             if isinstance(res, Collection):
                 collections.append(res)
                 if sort is False:
-                    self._format_collection(res, only)
+                    self.formatter.format_collection(res, only)
             else:
                 if sort:
                     objects.append(res)
@@ -1034,7 +1050,7 @@ class ReplApplication(Cmd, ConsoleApplication):
             collections = self._merge_collections_with_same_path(collections)
             collections.sort(cmp=self.comp_object)
             for collection in collections:
-                self._format_collection(collection, only)
+                self.formatter.format_collection(collection, only)
             for obj in objects:
                 self._format_obj(obj, only)
 
@@ -1060,17 +1076,6 @@ class ReplApplication(Cmd, ConsoleApplication):
             else:
                 to_return.append(collection)
         return to_return
-
-
-    def _format_collection(self, collection, only):
-        if only is False or collection.basename in only:
-            if collection.basename and collection.title:
-                print(u'%s~ (%s) %s (%s)%s' % \
-                (self.BOLD, collection.basename, collection.title, collection.backend, self.NC))
-            else:
-                print(u'%s~ (%s) (%s)%s' % \
-                (self.BOLD, collection.basename, collection.backend, self.NC))
-
 
     def _format_obj(self, obj, only):
         if only is False or not hasattr(obj, 'id') or obj.id in only:
@@ -1229,10 +1234,15 @@ class ReplApplication(Cmd, ConsoleApplication):
             alias = '%s' % len(self.objects)
         self.format(obj, alias=alias)
 
+    def parse_fields(self, fields):
+        if '$direct' in fields:
+            return []
+        if '$full' in fields:
+            return None
+        return fields
+
     def format(self, result, alias=None):
-        fields = self.selected_fields
-        if '$direct' in fields or '$full' in fields:
-            fields = None
+        fields = self.parse_fields(self.selected_fields)
         try:
             self.formatter.format(obj=result, selected_fields=fields, alias=alias)
         except FieldNotFound as e:
