@@ -28,11 +28,11 @@ import os
 import re
 import unicodedata
 
-from weboob.capabilities.base import empty, CapBaseObject
-from weboob.capabilities.bugtracker import ICapBugTracker, Query, Update, Project, Issue, IssueError
+from weboob.capabilities.base import empty, BaseObject
+from weboob.capabilities.bugtracker import CapBugTracker, Query, Update, Project, Issue, IssueError
 from weboob.tools.application.repl import ReplApplication, defaultcount
 from weboob.tools.application.formatters.iformatter import IFormatter, PrettyFormatter
-from weboob.tools.misc import html2text
+from weboob.tools.html import html2text
 from weboob.tools.date import parse_french_date
 
 
@@ -47,7 +47,7 @@ class IssueFormatter(IFormatter):
             return u''
 
         value = getattr(obj, attr)
-        if isinstance(value, CapBaseObject):
+        if isinstance(value, BaseObject):
             value = value.name
 
         return self.format_key(attr.capitalize(), value)
@@ -109,7 +109,7 @@ class BoobTracker(ReplApplication):
     COPYRIGHT = 'Copyright(C) 2011 Romain Bignon'
     DESCRIPTION = "Console application allowing to create, edit, view bug tracking issues."
     SHORT_DESCRIPTION = "manage bug tracking issues"
-    CAPS = ICapBugTracker
+    CAPS = CapBugTracker
     EXTRA_FORMATTERS = {'issue_info': IssueFormatter,
                         'issues_list': IssuesListFormatter,
                        }

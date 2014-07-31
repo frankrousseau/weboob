@@ -21,21 +21,21 @@
 import datetime
 import time
 
-from .base import IBaseCap, CapBaseObject, NotLoaded, Field, StringField, \
-                  DateField, IntField, UserError
+from .base import CapBase, BaseObject, NotLoaded, Field, StringField, \
+                  IntField, UserError
+from .date import DateField
 
-
-__all__ = ['Thread', 'Message', 'ICapMessages', 'CantSendMessage', 'ICapMessagesPost']
+__all__ = ['Thread', 'Message', 'CapMessages', 'CantSendMessage', 'CapMessagesPost']
 
 
 # Message and Thread's attributes refer to themselves, and it isn't possible
 # in python, so these base classes are used instead.
-class _Message(CapBaseObject):
+class _Message(BaseObject):
     """ Base message. """
     pass
 
 
-class _Thread(CapBaseObject):
+class _Thread(BaseObject):
     """ Base Thread. """
     pass
 
@@ -71,7 +71,7 @@ class Message(_Message):
                        signature=NotLoaded,
                        children=NotLoaded,
                        flags=0):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.thread = thread
         self.title = title
         self.sender = sender
@@ -165,7 +165,7 @@ class Thread(_Thread):
                     yield m
 
 
-class ICapMessages(IBaseCap):
+class CapMessages(CapBase):
     """
     Capability to read messages.
     """
@@ -209,7 +209,7 @@ class CantSendMessage(UserError):
     """
 
 
-class ICapMessagesPost(IBaseCap):
+class CapMessagesPost(CapBase):
     """
     This capability allow user to send a message.
     """

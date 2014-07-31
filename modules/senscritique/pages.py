@@ -17,12 +17,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.misc import html2text
+from weboob.tools.html import html2text
 from .calendar import SensCritiquenCalendarEvent
 
 from datetime import date, datetime, time, timedelta
 
-from weboob.tools.browser2.page import HTMLPage, method, ItemElement, ListElement, JsonPage
+from weboob.tools.browser2.page import HTMLPage, method, JsonPage
+from weboob.tools.browser2.elements import ItemElement, ListElement
 from weboob.tools.browser2.filters import Filter, Link, CleanText, Regexp, Attr, Join, Format
 
 

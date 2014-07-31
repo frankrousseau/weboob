@@ -25,13 +25,13 @@ import optparse
 from optparse import OptionGroup, OptionParser
 import os
 import sys
-import tempfile
 import warnings
 
-from weboob.capabilities.base import ConversionWarning, CapBaseObject
+from weboob.capabilities.base import ConversionWarning, BaseObject
 from weboob.core import Weboob, CallErrors
 from weboob.core.backendscfg import BackendsConfig
 from weboob.tools.config.iconfig import ConfigError
+from weboob.tools.exceptions import FormFieldConversionWarning
 from weboob.tools.log import createColoredFormatter, getLogger, settings as log_settings
 from weboob.tools.misc import to_unicode
 from .results import ResultsConditionError
@@ -251,7 +251,7 @@ class BaseApplication(object):
     def _do_complete_obj(self, backend, fields, obj):
         if not obj:
             return obj
-        if not isinstance(obj, CapBaseObject):
+        if not isinstance(obj, BaseObject):
             return obj
 
         obj.backend = backend.name
@@ -351,16 +351,12 @@ class BaseApplication(object):
         # this only matters to developers
         if not self.options.debug and not self.options.save_responses:
             warnings.simplefilter('ignore', category=ConversionWarning)
-            try:
-                from weboob.tools.browser.browser import FormFieldConversionWarning
-            except ImportError:
-                pass
-            else:
-                warnings.simplefilter('ignore', category=FormFieldConversionWarning)
+            warnings.simplefilter('ignore', category=FormFieldConversionWarning)
 
         handlers = []
 
         if self.options.save_responses:
+            import tempfile
             responses_dirname = tempfile.mkdtemp(prefix='weboob_session_')
             print('Debug data will be saved in this directory: %s' % responses_dirname, file=sys.stderr)
             log_settings['save_responses'] = True

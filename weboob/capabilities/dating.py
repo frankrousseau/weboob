@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Romain Bignon
+# Copyright(C) 2010-2014 Romain Bignon
 #
 # This file is part of weboob.
 #
@@ -18,11 +18,12 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, Field, StringField, DateField, UserError
+from .base import CapBase, BaseObject, Field, StringField, UserError
+from .date import DateField
 from .contact import Contact
 
 
-__all__ = ['OptimizationNotFound', 'Optimization', 'Event', 'ICapDating']
+__all__ = ['OptimizationNotFound', 'Optimization', 'Event', 'CapDating']
 
 
 class OptimizationNotFound(UserError):
@@ -79,7 +80,7 @@ class Optimization(object):
         raise NotImplementedError()
 
 
-class Event(CapBaseObject):
+class Event(BaseObject):
     """
     A dating event (for example a visite, a query received, etc.)
     """
@@ -89,7 +90,7 @@ class Event(CapBaseObject):
     message =   StringField('Message of the event')
 
 
-class ICapDating(IBaseCap):
+class CapDating(CapBase):
     """
     Capability for dating websites.
     """
@@ -146,3 +147,12 @@ class ICapDating(IBaseCap):
         :rtype: iter[:class:`Event`]
         """
         raise NotImplementedError()
+
+    def iter_new_contacts(self):
+        """
+        Iter new contacts.
+
+        :rtype: iter[:class:`Contact`]
+        """
+        raise NotImplementedError()
+

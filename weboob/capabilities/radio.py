@@ -19,14 +19,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, Field, StringField
+from .base import CapBase, BaseObject, Field, StringField
 from weboob.tools.capabilities.streaminfo import StreamInfo
 
 
-__all__ = ['Radio', 'ICapRadio']
+__all__ = ['Radio', 'CapRadio']
 
 
-class Radio(CapBaseObject):
+class Radio(BaseObject):
     """
     Radio object.
     """
@@ -35,7 +35,7 @@ class Radio(CapBaseObject):
     current =       Field('Current emission', StreamInfo)
     streams =       Field('List of streams', list)
 
-class ICapRadio(IBaseCap):
+class CapRadio(CapBase):
     """
     Capability of radio websites.
     """

@@ -18,10 +18,10 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, StringField, IntField, UserError
+from .base import CapBase, BaseObject, StringField, IntField, UserError
 
 
-__all__ = ['Subtitle', 'ICapSubtitle']
+__all__ = ['Subtitle', 'CapSubtitle']
 
 
 class LanguageNotSupported(UserError):
@@ -33,7 +33,7 @@ class LanguageNotSupported(UserError):
         UserError.__init__(self, msg)
 
 
-class Subtitle(CapBaseObject):
+class Subtitle(BaseObject):
     """
     Subtitle object.
     """
@@ -45,10 +45,10 @@ class Subtitle(CapBaseObject):
     description=StringField('Description of corresponding video')
 
     def __init__(self, id, name):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.name = name
 
-class ICapSubtitle(IBaseCap):
+class CapSubtitle(CapBase):
     """
     Subtitle providers.
     """

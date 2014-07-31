@@ -27,15 +27,13 @@ import subprocess
 import sys
 import os
 import locale
-from tempfile import NamedTemporaryFile
-from ssl import SSLError
 
 from weboob.capabilities import UserError
-from weboob.capabilities.account import ICapAccount, Account, AccountRegisterError
+from weboob.capabilities.account import CapAccount, Account, AccountRegisterError
 from weboob.core.backendscfg import BackendAlreadyExists
 from weboob.core.modules import ModuleLoadError
 from weboob.core.repositories import ModuleInstallError
-from weboob.tools.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserForbidden
+from weboob.tools.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserForbidden, BrowserSSLError
 from weboob.tools.value import Value, ValueBool, ValueFloat, ValueInt, ValueBackendPassword
 from weboob.tools.misc import to_unicode
 from weboob.tools.ordereddict import OrderedDict
@@ -238,7 +236,7 @@ class ConsoleApplication(BaseApplication):
             print('Backend "%s" does not exist.' % name, file=sys.stderr)
             return 1
 
-        if not backend.has_caps(ICapAccount) or backend.klass.ACCOUNT_REGISTER_PROPERTIES is None:
+        if not backend.has_caps(CapAccount) or backend.klass.ACCOUNT_REGISTER_PROPERTIES is None:
             print('You can\'t register a new account with %s' % name, file=sys.stderr)
             return 1
 
@@ -494,6 +492,7 @@ class ConsoleApplication(BaseApplication):
     def acquire_input(self, content=None, editor_params=None):
         editor = os.getenv('EDITOR', 'vi')
         if sys.stdin.isatty() and editor:
+            from tempfile import NamedTemporaryFile
             with NamedTemporaryFile() as f:
                 filename = f.name
                 if content is not None:
@@ -545,7 +544,7 @@ class ConsoleApplication(BaseApplication):
             print(u'Error(%s): %s' % (backend.name, to_unicode(error)), file=sys.stderr)
         elif isinstance(error, MoreResultsAvailable):
             print(u'Hint: There are more results for backend %s' % (backend.name), file=sys.stderr)
-        elif isinstance(error, SSLError):
+        elif isinstance(error, BrowserSSLError):
             print(u'FATAL(%s): ' % backend.name + self.BOLD + '/!\ SERVER CERTIFICATE IS INVALID /!\\' + self.NC, file=sys.stderr)
         else:
             print(u'Bug(%s): %s' % (backend.name, to_unicode(error)), file=sys.stderr)

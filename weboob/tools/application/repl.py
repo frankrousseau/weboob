@@ -28,13 +28,13 @@ from optparse import OptionGroup, OptionParser, IndentedHelpFormatter
 import os
 import sys
 
-from weboob.capabilities.base import FieldNotFound, CapBaseObject, UserError
+from weboob.capabilities.base import FieldNotFound, BaseObject, UserError
 from weboob.core import CallErrors
 from weboob.tools.application.formatters.iformatter import MandatoryFieldsNotFound
 from weboob.tools.misc import to_unicode
 from weboob.tools.path import WorkingPath
 from weboob.tools.ordereddict import OrderedDict
-from weboob.capabilities.collection import Collection, BaseCollection, ICapCollection, CollectionNotFound
+from weboob.capabilities.collection import Collection, BaseCollection, CapCollection, CollectionNotFound
 
 from .console import BackendNotGiven, ConsoleApplication
 from .formatters.load import FormattersLoader, FormatterLoadError
@@ -192,7 +192,7 @@ class ReplApplication(Cmd, ConsoleApplication):
             except (IndexError, ValueError):
                 pass
             else:
-                if isinstance(obj, CapBaseObject):
+                if isinstance(obj, BaseObject):
                     id = obj.fullid
         try:
             return ConsoleApplication.parse_id(self, id, unique_backend)
@@ -1055,8 +1055,9 @@ class ReplApplication(Cmd, ConsoleApplication):
                 self._format_obj(obj, only)
 
         if path:
-            # Let's go back to the parent directory
-            self.working_path.restore()
+            for _path in path.split('/'):
+                # Let's go back to the parent directory
+                self.working_path.up()
         else:
             # Save collections only if we listed the current path.
             self.collections = collections
@@ -1101,7 +1102,7 @@ class ReplApplication(Cmd, ConsoleApplication):
             try:
                 for backend, res in self.do('get_collection', objs=self.COLLECTION_OBJECTS,
                                             split_path=self.working_path.get(),
-                                            caps=ICapCollection):
+                                            caps=CapCollection):
                     if res:
                         collections.append(res)
             except CallErrors as errors:
@@ -1124,7 +1125,7 @@ class ReplApplication(Cmd, ConsoleApplication):
         try:
             for backend, res in self.do('iter_resources', objs=objs,
                                                           split_path=split_path,
-                                                          caps=ICapCollection):
+                                                          caps=CapCollection):
                 yield res
         except CallErrors as errors:
             self.bcall_errors_handler(errors, CollectionNotFound)
@@ -1146,7 +1147,7 @@ class ReplApplication(Cmd, ConsoleApplication):
         the object.
 
         :param obj: object
-        :type obj: CapBaseObject
+        :type obj: BaseObject
         :param dest: dest given by user (default None)
         :type dest: str
         :param default: default file mask (if not given, this is '{id}-{title}.{ext}')

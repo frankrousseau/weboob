@@ -23,30 +23,28 @@ import datetime
 import re
 from decimal import Decimal, InvalidOperation
 
-import lxml.html as html
 from dateutil.parser import parse as parse_date
 
 from weboob.capabilities.base import empty
 from weboob.tools.compat import basestring
 from weboob.tools.exceptions import ParseError
-from weboob.tools.misc import html2text
+from weboob.tools.html import html2text
 
 _NO_DEFAULT = object()
+
+
+__all__ = ['FilterError', 'ColumnNotFound', 'RegexpError', 'ItemNotFound',
+           'Filter', 'Base', 'Env', 'TableCell', 'CleanHTML', 'RawText',
+           'CleanText', 'Lower', 'CleanDecimal', 'Field', 'Regexp', 'Map',
+           'DateTime', 'Date', 'Time', 'DateGuesser', 'Duration',
+           'MultiFilter', 'CombineDate', 'Format', 'Join']
 
 
 class FilterError(ParseError):
     pass
 
 
-class XPathNotFound(FilterError):
-    pass
-
-
 class ColumnNotFound(FilterError):
-    pass
-
-
-class AttributeNotFound(FilterError):
     pass
 
 
@@ -65,6 +63,16 @@ class _Filter(object):
         self.default = default
         self._creation_counter = _Filter._creation_counter
         _Filter._creation_counter += 1
+
+    def __or__(self, o):
+        self.default = o
+        return self
+
+    def __and__(self, o):
+        if isinstance(o, type) and issubclass(o, _Filter):
+            o = o()
+        o.selector = self
+        return o
 
     def default_or_raise(self, exception):
         if self.default is not _NO_DEFAULT:
@@ -110,6 +118,14 @@ class Filter(_Filter):
         raise NotImplementedError()
 
 
+class _Selector(Filter):
+    def filter(self, txt):
+        if txt is not None:
+            return txt
+        else:
+            return self.default_or_raise(ParseError('Element %r not found' % self.selector))
+
+
 class Base(Filter):
     """
     Change the base element used in filters.
@@ -119,7 +135,7 @@ class Base(Filter):
         base = self.select(self.base, item)
         return self.selector(base)
 
-    def __init__(self, base, selector, default=_NO_DEFAULT):
+    def __init__(self, base, selector=None, default=_NO_DEFAULT):
         super(Base, self).__init__(selector, default)
         self.base = base
 
@@ -173,31 +189,6 @@ class TableCell(_Filter):
         return self.default_or_raise(ColumnNotFound('Unable to find column %s' % ' or '.join(self.names)))
 
 
-class Dict(Filter):
-    @classmethod
-    def select(cls, selector, item):
-        if isinstance(selector, basestring):
-            if isinstance(item, dict):
-                content = item
-            else:
-                content = item.el
-
-            for el in selector.split('/'):
-                if el not in content:
-                    raise ParseError()
-
-                content = content.get(el)
-
-            return content
-        elif callable(selector):
-            return selector(item)
-        else:
-            return selector
-
-    def filter(self, txt):
-        return txt
-
-
 class CleanHTML(Filter):
     def filter(self, txt):
         if isinstance(txt, (tuple, list)):
@@ -206,7 +197,10 @@ class CleanHTML(Filter):
 
     @classmethod
     def clean(cls, txt):
-        return html2text(html.tostring(txt, encoding=unicode))
+        if not isinstance(txt, basestring):
+            import lxml.html as html
+            txt = html.tostring(txt, encoding=unicode)
+        return html2text(txt)
 
 
 class RawText(Filter):
@@ -229,7 +223,7 @@ class CleanText(Filter):
     Second, it replaces all symbols given in second argument.
     """
 
-    def __init__(self, selector, symbols='', replace=[], childs=True, **kwargs):
+    def __init__(self, selector=None, symbols='', replace=[], childs=True, **kwargs):
         super(CleanText, self).__init__(selector, **kwargs)
         self.symbols = symbols
         self.toreplace = replace
@@ -276,45 +270,33 @@ class Lower(CleanText):
 class CleanDecimal(CleanText):
     """
     Get a cleaned Decimal value from an element.
+
+    If replace_dots is a tuple, the first element will be used as the thousands separator,
+    and the second as the decimal separator.
+
+    See http://en.wikipedia.org/wiki/Thousands_separator#Examples_of_use
+
+    For example, for the UK style (as in 1,234,567.89):
+
+    >>> CleanDecimal('./td[1]', replace_dots=(',', '.'))
     """
 
-    def __init__(self, selector, replace_dots=True, default=_NO_DEFAULT):
+    def __init__(self, selector=None, replace_dots=True, default=_NO_DEFAULT):
         super(CleanDecimal, self).__init__(selector, default=default)
         self.replace_dots = replace_dots
 
     def filter(self, text):
         text = super(CleanDecimal, self).filter(text)
         if self.replace_dots:
-            text = text.replace('.', '').replace(',', '.')
+            if type(self.replace_dots) is tuple:
+                thousands_sep, decimal_sep = self.replace_dots
+            else:
+                thousands_sep, decimal_sep = '.', ','
+            text = text.replace(thousands_sep, '').replace(decimal_sep, '.')
         try:
             return Decimal(re.sub(r'[^\d\-\.]', '', text))
         except InvalidOperation as e:
             return self.default_or_raise(e)
-
-
-class Attr(Filter):
-    def __init__(self, selector, attr, default=_NO_DEFAULT):
-        super(Attr, self).__init__(selector, default=default)
-        self.attr = attr
-
-    def filter(self, el):
-        try:
-            return u'%s' % el[0].attrib[self.attr]
-        except IndexError:
-            return self.default_or_raise(XPathNotFound('Unable to find link %s' % self.selector))
-        except KeyError:
-            return self.default_or_raise(AttributeNotFound('Link %s does not has attribute %s' % (el[0], self.attr)))
-
-
-class Link(Attr):
-    """
-    Get the link uri of an element.
-
-    If the <a> tag is not found, an exception IndexError is raised.
-    """
-
-    def __init__(self, selector, default=_NO_DEFAULT):
-        super(Link, self).__init__(selector, 'href', default=default)
 
 
 class Field(_Filter):
@@ -340,8 +322,9 @@ class Regexp(Filter):
     u'1988-08-13'
     """
 
-    def __init__(self, selector, pattern, template=None, flags=0, default=_NO_DEFAULT):
+    def __init__(self, selector=None, pattern=None, template=None, flags=0, default=_NO_DEFAULT):
         super(Regexp, self).__init__(selector, default=default)
+        assert pattern is not None
         self.pattern = pattern
         self.regex = re.compile(pattern, flags)
         self.template = template
@@ -374,7 +357,7 @@ class Map(Filter):
 
 
 class DateTime(Filter):
-    def __init__(self, selector, default=_NO_DEFAULT, dayfirst=False, translations=None):
+    def __init__(self, selector=None, default=_NO_DEFAULT, dayfirst=False, translations=None):
         super(DateTime, self).__init__(selector, default=default)
         self.dayfirst = dayfirst
         self.translations = translations
@@ -392,7 +375,7 @@ class DateTime(Filter):
 
 
 class Date(DateTime):
-    def __init__(self, selector, default=_NO_DEFAULT, dayfirst=False, translations=None):
+    def __init__(self, selector=None, default=_NO_DEFAULT, dayfirst=False, translations=None):
         super(Date, self).__init__(selector, default=default, dayfirst=dayfirst, translations=translations)
 
     def filter(self, txt):
@@ -430,7 +413,7 @@ class Time(Filter):
     regexp = re.compile(r'(?P<hh>\d+):?(?P<mm>\d+)(:(?P<ss>\d+))?')
     kwargs = {'hour': 'hh', 'minute': 'mm', 'second': 'ss'}
 
-    def __init__(self, selector, default=_NO_DEFAULT):
+    def __init__(self, selector=None, default=_NO_DEFAULT):
         super(Time, self).__init__(selector, default=default)
 
     def filter(self, txt):
@@ -451,8 +434,9 @@ class Duration(Time):
 
 
 class MultiFilter(Filter):
-    def __init__(self, *args):
-        super(MultiFilter, self).__init__(args)
+    def __init__(self, *args, **kwargs):
+        default = kwargs.pop('default', _NO_DEFAULT)
+        super(MultiFilter, self).__init__(args, default)
 
     def __call__(self, item):
         values = [self.select(selector, item) for selector in self.selector]
@@ -480,7 +464,7 @@ class Format(MultiFilter):
 
 
 class Join(Filter):
-    def __init__(self, pattern, selector, textCleaner=CleanText):
+    def __init__(self, pattern, selector=None, textCleaner=CleanText):
         super(Join, self).__init__(selector)
         self.pattern = pattern
         self.textCleaner = textCleaner

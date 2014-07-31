@@ -18,20 +18,17 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-import warnings
 from time import time, sleep
-from tempfile import gettempdir
 import os
 import sys
 import traceback
 import types
 # keep compatibility
-from .date import local2utc, utc2local
 from .compat import unicode
 
 
-__all__ = ['get_backtrace', 'get_bytes_size', 'html2text', 'iter_fields',
-            'local2utc', 'to_unicode', 'utc2local', 'limit']
+__all__ = ['get_backtrace', 'get_bytes_size', 'iter_fields',
+            'to_unicode', 'limit']
 
 
 def get_backtrace(empty="Empty backtrace."):
@@ -46,7 +43,6 @@ def get_backtrace(empty="Empty backtrace."):
         if trace[0] != "None\n":
             return "".join(trace)
     except:
-        # No i18n here (imagine if i18n function calls error...)
         return "Error while trying to get backtrace"
     return empty
 
@@ -60,18 +56,6 @@ def get_bytes_size(size, unit_name):
         'TB': 1024 * 1024 * 1024 * 1024,
         }
     return float(size * unit_data.get(unit_name, 1))
-
-try:
-    import html2text as h2t
-    h2t.UNICODE_SNOB = 1
-    h2t.SKIP_INTERNAL_LINKS = True
-    h2t.INLINE_LINKS = False
-    h2t.LINKS_EACH_PARAGRAPH = True
-    html2text = h2t.html2text
-except ImportError:
-    def html2text(html):
-        warnings.warn('python-html2text is not present. HTML pages are not converted into text.', stacklevel=2)
-        return html
 
 
 def iter_fields(obj):
@@ -136,6 +120,7 @@ def ratelimit(group, delay):
     @param delay [int]  delay in seconds between each call
     """
 
+    from tempfile import gettempdir
     path = os.path.join(gettempdir(), 'weboob_ratelimit.%s' % group)
     while True:
         try:

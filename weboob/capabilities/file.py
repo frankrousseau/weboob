@@ -18,13 +18,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, NotAvailable, Field, StringField, DateField
+from .base import CapBase, BaseObject, NotAvailable, Field, StringField
+from .date import DateField
 
 
-__all__ = ['BaseFile', 'ICapFile']
+__all__ = ['BaseFile', 'CapFile']
 
 
-class BaseFile(CapBaseObject):
+class BaseFile(BaseObject):
     """
     Represent a file.
     """
@@ -37,6 +38,12 @@ class BaseFile(CapBaseObject):
     size =          Field('File size in bytes',int,long, default=NotAvailable)
     rating =        Field('Rating', int, long, float, default=NotAvailable)
     rating_max =    Field('Maximum rating', int, long, float, default=NotAvailable)
+
+    def __str__(self):
+        return self.url or ''
+
+    def __repr__(self):
+        return '<%s title=%r url=%r>' % (type(self).__name__, self.title, self.url)
 
     @classmethod
     def id2url(cls, _id):
@@ -53,7 +60,7 @@ class BaseFile(CapBaseObject):
         return self.id2url(self.id)
 
 
-class ICapFile(IBaseCap):
+class CapFile(CapBase):
     """
     Provide file download
     """

@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
+from __future__ import print_function
 from setuptools import find_packages, setup
 
 import glob
@@ -39,15 +39,15 @@ def find_executable(name, names):
                 fpath = os.path.join(path, name) + ext
                 if os.path.exists(fpath) and os.access(fpath, os.X_OK):
                     return fpath
-    print >>sys.stderr, 'Could not find executable: %s' % name
+    print('Could not find executable: %s' % name, file=sys.stderr)
 
 
 def build_qt():
-    print >>sys.stderr, 'Building Qt applications...'
+    print('Building Qt applications...', file=sys.stderr)
     make = find_executable('make', ('gmake', 'make'))
     pyuic4 = find_executable('pyuic4', ('python2-pyuic4', 'pyuic4-python2.7', 'pyuic4-python2.6', 'pyuic4'))
     if not pyuic4 or not make:
-        print >>sys.stderr, 'Install missing component(s) (see above) or disable Qt applications (with --no-qt).'
+        print('Install missing component(s) (see above) or disable Qt applications (with --no-qt).', file=sys.stderr)
         sys.exit(1)
 
     subprocess.check_call(
@@ -131,11 +131,8 @@ def install_weboob():
         else:
             requirements.append('PIL')
 
-    if sys.version_info[0] > 2:
-        print >>sys.stderr, 'Python 3 is not supported.'
-        sys.exit(1)
-    if sys.version_info[1] < 6:  # older than 2.6
-        print >>sys.stderr, 'Python older than 2.6 is not supported.'
+    if sys.version_info < (2,6):
+        print('Python older than 2.6 is not supported.', file=sys.stderr)
         sys.exit(1)
 
     if not options.deps:
@@ -181,13 +178,13 @@ options = Options()
 
 args = list(sys.argv)
 if '--hildon' in args and '--no-hildon' in args:
-    print >>sys.stderr, '--hildon and --no-hildon options are incompatible'
+    print('--hildon and --no-hildon options are incompatible', file=sys.stderr)
     sys.exit(1)
 if '--qt' in args and '--no-qt' in args:
-    print >>sys.stderr, '--qt and --no-qt options are incompatible'
+    print('--qt and --no-qt options are incompatible', file=sys.stderr)
     sys.exit(1)
 if '--xdg' in args and '--no-xdg' in args:
-    print >>sys.stderr, '--xdg and --no-xdg options are incompatible'
+    print('--xdg and --no-xdg options are incompatible', file=sys.stderr)
     sys.exit(1)
 
 if '--hildon' in args or os.environ.get('HILDON') == 'true':

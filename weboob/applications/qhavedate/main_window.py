@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Romain Bignon
+# Copyright(C) 2010-2014 Romain Bignon
 #
 # This file is part of weboob.
 #
@@ -22,7 +22,7 @@ from PyQt4.QtCore import SIGNAL
 
 from weboob.tools.application.qt import QtMainWindow
 from weboob.tools.application.qt.backendcfg import BackendCfg
-from weboob.capabilities.dating import ICapDating
+from weboob.capabilities.dating import CapDating
 
 try:
     from weboob.applications.qboobmsg.messages_manager import MessagesManager
@@ -34,6 +34,7 @@ from .ui.main_window_ui import Ui_MainWindow
 from .status import AccountsStatus
 from .contacts import ContactsWidget
 from .events import EventsWidget
+from .search import SearchWidget
 
 
 class MainWindow(QtMainWindow):
@@ -54,6 +55,7 @@ class MainWindow(QtMainWindow):
         self.addTab(MessagesManager(self.weboob) if HAVE_BOOBMSG else None, self.tr('Messages'))
         self.addTab(ContactsWidget(self.weboob), self.tr('Contacts'))
         self.addTab(EventsWidget(self.weboob), self.tr('Events'))
+        self.addTab(SearchWidget(self.weboob), self.tr('Search'))
         self.addTab(None, self.tr('Calendar'))
         self.addTab(None, self.tr('Optimizations'))
 
@@ -61,7 +63,7 @@ class MainWindow(QtMainWindow):
             self.backendsConfig()
 
     def backendsConfig(self):
-        bckndcfg = BackendCfg(self.weboob, (ICapDating,), self)
+        bckndcfg = BackendCfg(self.weboob, (CapDating,), self)
         if bckndcfg.run():
             self.loaded_tabs.clear()
             widget = self.ui.tabWidget.widget(self.ui.tabWidget.currentIndex())

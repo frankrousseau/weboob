@@ -22,11 +22,11 @@ import re
 from datetime import timedelta
 
 from .image import BaseImage
-from .base import Field, StringField, IntField, CapBaseObject
-from .file import ICapFile, BaseFile
+from .base import Field, StringField, IntField, BaseObject
+from .file import CapFile, BaseFile
 
 
-__all__ = ['BaseAudio', 'ICapAudio']
+__all__ = ['BaseAudio', 'CapAudio']
 
 
 def decode_id(decode_id):
@@ -44,7 +44,7 @@ def decode_id(decode_id):
     return wrapper
 
 
-class Album(CapBaseObject):
+class Album(BaseObject):
     """
     Represent an album
     """
@@ -55,7 +55,7 @@ class Album(CapBaseObject):
     tracks_list = Field('list of tracks', list)
 
     def __init__(self, _id):
-        CapBaseObject.__init__(self, unicode("album.%s" % _id))
+        BaseObject.__init__(self, unicode("album.%s" % _id))
 
     @classmethod
     def decode_id(cls, _id):
@@ -66,7 +66,7 @@ class Album(CapBaseObject):
             return _id
 
 
-class Playlist(CapBaseObject):
+class Playlist(BaseObject):
     """
     Represent a playlist
     """
@@ -74,7 +74,7 @@ class Playlist(CapBaseObject):
     tracks_list = Field('list of tracks', list)
 
     def __init__(self, _id):
-        CapBaseObject.__init__(self, unicode("playlist.%s" % _id))
+        BaseObject.__init__(self, unicode("playlist.%s" % _id))
 
     @classmethod
     def decode_id(cls, _id):
@@ -106,7 +106,7 @@ class BaseAudio(BaseFile):
             return _id
 
 
-class ICapAudio(ICapFile):
+class CapAudio(CapFile):
     """
     Audio file provider
     """
@@ -124,7 +124,7 @@ class ICapAudio(ICapFile):
             else:
                 return 'get_audio'
 
-    def search_audio(self, pattern, sortby=ICapFile.SEARCH_RELEVANCE):
+    def search_audio(self, pattern, sortby=CapFile.SEARCH_RELEVANCE):
         """
         search for a audio file
 
@@ -135,7 +135,7 @@ class ICapAudio(ICapFile):
         """
         return self.search_file(pattern, sortby)
 
-    def search_album(self, pattern, sortby=ICapFile.SEARCH_RELEVANCE):
+    def search_album(self, pattern, sortby=CapFile.SEARCH_RELEVANCE):
         """
         search for an album
         :param pattern: pattern to search on
@@ -144,7 +144,7 @@ class ICapAudio(ICapFile):
         """
         raise NotImplementedError()
 
-    def search_playlist(self, pattern, sortby=ICapFile.SEARCH_RELEVANCE):
+    def search_playlist(self, pattern, sortby=CapFile.SEARCH_RELEVANCE):
         """
         search for an album
         :param pattern: pattern to search on

@@ -18,13 +18,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, DateField, StringField, IntField, Field
+from .base import CapBase, BaseObject, StringField, IntField, Field
+from .date import DateField
 
 
-__all__ = ['Movie', 'Person', 'ICapCinema']
+__all__ = ['Movie', 'Person', 'CapCinema']
 
 
-class Movie(CapBaseObject):
+class Movie(BaseObject):
     """
     Movie object.
     """
@@ -42,11 +43,11 @@ class Movie(CapBaseObject):
     thumbnail_url    = StringField('Url of movie thumbnail')
 
     def __init__(self, id, original_title):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.original_title = original_title
 
 
-class Person(CapBaseObject):
+class Person(BaseObject):
     """
     Person object.
     """
@@ -64,11 +65,11 @@ class Person(CapBaseObject):
     thumbnail_url    = StringField('Url of person thumbnail')
 
     def __init__(self, id, name):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.name = name
 
 
-class ICapCinema(IBaseCap):
+class CapCinema(CapBase):
     """
     Cinema databases.
     """

@@ -18,12 +18,13 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, Field, StringField, DateField, \
-                  IntField, DeltaField, UserError
+from .base import CapBase, BaseObject, Field, StringField,\
+                  IntField, UserError
+from .date import DateField, DeltaField
 
 
 __all__ = ['IssueError', 'Project', 'User', 'Version', 'Status', 'Attachment',
-           'Change', 'Update', 'Issue', 'Query', 'ICapBugTracker']
+           'Change', 'Update', 'Issue', 'Query', 'CapBugTracker']
 
 
 class IssueError(UserError):
@@ -32,7 +33,7 @@ class IssueError(UserError):
     """
 
 
-class Project(CapBaseObject):
+class Project(BaseObject):
     """
     Represents a project.
     """
@@ -45,7 +46,7 @@ class Project(CapBaseObject):
     priorities =    Field('Available priorities for issues', list)
 
     def __init__(self, id, name):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.name = unicode(name)
 
     def __repr__(self):
@@ -105,35 +106,35 @@ class Project(CapBaseObject):
         return None
 
 
-class User(CapBaseObject):
+class User(BaseObject):
     """
     User.
     """
     name =      StringField('Name of user')
 
     def __init__(self, id, name):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.name = unicode(name)
 
     def __repr__(self):
         return '<User %r>' % self.name
 
 
-class Version(CapBaseObject):
+class Version(BaseObject):
     """
     Version of a project.
     """
     name =      StringField('Name of version')
 
     def __init__(self, id, name):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.name = unicode(name)
 
     def __repr__(self):
         return '<Version %r>' % self.name
 
 
-class Status(CapBaseObject):
+class Status(BaseObject):
     """
     Status of an issue.
 
@@ -149,7 +150,7 @@ class Status(CapBaseObject):
     value =     IntField('Value of status (constants VALUE_*)')
 
     def __init__(self, id, name, value):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
         self.name = unicode(name)
         self.value = value
 
@@ -157,7 +158,7 @@ class Status(CapBaseObject):
         return '<Status %r>' % self.name
 
 
-class Attachment(CapBaseObject):
+class Attachment(BaseObject):
     """
     Attachment of an issue.
     """
@@ -168,7 +169,7 @@ class Attachment(CapBaseObject):
         return '<Attachment %r>' % self.filename
 
 
-class Change(CapBaseObject):
+class Change(BaseObject):
     """
     A change of an update.
     """
@@ -177,7 +178,7 @@ class Change(CapBaseObject):
     new =           StringField('New value of field')
 
 
-class Update(CapBaseObject):
+class Update(BaseObject):
     """
     Represents an update of an issue.
     """
@@ -192,7 +193,7 @@ class Update(CapBaseObject):
         return '<Update %r>' % self.id
 
 
-class Issue(CapBaseObject):
+class Issue(BaseObject):
     """
     Represents an issue.
     """
@@ -215,7 +216,7 @@ class Issue(CapBaseObject):
     priority =      StringField('Priority of the issue') #XXX
 
 
-class Query(CapBaseObject):
+class Query(BaseObject):
     """
     Query to find an issue.
     """
@@ -228,10 +229,10 @@ class Query(CapBaseObject):
     status =        StringField('Filter on statuses')
 
     def __init__(self):
-        CapBaseObject.__init__(self, '')
+        BaseObject.__init__(self, '')
 
 
-class ICapBugTracker(IBaseCap):
+class CapBugTracker(CapBase):
     """
     Bug trackers websites.
     """

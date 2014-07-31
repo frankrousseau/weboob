@@ -18,21 +18,21 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, Field, DecimalField, \
-                  StringField, DateField
+from .base import CapBase, BaseObject, Field, DecimalField, \
+                  StringField
+from .date import DateField
+
+__all__ = ['Shop', 'Price', 'Product', 'CapPriceComparison']
 
 
-__all__ = ['Shop', 'Price', 'Product', 'ICapPriceComparison']
-
-
-class Product(CapBaseObject):
+class Product(BaseObject):
     """
     A product.
     """
     name =      StringField('Name of product')
 
 
-class Shop(CapBaseObject):
+class Shop(BaseObject):
     """
     A shop where the price is.
     """
@@ -41,7 +41,7 @@ class Shop(CapBaseObject):
     info =      StringField('Information about the shop')
 
 
-class Price(CapBaseObject):
+class Price(BaseObject):
     """
     Price.
     """
@@ -53,7 +53,7 @@ class Price(CapBaseObject):
     product =   Field('Product', Product)
 
 
-class ICapPriceComparison(IBaseCap):
+class CapPriceComparison(CapBase):
     """
     Capability for price comparison websites.
     """

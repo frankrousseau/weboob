@@ -19,7 +19,7 @@
 
 
 from weboob.tools.test import BackendTest
-from weboob.tools.misc import html2text
+from weboob.tools.html import html2text
 
 
 __all__ = ['LeFigaroTest']

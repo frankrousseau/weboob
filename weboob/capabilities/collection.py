@@ -19,10 +19,10 @@
 
 from weboob.tools.ordereddict import OrderedDict
 
-from .base import IBaseCap, CapBaseObject, UserError, StringField, Field
+from .base import CapBase, BaseObject, UserError, StringField, Field
 
 
-__all__ = ['ICapCollection', 'BaseCollection', 'Collection', 'CollectionNotFound']
+__all__ = ['CapCollection', 'BaseCollection', 'Collection', 'CollectionNotFound']
 
 
 class CollectionNotFound(UserError):
@@ -34,13 +34,13 @@ class CollectionNotFound(UserError):
         UserError.__init__(self, msg)
 
 
-class BaseCollection(CapBaseObject):
+class BaseCollection(BaseObject):
     """
     Inherit from this if you want to create an object that is *also* a Collection.
     However, this probably will not work properly for now.
     """
     def __init__(self, split_path):
-        CapBaseObject.__init__(self, None)
+        BaseObject.__init__(self, None)
         self.split_path = split_path
 
     @property
@@ -76,7 +76,7 @@ class Collection(BaseCollection):
 
     It is a dumb object, it must not contain callbacks to a backend.
 
-    Do not inherit from this class if you want to make a regular CapBaseObject
+    Do not inherit from this class if you want to make a regular BaseObject
     a Collection, use BaseCollection instead.
     """
     title = StringField('Collection title')
@@ -95,7 +95,7 @@ class Collection(BaseCollection):
             return u'Unknown collection'
 
 
-class ICapCollection(IBaseCap):
+class CapCollection(CapBase):
     def iter_resources_flat(self, objs, split_path, clean_only=False):
         """
         Call iter_resources() to fetch all resources in the tree.

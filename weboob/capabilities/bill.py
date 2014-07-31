@@ -18,11 +18,12 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBaseObject, StringField, DateField, DecimalField, UserError
-from .collection import ICapCollection
+from .base import BaseObject, StringField, DecimalField, UserError
+from .date import DateField
+from .collection import CapCollection
 
 
-__all__ = ['SubscriptionNotFound', 'BillNotFound', 'Detail', 'Bill', 'Subscription', 'ICapBill']
+__all__ = ['SubscriptionNotFound', 'BillNotFound', 'Detail', 'Bill', 'Subscription', 'CapBill']
 
 
 class SubscriptionNotFound(UserError):
@@ -41,7 +42,7 @@ class BillNotFound(UserError):
         UserError.__init__(self, msg)
 
 
-class Detail(CapBaseObject):
+class Detail(BaseObject):
     """
     Detail of a subscription
     """
@@ -55,10 +56,10 @@ class Detail(CapBaseObject):
     unit =      StringField('Unit of the consumption')
 
     def __init__(self):
-        CapBaseObject.__init__(self, 0)
+        BaseObject.__init__(self, 0)
 
 
-class Bill(CapBaseObject):
+class Bill(BaseObject):
     """
     Bill.
     """
@@ -73,10 +74,10 @@ class Bill(CapBaseObject):
     finishdate =    DateField('The last day the bill applies to')
 
     def __init__(self):
-        CapBaseObject.__init__(self, 0)
+        BaseObject.__init__(self, 0)
 
 
-class Subscription(CapBaseObject):
+class Subscription(BaseObject):
     """
     Subscription to a service.
     """
@@ -86,7 +87,7 @@ class Subscription(CapBaseObject):
     renewdate =     DateField('Reset date of consumption')
 
 
-class ICapBill(ICapCollection):
+class CapBill(CapCollection):
     def iter_resources(self, objs, split_path):
         """
         Iter resources. Will return :func:`iter_subscriptions`.

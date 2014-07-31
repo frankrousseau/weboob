@@ -17,9 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-from datetime import date as real_date, datetime as real_datetime, timedelta
 import dateutil.parser
+from datetime import date as real_date, datetime as real_datetime, timedelta
 import time
 import re
 try:

@@ -35,7 +35,6 @@ except ImportError:
 
 import os
 import re
-import tempfile
 from threading import RLock
 import ssl
 import httplib
@@ -50,22 +49,12 @@ from contextlib import closing
 from gzip import GzipFile
 import warnings
 
-from weboob.tools.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserPasswordExpired, BrowserForbidden, BrowserBanned, BrowserHTTPNotFound, BrowserHTTPError
+from weboob.tools.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserPasswordExpired, BrowserForbidden, BrowserBanned, BrowserHTTPNotFound, BrowserHTTPError, FormFieldConversionWarning, BrowserSSLError
 from weboob.tools.decorators import retry
 from weboob.tools.log import getLogger
 from weboob.tools.mech import ClientForm
 ControlNotFoundError = ClientForm.ControlNotFoundError
 from weboob.tools.parsers import get_parser
-
-# Try to load cookies
-try:
-    from .firefox_cookies import FirefoxCookieJar
-except ImportError as e:
-    logging.warning("Unable to store cookies: %s", e)
-    HAVE_COOKIES = False
-else:
-    HAVE_COOKIES = True
-
 
 __all__ = ['BrowserIncorrectPassword', 'BrowserForbidden', 'BrowserBanned', 'BrowserUnavailable', 'BrowserRetry',
            'BrowserPasswordExpired', 'BrowserHTTPNotFound', 'BrowserHTTPError', 'BrokenPageError', 'BasePage',
@@ -98,12 +87,6 @@ class NoHistory(object):
 
 class BrokenPageError(Exception):
     pass
-
-
-class FormFieldConversionWarning(UserWarning):
-    """
-    A value has been set to a form's field and has been implicitly converted.
-    """
 
 
 class BasePage(object):
@@ -199,10 +182,16 @@ class StandardBrowser(mechanize.Browser):
             self.set_proxies(proxy)
 
         # Share cookies with firefox
-        if firefox_cookies and HAVE_COOKIES:
-            self._cookie = FirefoxCookieJar(self.DOMAIN, firefox_cookies)
-            self._cookie.load()
-            self.set_cookiejar(self._cookie)
+        if firefox_cookies:
+            # Try to load cookies
+            try:
+                from .firefox_cookies import FirefoxCookieJar
+                self._cookie = FirefoxCookieJar(self.DOMAIN, firefox_cookies)
+                self._cookie.load()
+                self.set_cookiejar(self._cookie)
+            except ImportError as e:
+                logging.warning("Unable to store Firefox cookies: %s", e)
+                self._cookie = None
         else:
             self._cookie = None
 
@@ -292,6 +281,7 @@ class StandardBrowser(mechanize.Browser):
         The stream is rewinded after saving.
         """
         if self.responses_dirname is None:
+            import tempfile
             self.responses_dirname = tempfile.mkdtemp(prefix='weboob_session_')
             print('Debug data will be saved in this directory: %s' % self.responses_dirname, file=sys.stderr)
         elif not os.path.isdir(self.responses_dirname):
@@ -415,7 +405,7 @@ class StandardBrowser(mechanize.Browser):
         if isinstance(hsh, basestring):
             hsh = [hsh]
         if certhash not in hsh:
-            raise ssl.SSLError()
+            raise BrowserSSLError()
 
     def _certhash(self, domain, port=443):
         certs = ssl.get_server_certificate((domain, port))

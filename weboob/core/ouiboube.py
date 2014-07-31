@@ -191,13 +191,18 @@ class WebNip(object):
         Note: each backend is locked when it is returned.
 
         :param caps: optional list of capabilities to select backends
-        :type caps: tuple[:class:`weboob.capabilities.base.IBaseCap`]
+        :type caps: tuple[:class:`weboob.capabilities.base.CapBase`]
         :rtype: iter[:class:`weboob.tools.backend.BaseBackend`]
         """
         for _, backend in sorted(self.backend_instances.iteritems()):
             if caps is None or backend.has_caps(caps):
                 with backend:
                     yield backend
+
+    def __getattr__(self, name):
+        def caller(*args, **kwargs):
+            return self.do(name, *args, **kwargs)
+        return caller
 
     def do(self, function, *args, **kwargs):
         r"""
@@ -217,7 +222,7 @@ class WebNip(object):
         :param backends: list of backends to iterate on
         :type backends: list[:class:`str`]
         :param caps: iterate on backends which implement this caps
-        :type caps: list[:class:`weboob.capabilities.base.IBaseCap`]
+        :type caps: list[:class:`weboob.capabilities.base.CapBase`]
         :rtype: A :class:`weboob.core.bcall.BackendsCall` object (iterable)
         """
         backends = self.backend_instances.values()
@@ -242,7 +247,7 @@ class WebNip(object):
                     else:
                         backends.append(backend)
             else:
-                self.logger.warning(u'The "backends" value isn\'t supported: %r' % _backends)
+                self.logger.warning(u'The "backends" value isn\'t supported: %r', _backends)
 
         if 'caps' in kwargs:
             caps = kwargs.pop('caps')
@@ -346,7 +351,7 @@ class Weboob(WebNip):
         if not os.path.exists(name):
             os.makedirs(name)
         elif not os.path.isdir(name):
-            self.logger.error(u'"%s" is not a directory' % name)
+            self.logger.error(u'"%s" is not a directory', name)
 
     def update(self, progress=IProgress()):
         """
@@ -387,7 +392,7 @@ class Weboob(WebNip):
         Load backends listed in config file.
 
         :param caps: load backends which implement all of specified caps
-        :type caps: tuple[:class:`weboob.capabilities.base.ICapBase`]
+        :type caps: tuple[:class:`weboob.capabilities.base.CapBase`]
         :param names: load backends with instance name in list
         :type names: tuple[:class:`str`]
         :param modules: load backends which module is in list
@@ -419,7 +424,7 @@ class Weboob(WebNip):
             minfo = self.repositories.get_module_info(module_name)
             if minfo is None:
                 self.logger.warning(u'Backend "%s" is referenced in %s but was not found. '
-                                     'Perhaps a missing repository?' % (module_name, self.backends_config.confpath))
+                                    u'Perhaps a missing repository?', module_name, self.backends_config.confpath)
                 continue
 
             if caps is not None and not minfo.has_caps(caps):
@@ -432,11 +437,11 @@ class Weboob(WebNip):
             try:
                 module = self.modules_loader.get_or_load_module(module_name)
             except ModuleLoadError as e:
-                self.logger.error(u'Unable to load module "%s": %s' % (module_name, e))
+                self.logger.error(u'Unable to load module "%s": %s', module_name, e)
                 continue
 
             if instance_name in self.backend_instances:
-                self.logger.warning(u'Oops, the backend "%s" is already loaded. Unload it before reloading...' % instance_name)
+                self.logger.warning(u'Oops, the backend "%s" is already loaded. Unload it before reloading...', instance_name)
                 self.unload_backends(instance_name)
 
             try:

@@ -18,10 +18,10 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import IBaseCap, CapBaseObject, StringField, Field, UserError
+from .base import CapBase, BaseObject, StringField, Field, UserError
 
 
-__all__ = ['AccountRegisterError', 'Account', 'StatusField', 'ICapAccount']
+__all__ = ['AccountRegisterError', 'Account', 'StatusField', 'CapAccount']
 
 
 class AccountRegisterError(UserError):
@@ -30,7 +30,7 @@ class AccountRegisterError(UserError):
     """
 
 
-class Account(CapBaseObject):
+class Account(BaseObject):
     """
     Describe an account and its properties.
     """
@@ -39,7 +39,7 @@ class Account(CapBaseObject):
     properties =    Field('List of key/value properties', dict)
 
     def __init__(self, id=None):
-        CapBaseObject.__init__(self, id)
+        BaseObject.__init__(self, id)
 
 
 class StatusField(object):
@@ -56,7 +56,7 @@ class StatusField(object):
         self.flags = flags
 
 
-class ICapAccount(IBaseCap):
+class CapAccount(CapBase):
     """
     Capability for websites when you can create and manage accounts.
 
