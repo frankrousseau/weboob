@@ -55,34 +55,34 @@ class ArteBrowser(BaseBrowser):
 
     @id2url(ArteVideo.id2url)
     def get_video(self, url, video=None):
-
-        result = self.get_video_by_quality(url, self.quality)
+        response = self.openurl('%s/ALL.json' % url)
+        result = simplejson.loads(response.read(), self.ENCODING)
 
         if video is None:
             video = self.create_video(result['video'])
         try:
-            video.url = u'%s' % result['video']['VSR'][0]['VUR']
-            video.ext = u'%s' % result['video']['VSR'][0]['VMT']
+            video.url = self.get_m3u8_link(result['video']['VSR'][0]['VUR'])
+            video.ext = u'm3u8'
         except:
-            video.url, video.ext = self.get_default_url(url)
+            video.url, video.ext = NotAvailable, NotAvailable
 
         return video
 
-    def get_default_url(self, url):
-        result = self.get_video_by_quality(url, 'ALL')
-        try:
-            return u'%s' % result['video']['VSR'][0]['VUR'], \
-                   u'%s' % result['video']['VSR'][0]['VMT']
-        except:
-            return NotAvailable, NotAvailable
+    def get_m3u8_link(self, url):
+        r = self.openurl(url)
+        baseurl = url.rpartition('/')[0]
 
-    def get_video_by_quality(self, url, quality):
-        _url = url \
-            + '/' + quality \
-            + '.json'
+        links_by_quality = []
+        for line in r.readlines():
+            if not line.startswith('#'):
+                links_by_quality.append(u'%s/%s' % (baseurl, line.replace('\n', '')))
 
-        response = self.openurl(_url)
-        return simplejson.loads(response.read(), self.ENCODING)
+        if len(links_by_quality):
+            try:
+                return links_by_quality[self.quality[1]]
+            except:
+                return links_by_quality[0]
+        return NotAvailable
 
     @id2url(ArteLiveVideo.id2url)
     def get_live_video(self, url, video=None):
@@ -98,7 +98,7 @@ class ArteBrowser(BaseBrowser):
         quality = None
         if 'VSR' in result['videoJsonPlayer']:
             for item in result['videoJsonPlayer']['VSR']:
-                if self.quality in item:
+                if self.quality[0] in item:
                     quality = item
                     break
 
@@ -182,12 +182,13 @@ class ArteBrowser(BaseBrowser):
         video.set_empty_fields(NotAvailable, ('url',))
         if 'VDE' in item:
             video.description = u'%s' % item['VDE']
-        m = re.match('(\d{2})\s(\d{2})\s(\d{4})(.*?)', item['VDA'])
-        if m:
-            dd = int(m.group(1))
-            mm = int(m.group(2))
-            yyyy = int(m.group(3))
-            video.date = datetime.date(yyyy, mm, dd)
+        if 'VDA' in item:
+            m = re.match('(\d{2})\s(\d{2})\s(\d{4})(.*?)', item['VDA'])
+            if m:
+                dd = int(m.group(1))
+                mm = int(m.group(2))
+                yyyy = int(m.group(3))
+                video.date = datetime.date(yyyy, mm, dd)
         return video
 
     def create_url_plus7(self, class_name, method_name, level, cluster, channel, limit, offset, pattern=None):

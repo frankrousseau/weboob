@@ -291,17 +291,32 @@ class Boobot(SingleServerIRCBot):
         quotes.append({'author': nick, 'timestamp': datetime.now(), 'text': text})
         self.storage.set(channel, 'quotes', quotes)
         self.storage.save()
+        self.send_message('Quote #%s added' % len(quotes) - 1, channel)
+
+    def cmd_delquote(self, nick, channel, text):
+        quotes = self.storage.get(channel, 'quotes', default=[])
+
+        try:
+            n = int(text)
+        except ValueError:
+            self.send_message("Quote #%s not found gros" % text, channel)
+            return
+
+        quotes.pop(n)
+        self.storage.set(channel, 'quotes', quotes)
+        self.storage.save()
+        self.send_message('Quote #%s removed' % n, channel)
 
     def cmd_searchquote(self, nick, channel, text):
         try:
-            pattern = re.compile(text, re.IGNORECASE)
+            pattern = re.compile(to_unicode(text), re.IGNORECASE|re.UNICODE)
         except Exception as e:
             self.send_message(str(e), channel)
             return
 
         quotes = []
         for quote in self.storage.get(channel, 'quotes', default=[]):
-            if pattern.search(quote['text']):
+            if pattern.search(to_unicode(quote['text'])):
                 quotes.append(quote)
 
         try:

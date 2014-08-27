@@ -129,7 +129,7 @@ class _Selector(Filter):
 class Base(Filter):
     """
     Change the base element used in filters.
-    >>> Base(Env('header'), CleanText('./h1'))
+    >>> Base(Env('header'), CleanText('./h1'))  # doctest: +SKIP
     """
     def __call__(self, item):
         base = self.select(self.base, item)
@@ -148,12 +148,15 @@ class Env(_Filter):
     method on ItemElement.
     """
 
-    def __init__(self, name):
-        super(Env, self).__init__()
+    def __init__(self, name, default=_NO_DEFAULT):
+        super(Env, self).__init__(default)
         self.name = name
 
     def __call__(self, item):
-        return item.env[self.name]
+        try:
+            return item.env[self.name]
+        except KeyError:
+            return self.default_or_raise(ParseError('Environment variable %s not found' % self.name))
 
 
 class TableCell(_Filter):
@@ -163,7 +166,7 @@ class TableCell(_Filter):
     For example:
 
     >>> from weboob.capabilities.bank import Transaction
-    >>> from .page import TableElement, ItemElement
+    >>> from weboob.tools.browser2.elements import TableElement, ItemElement
     >>> class table(TableElement):
     ...     head_xpath = '//table/thead/th'
     ...     item_xpath = '//table/tbody/tr'
@@ -218,34 +221,51 @@ class CleanText(Filter):
     """
     Get a cleaned text from an element.
 
-    It first replaces all tabs and multiple spaces to one space and strip the result
-    string.
-    Second, it replaces all symbols given in second argument.
+    It first replaces all tabs and multiple spaces
+    (including newlines if ``newlines`` is True)
+    to one space and strips the result string.
+    Then it replaces all symbols given in the ``symbols`` argument.
+
+    >>> CleanText().filter('coucou ')
+    u'coucou'
+    >>> CleanText().filter(u'coucou\xa0coucou')
+    u'coucou coucou'
+    >>> CleanText(newlines=True).filter(u'coucou\\r\\n coucou ')
+    u'coucou coucou'
+    >>> CleanText(newlines=False).filter(u'coucou\\r\\n coucou ')
+    u'coucou\\ncoucou'
     """
 
-    def __init__(self, selector=None, symbols='', replace=[], childs=True, **kwargs):
+    def __init__(self, selector=None, symbols='', replace=[], childs=True, newlines=True, **kwargs):
         super(CleanText, self).__init__(selector, **kwargs)
         self.symbols = symbols
         self.toreplace = replace
         self.childs = childs
+        self.newlines = newlines
 
     def filter(self, txt):
         if isinstance(txt, (tuple, list)):
             txt = u' '.join([self.clean(item, childs=self.childs) for item in txt])
 
-        txt = self.clean(txt, childs=self.childs)
+        txt = self.clean(txt, childs=self.childs, newlines=self.newlines)
         txt = self.remove(txt, self.symbols)
-        return self.replace(txt, self.toreplace)
+        txt = self.replace(txt, self.toreplace)
+        # lxml under Python 2 returns str instead of unicode if it is pure ASCII
+        return unicode(txt)
 
     @classmethod
-    def clean(cls, txt, childs=True):
+    def clean(cls, txt, childs=True, newlines=True):
         if not isinstance(txt, basestring):
             if childs:
                 txt = [t.strip() for t in txt.itertext()]
             else:
                 txt = [txt.text.strip()]
-            txt = u' '.join(txt)                 # 'foo   bar'
-        txt = re.sub(u'[\\s\xa0\t]+', u' ', txt)   # 'foo bar'
+            txt = u' '.join(txt)  # 'foo   bar'
+        if newlines:
+            txt = re.compile(u'\s+', flags=re.UNICODE).sub(u' ', txt)  # 'foo bar'
+        else:
+            # normalize newlines and clean what is inside
+            txt = '\n'.join([cls.clean(l) for l in txt.splitlines()])
         return txt.strip()
 
     @classmethod
@@ -271,6 +291,11 @@ class CleanDecimal(CleanText):
     """
     Get a cleaned Decimal value from an element.
 
+    replace_dots is False by default. A dot is interpreted as a decimal separator.
+
+    If replace_dots is set to True, we remove all the dots. The ',' is used as decimal
+    separator (often useful for French values)
+
     If replace_dots is a tuple, the first element will be used as the thousands separator,
     and the second as the decimal separator.
 
@@ -278,10 +303,10 @@ class CleanDecimal(CleanText):
 
     For example, for the UK style (as in 1,234,567.89):
 
-    >>> CleanDecimal('./td[1]', replace_dots=(',', '.'))
+    >>> CleanDecimal('./td[1]', replace_dots=(',', '.'))  # doctest: +SKIP
     """
 
-    def __init__(self, selector=None, replace_dots=True, default=_NO_DEFAULT):
+    def __init__(self, selector=None, replace_dots=False, default=_NO_DEFAULT):
         super(CleanDecimal, self).__init__(selector, default=default)
         self.replace_dots = replace_dots
 
@@ -475,3 +500,9 @@ class Join(Filter):
             res += self.pattern % self.textCleaner.clean(li)
 
         return res
+
+
+def test():
+    # This test works poorly under a doctest, or would be hard to read
+    assert CleanText().filter(u' coucou  \n\théhé') == u'coucou héhé'
+    assert CleanText().filter('coucou\xa0coucou') == CleanText().filter(u'coucou\xa0coucou') == u'coucou coucou'
