@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import SueurDeMetalBackend
+from .module import SueurDeMetalModule
 
 
-__all__ = ['SueurDeMetalBackend']
+__all__ = ['SueurDeMetalModule']

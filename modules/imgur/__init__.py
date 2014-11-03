@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import ImgurBackend
+from .module import ImgurModule
 
 
-__all__ = ['ImgurBackend']
+__all__ = ['ImgurModule']

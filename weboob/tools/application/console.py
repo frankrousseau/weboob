@@ -26,19 +26,18 @@ import logging
 import subprocess
 import sys
 import os
-import locale
 
 from weboob.capabilities import UserError
 from weboob.capabilities.account import CapAccount, Account, AccountRegisterError
 from weboob.core.backendscfg import BackendAlreadyExists
 from weboob.core.modules import ModuleLoadError
 from weboob.core.repositories import ModuleInstallError
-from weboob.tools.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserForbidden, BrowserSSLError
+from weboob.exceptions import BrowserUnavailable, BrowserIncorrectPassword, BrowserForbidden, BrowserSSLError
 from weboob.tools.value import Value, ValueBool, ValueFloat, ValueInt, ValueBackendPassword
 from weboob.tools.misc import to_unicode
 from weboob.tools.ordereddict import OrderedDict
 
-from .base import BaseApplication, MoreResultsAvailable
+from .base import Application, MoreResultsAvailable
 
 
 __all__ = ['ConsoleApplication', 'BackendNotGiven']
@@ -56,7 +55,7 @@ class BackendNotFound(Exception):
     pass
 
 
-class ConsoleApplication(BaseApplication):
+class ConsoleApplication(Application):
     """
     Base application class for CLI applications.
     """
@@ -65,7 +64,7 @@ class ConsoleApplication(BaseApplication):
 
     # shell escape strings
     if sys.platform == 'win32' \
-            or not os.isatty(sys.stdout.fileno()) \
+            or not sys.stdout.isatty() \
             or os.getenv('ANSI_COLORS_DISABLED') is not None:
         #workaround to disable bold
         BOLD   = ''
@@ -74,11 +73,8 @@ class ConsoleApplication(BaseApplication):
         BOLD   = '[1m'
         NC     = '[0m'    # no color
 
-    stdin = sys.stdin
-    stdout = sys.stdout
-
     def __init__(self, option_parser=None):
-        BaseApplication.__init__(self, option_parser)
+        Application.__init__(self, option_parser)
         self.weboob.callbacks['login'] = self.login_cb
         self.enabled_backends = set()
 
@@ -109,7 +105,7 @@ class ConsoleApplication(BaseApplication):
         ret = super(ConsoleApplication, self).load_backends(*args, **kwargs)
 
         for err in errors:
-            print('Error(%s): %s' % (err.backend_name, err), file=sys.stderr)
+            print('Error(%s): %s' % (err.backend_name, err), file=self.stderr)
             if self.ask('Do you want to reconfigure this backend?', default=True):
                 self.edit_backend(err.backend_name)
                 self.load_backends(names=[err.backend_name])
@@ -124,7 +120,7 @@ class ConsoleApplication(BaseApplication):
     def check_loaded_backends(self, default_config=None):
         while len(self.enabled_backends) == 0:
             print('Warning: there is currently no configured backend for %s' % self.APPNAME)
-            if not os.isatty(sys.stdout.fileno()) or not self.ask('Do you want to configure backends?', default=True):
+            if not self.stdout.isatty() or not self.ask('Do you want to configure backends?', default=True):
                 return False
 
             self.prompt_create_backends(default_config)
@@ -158,7 +154,7 @@ class ConsoleApplication(BaseApplication):
             if str(r).isdigit():
                 i = int(r) - 1
                 if i < 0 or i >= len(modules):
-                    print('Error: %s is not a valid choice' % r, file=sys.stderr)
+                    print('Error: %s is not a valid choice' % r, file=self.stderr)
                     continue
                 name = modules[i]
                 try:
@@ -205,7 +201,7 @@ class ConsoleApplication(BaseApplication):
             sys.exit(1)
 
     def do(self, function, *args, **kwargs):
-        if not 'backends' in kwargs:
+        if 'backends' not in kwargs:
             kwargs['backends'] = self.enabled_backends
         return self.weboob.do(function, *args, **kwargs)
 
@@ -220,7 +216,19 @@ class ConsoleApplication(BaseApplication):
                 backend_name = backends[0][0]
             else:
                 raise BackendNotGiven(_id, backends)
-        if backend_name is not None and not backend_name in dict(backends):
+        if backend_name is not None and backend_name not in dict(backends):
+            # Is the backend a short version of a real one?
+            found = False
+            for key in dict(backends):
+                if backend_name in key:
+                    # two choices, ambiguous command
+                    if found:
+                        raise BackendNotFound(backend_name)
+                    else:
+                        found = True
+                        _back = key
+            if found:
+                return _id, _back
             raise BackendNotFound(backend_name)
         return _id, backend_name
 
@@ -233,11 +241,11 @@ class ConsoleApplication(BaseApplication):
             backend = None
 
         if not backend:
-            print('Backend "%s" does not exist.' % name, file=sys.stderr)
+            print('Backend "%s" does not exist.' % name, file=self.stderr)
             return 1
 
         if not backend.has_caps(CapAccount) or backend.klass.ACCOUNT_REGISTER_PROPERTIES is None:
-            print('You can\'t register a new account with %s' % name, file=sys.stderr)
+            print('You can\'t register a new account with %s' % name, file=self.stderr)
             return 1
 
         account = Account()
@@ -282,7 +290,7 @@ class ConsoleApplication(BaseApplication):
         try:
             self.weboob.repositories.install(name)
         except ModuleInstallError as e:
-            print('Unable to install module "%s": %s' % (name, e), file=sys.stderr)
+            print('Unable to install module "%s": %s' % (name, e), file=self.stderr)
             return False
 
         print('')
@@ -314,7 +322,7 @@ class ConsoleApplication(BaseApplication):
                 params = items
                 config = module.config.load(self.weboob, bname, name, params, nofail=True)
         except ModuleLoadError as e:
-            print('Unable to load module "%s": %s' % (name, e), file=sys.stderr)
+            print('Unable to load module "%s": %s' % (name, e), file=self.stderr)
             return 1
 
         # ask for params non-specified on command-line arguments
@@ -333,7 +341,7 @@ class ConsoleApplication(BaseApplication):
             print('-------------------------%s' % ('-' * len(module.name)))
 
         while not edit and self.weboob.backends_config.backend_exists(name):
-            print('Backend instance "%s" already exists in "%s"' % (name, self.weboob.backends_config.confpath), file=sys.stderr)
+            print('Backend instance "%s" already exists in "%s"' % (name, self.weboob.backends_config.confpath), file=self.stderr)
             if not self.ask('Add new backend for module "%s"?' % module.name, default=False):
                 return 1
 
@@ -349,7 +357,7 @@ class ConsoleApplication(BaseApplication):
             print('Backend "%s" successfully %s.' % (name, 'edited' if edit else 'added'))
             return name
         except BackendAlreadyExists:
-            print('Backend "%s" already exists.' % name, file=sys.stderr)
+            print('Backend "%s" already exists.' % name, file=self.stderr)
             return 1
 
     def ask(self, question, default=None, masked=None, regexp=None, choices=None, tiny=None):
@@ -394,7 +402,7 @@ class ConsoleApplication(BaseApplication):
             question = u'[%s] %s' % (v.id, question)
 
         if isinstance(v, ValueBackendPassword):
-            print(question.encode(sys.stdout.encoding or locale.getpreferredencoding()) + ':')
+            print(question.encode(self.encoding) + ':')
             question = v.label
             choices = OrderedDict()
             choices['c'] = 'Run an external tool during backend load'
@@ -441,6 +449,9 @@ class ConsoleApplication(BaseApplication):
             if v.tiny:
                 question = u'%s (%s)' % (question, '/'.join((s.upper() if s == v.default else s)
                                                             for s in v.choices.iterkeys()))
+                for s in v.choices.iterkeys():
+                    if s == v.default:
+                        aliases[s.upper()] = s
                 for key, value in v.choices.iteritems():
                     print('     %s%s%s: %s' % (self.BOLD, key, self.NC, value))
             else:
@@ -461,9 +472,9 @@ class ConsoleApplication(BaseApplication):
                 if sys.platform == 'win32':
                     line = getpass.getpass(str(question))
                 else:
-                    line = getpass.getpass(question.encode(sys.stdout.encoding or locale.getpreferredencoding()))
+                    line = getpass.getpass(question.encode(self.encoding))
             else:
-                self.stdout.write(question.encode(sys.stdout.encoding or locale.getpreferredencoding()))
+                self.stdout.write(question.encode(self.encoding))
                 self.stdout.flush()
                 line = self.stdin.readline()
                 if len(line) == 0:
@@ -482,7 +493,7 @@ class ConsoleApplication(BaseApplication):
             try:
                 v.set(line)
             except ValueError as e:
-                print(u'Error: %s' % e, file=sys.stderr)
+                print(u'Error: %s' % e, file=self.stderr)
             else:
                 break
 
@@ -491,13 +502,13 @@ class ConsoleApplication(BaseApplication):
 
     def acquire_input(self, content=None, editor_params=None):
         editor = os.getenv('EDITOR', 'vi')
-        if sys.stdin.isatty() and editor:
+        if self.stdin.isatty() and editor:
             from tempfile import NamedTemporaryFile
             with NamedTemporaryFile() as f:
                 filename = f.name
                 if content is not None:
                     if isinstance(content, unicode):
-                        content = content.encode(sys.stdin.encoding or locale.getpreferredencoding())
+                        content = content.encode(self.encoding)
                     f.write(content)
                     f.flush()
                 try:
@@ -508,11 +519,11 @@ class ConsoleApplication(BaseApplication):
                 f.seek(0)
                 text = f.read()
         else:
-            if sys.stdin.isatty():
-                print('Reading content from stdin... Type ctrl-D ' \
+            if self.stdin.isatty():
+                print('Reading content from stdin... Type ctrl-D '
                           'from an empty line to stop.')
-            text = sys.stdin.read()
-        return text.decode(sys.stdin.encoding or locale.getpreferredencoding())
+            text = self.stdin.read()
+        return text.decode(self.encoding)
 
     def bcall_error_handler(self, backend, error, backtrace):
         """
@@ -524,7 +535,7 @@ class ConsoleApplication(BaseApplication):
             msg = unicode(error)
             if not msg:
                 msg = 'invalid login/password.'
-            print('Error(%s): %s' % (backend.name, msg), file=sys.stderr)
+            print('Error(%s): %s' % (backend.name, msg), file=self.stderr)
             if self.ask('Do you want to reconfigure this backend?', default=True):
                 self.unload_backends(names=[backend.name])
                 self.edit_backend(backend.name)
@@ -533,21 +544,21 @@ class ConsoleApplication(BaseApplication):
             msg = unicode(error)
             if not msg:
                 msg = 'website is unavailable.'
-            print(u'Error(%s): %s' % (backend.name, msg), file=sys.stderr)
+            print(u'Error(%s): %s' % (backend.name, msg), file=self.stderr)
         elif isinstance(error, BrowserForbidden):
-            print(u'Error(%s): %s' % (backend.name, msg or 'Forbidden'), file=sys.stderr)
+            print(u'Error(%s): %s' % (backend.name, msg or 'Forbidden'), file=self.stderr)
         elif isinstance(error, NotImplementedError):
-            print(u'Error(%s): this feature is not supported yet by this backend.' % backend.name, file=sys.stderr)
-            print(u'      %s   To help the maintainer of this backend implement this feature,' % (' ' * len(backend.name)), file=sys.stderr)
-            print(u'      %s   please contact: %s <%s@issues.weboob.org>' % (' ' * len(backend.name), backend.MAINTAINER, backend.NAME), file=sys.stderr)
+            print(u'Error(%s): this feature is not supported yet by this backend.' % backend.name, file=self.stderr)
+            print(u'      %s   To help the maintainer of this backend implement this feature,' % (' ' * len(backend.name)), file=self.stderr)
+            print(u'      %s   please contact: %s <%s@issues.weboob.org>' % (' ' * len(backend.name), backend.MAINTAINER, backend.NAME), file=self.stderr)
         elif isinstance(error, UserError):
-            print(u'Error(%s): %s' % (backend.name, to_unicode(error)), file=sys.stderr)
+            print(u'Error(%s): %s' % (backend.name, to_unicode(error)), file=self.stderr)
         elif isinstance(error, MoreResultsAvailable):
-            print(u'Hint: There are more results for backend %s' % (backend.name), file=sys.stderr)
+            print(u'Hint: There are more results for backend %s' % (backend.name), file=self.stderr)
         elif isinstance(error, BrowserSSLError):
-            print(u'FATAL(%s): ' % backend.name + self.BOLD + '/!\ SERVER CERTIFICATE IS INVALID /!\\' + self.NC, file=sys.stderr)
+            print(u'FATAL(%s): ' % backend.name + self.BOLD + '/!\ SERVER CERTIFICATE IS INVALID /!\\' + self.NC, file=self.stderr)
         else:
-            print(u'Bug(%s): %s' % (backend.name, to_unicode(error)), file=sys.stderr)
+            print(u'Bug(%s): %s' % (backend.name, to_unicode(error)), file=self.stderr)
 
             minfo = self.weboob.repositories.get_module_info(backend.NAME)
             if minfo and not minfo.is_local():
@@ -561,8 +572,8 @@ class ConsoleApplication(BaseApplication):
                     print('New version of module %s has been installed. Retry to call the command.' % minfo.name)
                     return
 
-            if logging.root.level == logging.DEBUG:
-                print(backtrace, file=sys.stderr)
+            if logging.root.level <= logging.DEBUG:
+                print(backtrace, file=self.stderr)
             else:
                 return True
 
@@ -581,6 +592,6 @@ class ConsoleApplication(BaseApplication):
                 ask_debug_mode = True
 
         if ask_debug_mode:
-            print(debugmsg, file=sys.stderr)
+            print(debugmsg, file=self.stderr)
         elif len(more_results) > 0:
-            print('Hint: There are more results available for %s (use option -n or count command)' % (', '.join(more_results)), file=sys.stderr)
+            print('Hint: There are more results available for %s (use option -n or count command)' % (', '.join(more_results)), file=self.stderr)

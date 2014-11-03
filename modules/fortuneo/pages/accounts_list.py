@@ -21,15 +21,13 @@
 from lxml.html import etree
 from decimal import Decimal
 import re
+from time import sleep
 
 from weboob.capabilities.bank import Account
-from weboob.tools.browser import BasePage, BrowserIncorrectPassword
+from weboob.deprecated.browser import Page, BrowserIncorrectPassword
 from weboob.capabilities import NotAvailable
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 from weboob.tools.json import json
-
-
-__all__ = ['GlobalAccountsList', 'AccountsList', 'AccountHistoryPage']
 
 
 class Transaction(FrenchTransaction):
@@ -51,8 +49,11 @@ class Transaction(FrenchTransaction):
                 (re.compile('^(?P<category>REMISE CHEQUES)(?P<text>.*)'), FrenchTransaction.TYPE_DEPOSIT),
                ]
 
+class InvestmentHistoryPage(Page):
+    def get_operations(self, _id):
+        raise NotImplementedError()
 
-class AccountHistoryPage(BasePage):
+class AccountHistoryPage(Page):
     def get_operations(self, _id):
         """history, see http://docs.weboob.org/api/capabilities/bank.html?highlight=transaction#weboob.capabilities.bank.Transaction"""
 
@@ -85,35 +86,37 @@ class AccountHistoryPage(BasePage):
             yield operation
 
 
-class AccountsList(BasePage):
+class AccountsList(Page):
     def on_loaded(self):
         warn = self.document.xpath('//div[@id="message_renouvellement_mot_passe"]')
         if len(warn) > 0:
             raise BrowserIncorrectPassword(warn[0].text)
 
+        self.load_async(0)
+
+    def load_async(self, time):
         # load content of loading divs.
-        divs = []
-        for div in self.document.xpath('//div[starts-with(@id, "as_")]'):
-            loading = div.xpath('.//span[@class="loading"]')
-            if len(loading) == 0:
-                continue
+        lst = self.document.xpath('//input[@type="hidden" and starts-with(@id, "asynch")]')
+        if len(lst) > 0:
+            params = {}
+            for i, input in enumerate(lst):
+                params['key%s' % i] = input.attrib['name']
+                params['div%s' % i] = input.attrib['value']
+            params['time'] = time
 
-            input = div.xpath('.//input')[0]
-            divs.append([div, input.attrib['name']])
-
-        if len(divs) > 0:
-            args = {}
-            for i, (div, name) in enumerate(divs):
-                args['key%s' % i] = name
-                args['div%s' % i] = div.attrib['id']
-            args['time'] = 0
-            r = self.browser.openurl(self.browser.buildurl('/AsynchAjax', **args))
+            r = self.browser.openurl(self.browser.buildurl('/AsynchAjax', **params))
             data = json.load(r)
 
-            for i, (div, name) in enumerate(divs):
-                html = data['data'][i]['flux']
+            for i, d in enumerate(data['data']):
+                div = self.document.xpath('//div[@id="%s"]' % d['key'])[0]
+                html = d['flux']
                 div.clear()
+                div.attrib['id'] = d['key'] # needed because clear removes also all attributes
                 div.insert(0, etree.fromstring(html, parser=etree.HTMLParser()))
+
+            if 'time' in data:
+                sleep(float(data['time'])/1000.0)
+                return self.load_async(time)
 
     def need_reload(self):
         form = self.document.xpath('//form[@name="InformationsPersonnellesForm"]')
@@ -157,7 +160,7 @@ class AccountsList(BasePage):
             yield account
 
 
-class GlobalAccountsList(BasePage):
+class GlobalAccountsList(Page):
     pass
 
 # vim:ts=4:sw=4

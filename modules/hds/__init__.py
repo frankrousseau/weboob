@@ -1,3 +1,3 @@
-from .backend import HDSBackend
+from .module import HDSModule
 
-__all__ = ['HDSBackend']
+__all__ = ['HDSModule']

@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import BiplanBackend
+from .module import BiplanModule
 
 
-__all__ = ['BiplanBackend']
+__all__ = ['BiplanModule']

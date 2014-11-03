@@ -20,16 +20,15 @@
 
 from weboob.capabilities.recipe import Recipe
 from weboob.capabilities.base import NotAvailable, NotLoaded
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 import string
 
-__all__ = ['RecipePage', 'ResultsPage']
 
-
-class ResultsPage(BasePage):
+class ResultsPage(Page):
     """ Page which contains results as a list of recipies
     """
+
     def iter_recipes(self):
         for div in self.parser.select(self.document.getroot(), 'div.result-recipe'):
             thumbnail_url = NotAvailable
@@ -59,9 +58,10 @@ class ResultsPage(BasePage):
             yield recipe
 
 
-class RecipePage(BasePage):
+class RecipePage(Page):
     """ Page which contains a recipe
     """
+
     def get_recipe(self, id):
         title = NotAvailable
         preparation_time = NotAvailable

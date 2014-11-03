@@ -18,17 +18,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BasePage,BrokenPageError
+from weboob.deprecated.browser import Page,BrokenPageError
 from weboob.capabilities.torrent import Torrent
 from weboob.capabilities.base import NotAvailable, NotLoaded
 
 from html2text import unescape
 
 
-__all__ = ['TorrentsPage']
-
-
-class TorrentsPage(BasePage):
+class TorrentsPage(Page):
     def unit(self, n, u):
         m = {'B': 1,
                 'KB': 1024,
@@ -76,7 +73,7 @@ class TorrentsPage(BasePage):
                 yield torrent
 
 
-class TorrentPage(BasePage):
+class TorrentPage(Page):
     def get_torrent(self, id):
         url = NotAvailable
         magnet = NotAvailable

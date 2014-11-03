@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BaseBrowser
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword
 
 from .pages.index import IndexPage, LoginPage
 from .pages.torrents import TorrentsPage
@@ -27,21 +27,27 @@ from .pages.torrents import TorrentsPage
 __all__ = ['GazelleBrowser']
 
 
-class GazelleBrowser(BaseBrowser):
+class GazelleBrowser(Browser):
     PAGES = {'https?://[^/]+/?(index.php)?':  IndexPage,
-             'https?://[^/]+/login.php':      LoginPage,
+             'https?://[^/]+/login.php.*':    LoginPage,
              'https?://[^/]+/torrents.php.*': TorrentsPage,
             }
 
     def __init__(self, protocol, domain, *args, **kwargs):
         self.DOMAIN = domain
         self.PROTOCOL = protocol
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def login(self):
         if not self.is_on_page(LoginPage):
             self.location('/login.php', no_login=True)
         self.page.login(self.username, self.password)
+
+        # If we are not logged, the on_loaded event on LoginPage has probably
+        # raised the exception, but to be sure, check here to prevent an
+        # unfinite loop if we can't find the error message.
+        if self.is_on_page(LoginPage):
+            raise BrowserIncorrectPassword()
 
     def is_logged(self):
         if not self.page or self.is_on_page(LoginPage):
@@ -60,7 +66,7 @@ class GazelleBrowser(BaseBrowser):
         return self.page.iter_torrents()
 
     def get_torrent(self, fullid):
-        if not '.' in fullid:
+        if '.' not in fullid:
             return None
         id, torrentid = fullid.split('.', 1)
         self.location(self.buildurl('/torrents.php', id=id, torrentid=torrentid))

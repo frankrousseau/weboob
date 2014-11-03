@@ -21,16 +21,14 @@ import re
 
 from weboob.capabilities.subtitle import Subtitle
 from weboob.capabilities.base import NotAvailable, NotLoaded
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.applications.suboob.suboob import LANGUAGE_CONV
 
 
-__all__ = ['SubtitlesPage', 'SubtitlePage', 'SearchPage']
-
-
-class SearchPage(BasePage):
+class SearchPage(Page):
     """ Page which contains results as a list of movies
     """
+
     def iter_subtitles(self):
         tabresults = self.parser.select(self.document.getroot(), 'table#search_results')
         if len(tabresults) > 0:
@@ -41,7 +39,7 @@ class SearchPage(BasePage):
                 if len(links) > 0:
                     a = links[0]
                     url = a.attrib.get('href', '')
-                    if "ads.opensubtitles" not in url:
+                    if "ads2.opensubtitles" not in url:
                         self.browser.location("http://www.opensubtitles.org%s" % url)
                         assert self.browser.is_on_page(SubtitlesPage) or self.browser.is_on_page(SubtitlePage)
                         # subtitles page does the job
@@ -49,9 +47,10 @@ class SearchPage(BasePage):
                             yield subtitle
 
 
-class SubtitlesPage(BasePage):
+class SubtitlesPage(Page):
     """ Page which contains several subtitles for a single movie
     """
+
     def iter_subtitles(self):
         tabresults = self.parser.select(self.document.getroot(), 'table#search_results')
         if len(tabresults) > 0:
@@ -102,14 +101,14 @@ class SubtitlesPage(BasePage):
             return subtitle
 
 
-class SubtitlePage(BasePage):
+class SubtitlePage(Page):
     """ Page which contains a single subtitle for a movie
     """
+
     def get_subtitle(self):
         desc = NotAvailable
-        father = self.parser.select(self.document.getroot(), 'a#app_link', 1).getparent()
-        a = self.parser.select(father, 'a')[1]
-        id = a.attrib.get('href', '').split('/')[-1]
+        a = self.parser.select(self.document.getroot(), 'a#bt-dwl', 1)
+        id = a.attrib.get('rel', '').split('/')[-1]
         m = re.match('Download \((\w+)\)', self.parser.tocleanstring(a))
         if m:
             ext = m.group(1)

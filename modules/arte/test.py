@@ -23,7 +23,7 @@ from weboob.capabilities.video import BaseVideo
 
 
 class ArteTest(BackendTest):
-    BACKEND = 'arte'
+    MODULE = 'arte'
 
     def test_search(self):
         l = list(self.backend.search_videos('a'))
@@ -45,5 +45,21 @@ class ArteTest(BackendTest):
         l = list(self.backend.iter_resources([BaseVideo], [u'arte-latest']))
         assert len(l)
         v = l[0]
+        self.backend.fillobj(v, ('url',))
+        self.assertTrue(v.url, 'URL for video "%s" not found' % (v.id))
+
+    def test_program(self):
+        l1 = list(self.backend.iter_resources([BaseVideo], [u'arte-program']))
+        assert len(l1)
+        # some categories may contain no available videos (during summer period for example)
+        for l in l1:
+            l2 = list(self.backend.iter_resources([BaseVideo], l.split_path))
+            if len(l2) == 0:
+                continue
+
+            break
+
+        assert len(l2)
+        v = l2[0]
         self.backend.fillobj(v, ('url',))
         self.assertTrue(v.url, 'URL for video "%s" not found' % (v.id))

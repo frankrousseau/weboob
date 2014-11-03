@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['PoivyTest']
-
-
 class PoivyTest(BackendTest):
-    BACKEND = 'poivy'
+    MODULE = 'poivy'
 
     def test_list(self):
         """

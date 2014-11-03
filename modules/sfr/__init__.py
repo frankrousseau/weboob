@@ -1,3 +1,3 @@
-from .backend import SfrBackend
+from .module import SfrModule
 
-__all__ = ['SfrBackend']
+__all__ = ['SfrModule']

@@ -20,13 +20,10 @@
 import re
 
 from weboob.capabilities.subtitle import Subtitle
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 
-__all__ = ['HomePage', 'SearchPage', 'SeriePage', 'SeasonPage']
-
-
-class HomePage(BasePage):
+class HomePage(Page):
     def iter_subtitles(self, language, pattern):
         self.browser.select_form(nr=0)
         self.browser['q'] = pattern.encode('utf-8')
@@ -36,9 +33,10 @@ class HomePage(BasePage):
             yield subtitle
 
 
-class SearchPage(BasePage):
+class SearchPage(Page):
     """ Page which contains results as a list of series
     """
+
     def iter_subtitles(self, language):
         list_result = self.parser.select(self.document.getroot(), 'div.left_articles ul')
         if len(list_result) > 0:
@@ -53,9 +51,10 @@ class SearchPage(BasePage):
                         yield subtitle
 
 
-class SeriePage(BasePage):
+class SeriePage(Page):
     """ Page of all seasons
     """
+
     def iter_subtitles(self, language, only_one_season=False):
         # handle the current season
         last_table_line = self.parser.select(self.document.getroot(), 'table#table5 tr')[-1]
@@ -80,9 +79,10 @@ class SeriePage(BasePage):
                     yield subtitle
 
 
-class SeasonPage(BasePage):
+class SeasonPage(Page):
     """ Page of a season with the right language
     """
+
     def get_subtitle(self):
         filename_line = self.parser.select(self.document.getroot(), 'img[alt=filename]', 1).getparent().getparent()
         name = unicode(self.parser.select(filename_line, 'td')[2].text)

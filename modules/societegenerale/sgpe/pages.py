@@ -23,18 +23,15 @@ import re
 from decimal import Decimal
 from datetime import datetime
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.tools.json import json
-from weboob.tools.mech import ClientForm
+from weboob.deprecated.mech import ClientForm
 from weboob.tools.misc import to_unicode
 
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
 from ..captcha import Captcha, TileError
-
-
-__all__ = ['LoginPage', 'AccountsPage', 'CardsPage', 'HistoryPage', 'CardHistoryPage']
 
 
 class Transaction(FrenchTransaction):
@@ -66,7 +63,7 @@ class Transaction(FrenchTransaction):
     _coming = False
 
 
-class SGPEPage(BasePage):
+class SGPEPage(Page):
     def get_error(self):
         err = self.document.getroot().cssselect('div.ngo_mire_reco_message') \
             or self.document.getroot().cssselect('#nge_zone_centre .nge_cadre_message_utilisateur')

@@ -19,8 +19,8 @@
 
 import re
 
-from weboob.tools.browser import BaseBrowser
-from weboob.tools.browser.decorators import id2url
+from weboob.deprecated.browser import Browser
+from weboob.deprecated.browser.decorators import id2url
 
 from .pages import IndexPage, VideoPage
 from .video import TricTracTVVideo
@@ -29,7 +29,7 @@ from .video import TricTracTVVideo
 __all__ = ['TricTracTVBrowser']
 
 
-class TricTracTVBrowser(BaseBrowser):
+class TricTracTVBrowser(Browser):
     DOMAIN = 'trictrac.tv'
     ENCODING = 'ISO-8859-1'
     PAGES = {r'http://[w\.]*trictrac.tv/': IndexPage,

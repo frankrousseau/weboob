@@ -17,8 +17,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import subprocess
-import sys
 import os
 import re
 import requests
@@ -124,8 +125,8 @@ class PlaylistTrackListInfoFormatter(PrettyFormatter):
 
 class Radioob(ReplApplication):
     APPNAME = 'radioob'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2013 Romain Bignon\nCopyright(C) 2013 Pierre Maziere'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Romain Bignon\nCopyright(C) YEAR Pierre Maziere'
     DESCRIPTION = "Console application allowing to search for web radio stations, listen to them and get information " \
                   "like the current song."
     SHORT_DESCRIPTION = "search, show or listen to radio stations"
@@ -167,18 +168,18 @@ class Radioob(ReplApplication):
         _id, dest = self.parse_command_args(line, 2, 1)
         audio = self.get_object(_id, 'get_audio', ['url'])
         if not audio:
-            print >>sys.stderr, 'Audio file not found: %s' % _id
+            print('Audio file not found: %s' % _id, file=self.stderr)
             return 3
 
         if not audio.url:
-            print >>sys.stderr, 'Error: the direct URL is not available.'
+            print('Error: the direct URL is not available.', file=self.stderr)
             return 4
 
         def check_exec(executable):
             with open('/dev/null', 'w') as devnull:
                 process = subprocess.Popen(['which', executable], stdout=devnull)
                 if process.wait() != 0:
-                    print >>sys.stderr, 'Please install "%s"' % executable
+                    print('Please install "%s"' % executable, file=self.stderr)
                     return False
             return True
 
@@ -225,7 +226,7 @@ class Radioob(ReplApplication):
         """
         _id, stream_id = self.parse_command_args(line, 2, 1)
         if not _id:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('play', short=True)
+            print('This command takes an argument: %s' % self.get_command_help('play', short=True), file=self.stderr)
             return 2
 
         try:
@@ -236,14 +237,14 @@ class Radioob(ReplApplication):
         obj = self.retrieve_obj(_id)
 
         if obj is None:
-            print >>sys.stderr, 'No object matches with this id:', _id
+            print('No object matches with this id:', _id, file=self.stderr)
             return 3
 
         if isinstance(obj, Radio):
             try:
                 streams = [obj.streams[stream_id]]
             except IndexError:
-                print >>sys.stderr, 'Stream %d not found' % stream_id
+                print('Stream %d not found' % stream_id, file=self.stderr)
                 return 1
         elif isinstance(obj, BaseAudio):
             streams = [obj]
@@ -252,7 +253,7 @@ class Radioob(ReplApplication):
             streams = obj.tracks_list
 
         if len(streams) == 0:
-            print >>sys.stderr, 'Radio or Audio file not found:', _id
+            print('Radio or Audio file not found:', _id, file=self.stderr)
             return 3
 
         try:
@@ -290,7 +291,7 @@ class Radioob(ReplApplication):
                 self.player.play(stream, player_name=player_name, player_args=media_player_args)
 
         except (InvalidMediaPlayer, MediaPlayerNotFound) as e:
-            print '%s\nRadio URL: %s' % (e, stream.url)
+            print('%s\nRadio URL: %s' % (e, stream.url))
 
     def retrieve_obj(self, _id):
         obj = None
@@ -317,7 +318,7 @@ class Radioob(ReplApplication):
         """
 
         if not line:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('playlist')
+            print('This command takes an argument: %s' % self.get_command_help('playlist'), file=self.stderr)
             return 2
 
         cmd, args = self.parse_command_args(line, 2, req_n=1)
@@ -327,11 +328,11 @@ class Radioob(ReplApplication):
                 audio = self.get_object(_id, 'get_audio')
 
                 if not audio:
-                    print >>sys.stderr, 'Audio file not found: %s' % _id
+                    print('Audio file not found: %s' % _id, file=self.stderr)
                     return 3
 
                 if not audio.url:
-                    print >>sys.stderr, 'Error: the direct URL is not available.'
+                    print('Error: the direct URL is not available.', file=self.stderr)
                     return 4
 
                 self.PLAYLIST.append(audio)
@@ -343,11 +344,11 @@ class Radioob(ReplApplication):
                 audio_to_remove = self.get_object(_id, 'get_audio')
 
                 if not audio_to_remove:
-                    print >>sys.stderr, 'Audio file not found: %s' % _id
+                    print('Audio file not found: %s' % _id, file=self.stderr)
                     return 3
 
                 if not audio_to_remove.url:
-                    print >>sys.stderr, 'Error: the direct URL is not available.'
+                    print('Error: the direct URL is not available.', file=self.stderr)
                     return 4
 
                 for audio in self.PLAYLIST:
@@ -370,7 +371,7 @@ class Radioob(ReplApplication):
                 self.cached_format(audio)
 
         else:
-            print >>sys.stderr, 'Playlist command only support "add", "remove", "display" and "export" arguments.'
+            print('Playlist command only support "add", "remove", "display" and "export" arguments.', file=self.stderr)
             return 2
 
     def complete_info(self, text, line, *ignored):
@@ -385,7 +386,7 @@ class Radioob(ReplApplication):
         Get information about a radio or an audio file.
         """
         if not _id:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('info', short=True)
+            print('This command takes an argument: %s' % self.get_command_help('info', short=True), file=self.stderr)
             return 2
 
         obj = self.retrieve_obj(_id)
@@ -396,7 +397,7 @@ class Radioob(ReplApplication):
             self.set_formatter('playlist_tracks_list_info')
 
         if obj is None:
-            print >>sys.stderr, 'No object matches with this id:', _id
+            print('No object matches with this id:', _id, file=self.stderr)
             return 3
 
         self.format(obj)
@@ -412,7 +413,7 @@ class Radioob(ReplApplication):
         """
 
         if not pattern:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('playlist')
+            print('This command takes an argument: %s' % self.get_command_help('playlist'), file=self.stderr)
             return 2
 
         cmd, args = self.parse_command_args(pattern, 2, req_n=1)
@@ -424,30 +425,30 @@ class Radioob(ReplApplication):
 
         if cmd == "radio":
             self.set_formatter('radio_list')
-            for backend, radio in self.do('iter_radios_search', pattern=args):
+            for radio in self.do('iter_radios_search', pattern=args):
                 self.add_object(radio)
                 self.format(radio)
 
         elif cmd == "song":
             self.set_formatter('song_list')
-            for backend, audio in self.do('search_audio', pattern=args):
+            for audio in self.do('search_audio', pattern=args):
                 self.add_object(audio)
                 self.format(audio)
 
         elif cmd == "album":
             self.set_formatter('song_list')
-            for backend, album in self.do('search_album', pattern=args):
+            for album in self.do('search_album', pattern=args):
                 self.add_object(album)
                 self.format(album)
 
         elif cmd == "playlist":
             self.set_formatter('song_list')
-            for backend, playlist in self.do('search_playlist', pattern=args):
+            for playlist in self.do('search_playlist', pattern=args):
                 self.add_object(playlist)
                 self.format(playlist)
 
         else:
-            print >>sys.stderr, 'Search command only supports "radio", "song", "album" and "playlist" arguments.'
+            print('Search command only supports "radio", "song", "album" and "playlist" arguments.', file=self.stderr)
             return 2
 
     def do_ls(self, line):

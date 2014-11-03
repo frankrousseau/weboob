@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-import sys
+from __future__ import print_function
 
 from weboob.capabilities.job import CapJob
 from weboob.tools.application.repl import ReplApplication, defaultcount
@@ -75,8 +75,8 @@ class JobAdvertListFormatter(PrettyFormatter):
 
 class Handjoob(ReplApplication):
     APPNAME = 'handjoob'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2012 Bezleputh'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2012-YEAR Bezleputh'
     DESCRIPTION = "Console application to search for a job."
     SHORT_DESCRIPTION = "search for a job"
     CAPS = CapJob
@@ -97,7 +97,7 @@ class Handjoob(ReplApplication):
         """
         self.change_path([u'search'])
         self.start_format(pattern=pattern)
-        for backend, job_advert in self.do('search_job', pattern):
+        for job_advert in self.do('search_job', pattern):
             self.cached_format(job_advert)
 
     @defaultcount(10)
@@ -108,7 +108,7 @@ class Handjoob(ReplApplication):
         Search for an advert matching to advanced filters.
         """
         self.change_path([u'advanced'])
-        for backend, job_advert in self.do('advanced_search_job'):
+        for job_advert in self.do('advanced_search_job'):
             self.cached_format(job_advert)
 
     def complete_info(self, text, line, *ignored):
@@ -123,13 +123,13 @@ class Handjoob(ReplApplication):
         Get information about an advert.
         """
         if not _id:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('info', short=True)
+            print('This command takes an argument: %s' % self.get_command_help('info', short=True), file=self.stderr)
             return 2
 
         job_advert = self.get_object(_id, 'get_job_advert')
 
         if not job_advert:
-            print >>sys.stderr, 'Job advert not found: %s' % _id
+            print('Job advert not found: %s' % _id, file=self.stderr)
             return 3
 
         self.start_format()

@@ -19,8 +19,8 @@
 
 from weboob.capabilities.bank import Account
 
-from weboob.tools.exceptions import  BrowserIncorrectPassword
-from weboob.tools.browser2 import LoginBrowser, URL, need_login
+from weboob.exceptions import BrowserIncorrectPassword
+from weboob.browser import LoginBrowser, URL, need_login
 
 from .pages import LoginPage, IndexPage, OperationsPage
 
@@ -58,14 +58,14 @@ class OneyBrowser(LoginBrowser):
 
     @need_login
     def iter_history(self, account):
-        post = {'task': 'Synthese', 'process': 'SyntheseCompte', 'taskid':'Releve'}
+        post = {'task': 'Synthese', 'process': 'SyntheseCompte', 'taskid': 'Releve'}
         self.operations.go(data=post)
 
         return self.page.iter_transactions(seen=set())
 
     @need_login
     def iter_coming(self, account):
-        post = {'task': 'OperationRecente', 'process': 'OperationRecente', 'taskid':'OperationRecente'}
+        post = {'task': 'OperationRecente', 'process': 'OperationRecente', 'taskid': 'OperationRecente'}
         self.operations.go(data=post)
 
         return self.page.iter_transactions(seen=set())

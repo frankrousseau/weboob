@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['AmeliTest']
-
-
 class AmeliTest(BackendTest):
-    BACKEND = 'ameli'
+    MODULE = 'ameli'
 
     def test_ameli(self):
         for subscription in self.backend.iter_subscription():

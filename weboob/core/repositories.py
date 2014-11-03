@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2012 Romain Bignon, Laurent Bachelier
+# Copyright(C) 2010-2014 Romain Bignon, Laurent Bachelier
 #
 # This file is part of weboob.
 #
@@ -31,8 +31,8 @@ from contextlib import closing
 from compileall import compile_dir
 from io import BytesIO
 
-from weboob.tools.exceptions import BrowserHTTPError
-from .modules import Module
+from weboob.exceptions import BrowserHTTPError, BrowserHTTPNotFound
+from .modules import LoadedModule
 from weboob.tools.log import getLogger
 from weboob.tools.misc import to_unicode
 try:
@@ -41,14 +41,11 @@ except ImportError:
     from configparser import RawConfigParser, DEFAULTSECT
 
 
-__all__ = ['IProgress', 'ModuleInstallError', 'ModuleInfo', 'RepositoryUnavailable',
-           'Repository', 'Versions', 'Repositories', 'InvalidSignature', 'Keyring']
-
-
 class ModuleInfo(object):
     """
     Information about a module available on a repository.
     """
+
     def __init__(self, name):
         self.name = name
 
@@ -281,7 +278,7 @@ class Repository(object):
             try:
                 fp, pathname, description = imp.find_module(name, [path])
                 try:
-                    module = Module(imp.load_module(name, fp, pathname, description))
+                    module = LoadedModule(imp.load_module(name, fp, pathname, description))
                 finally:
                     if fp:
                         fp.close()
@@ -376,6 +373,17 @@ class Versions(object):
 
 class IProgress(object):
     def progress(self, percent, message):
+        raise NotImplementedError()
+
+    def error(self, message):
+        raise NotImplementedError()
+
+    def __repr__(self):
+        return '<%s>' % self.__class__.__name__
+
+
+class PrintProgress(IProgress):
+    def progress(self, percent, message):
         print('=== [%3.0f%%] %s' % (percent*100, message))
 
     def error(self, message):
@@ -442,8 +450,10 @@ class Repositories(object):
             self.load()
 
     def load_browser(self):
-        from weboob.tools.browser2.browser import BaseBrowser, Weboob as WeboobProfile
-        class WeboobBrowser(BaseBrowser):
+        from weboob.browser.browsers import Browser
+        from weboob.browser.profiles import Weboob as WeboobProfile
+
+        class WeboobBrowser(Browser):
             PROFILE = WeboobProfile(self.version)
         if self.browser is None:
             self.browser = WeboobBrowser()
@@ -473,7 +483,7 @@ class Repositories(object):
         modules = {}
         for repos in reversed(self.repositories):
             for name, info in repos.modules.iteritems():
-                if not name in modules and (not caps or info.has_caps(caps)):
+                if name not in modules and (not caps or info.has_caps(caps)):
                     modules[name] = self._extend_module_info(repos, info)
         return modules
 
@@ -529,7 +539,7 @@ class Repositories(object):
 
         try:
             icon = self.browser.open(icon_url)
-        except BrowserHTTPError:
+        except BrowserHTTPNotFound:
             pass  # no icon, no problem
         else:
             with open(dest_path, 'wb') as fp:
@@ -545,7 +555,7 @@ class Repositories(object):
                     l.append(line)
         return l
 
-    def update_repositories(self, progress=IProgress()):
+    def update_repositories(self, progress=PrintProgress()):
         self.load_browser()
         """
         Update list of repositories by downloading them
@@ -593,7 +603,7 @@ class Repositories(object):
             l.append(repository)
         return True
 
-    def update(self, progress=IProgress()):
+    def update(self, progress=PrintProgress()):
         """
         Update repositories and install new packages versions.
 
@@ -607,7 +617,7 @@ class Repositories(object):
             if not info.is_local() and info.is_installed():
                 to_update.append(info)
 
-        class InstallProgress(IProgress):
+        class InstallProgress(PrintProgress):
             def __init__(self, n):
                 self.n = n
 
@@ -621,7 +631,7 @@ class Repositories(object):
             except ModuleInstallError as e:
                 inst_progress.progress(1.0, unicode(e))
 
-    def install(self, module, progress=IProgress()):
+    def install(self, module, progress=PrintProgress()):
         """
         Install a module.
 

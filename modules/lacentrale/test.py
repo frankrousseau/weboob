@@ -20,11 +20,9 @@
 
 from weboob.tools.test import BackendTest
 
-__all__ = ['LaCentraleTest']
-
 
 class LaCentraleTest(BackendTest):
-    BACKEND = 'lacentrale'
+    MODULE = 'lacentrale'
 
     def test_lacentrale(self):
         products = list(self.backend.search_products('1000€,pro'))

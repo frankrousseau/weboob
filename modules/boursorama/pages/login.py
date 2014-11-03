@@ -22,11 +22,8 @@ import re
 import hashlib
 import urllib
 
-from weboob.tools.browser import BasePage, BrowserIncorrectPassword
+from weboob.deprecated.browser import Page, BrowserIncorrectPassword
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard
-
-
-__all__ = ['LoginPage']
 
 
 class VirtKeyboard(MappedVirtKeyboard):
@@ -44,7 +41,8 @@ class VirtKeyboard(MappedVirtKeyboard):
 
     color=(0,0,0)
 
-    def check_color(self, (r, g, b)):
+    def check_color(self, color):
+        r, g, b = color
         return r > 240 and g > 240 and b > 240
 
     def __init__(self, page):
@@ -64,7 +62,8 @@ class VirtKeyboard(MappedVirtKeyboard):
             code += self.get_symbol_code(self.symbols[c])
         return code
 
-    def checksum(self, (x1, y1, x2, y2)):
+    def checksum(self, coords):
+        x1, y1, x2, y2 = coords
         s = ''
         for y in range(y1, min(y2 + 1, self.height)):
             for x in range(x1, min(x2 + 1, self.width)):
@@ -76,7 +75,7 @@ class VirtKeyboard(MappedVirtKeyboard):
         return hashlib.md5(s).hexdigest()
 
 
-class LoginPage(BasePage):
+class LoginPage(Page):
     def on_loaded(self):
         pass
 #        for td in self.document.getroot().cssselect('td.LibelleErreur'):
@@ -100,6 +99,6 @@ class LoginPage(BasePage):
         self.browser.location(form.attrib['action'], urllib.urlencode(args), no_login=True)
 
 
-class UpdateInfoPage(BasePage):
+class UpdateInfoPage(Page):
     def on_loaded(self):
         raise BrowserIncorrectPassword('Please update your login credentials')

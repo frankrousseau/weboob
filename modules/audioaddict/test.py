@@ -23,7 +23,7 @@ from weboob.capabilities.radio import Radio
 
 
 class AudioAddictTest(BackendTest):
-    BACKEND = 'audioaddict'
+    MODULE = 'audioaddict'
 
     def test_audioaddict(self):
         ls = list(self.backend.iter_resources((Radio, ), []))
@@ -39,4 +39,3 @@ class AudioAddictTest(BackendTest):
         self.assertTrue(radio.current.what)
         self.assertTrue(radio.streams[0].url)
         self.assertTrue(radio.streams[0].title)
-

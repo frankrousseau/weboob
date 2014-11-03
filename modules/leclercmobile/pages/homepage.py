@@ -18,13 +18,10 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 from weboob.capabilities.bill import Subscription
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 
-__all__ = ['HomePage']
-
-
-class HomePage(BasePage):
+class HomePage(Page):
     def on_loaded(self):
         pass
 

@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import PopolemploiBackend
+from .module import PopolemploiModule
 
 
-__all__ = ['PopolemploiBackend']
+__all__ = ['PopolemploiModule']

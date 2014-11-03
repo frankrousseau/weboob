@@ -21,16 +21,15 @@
 from weboob.capabilities.collection import Collection
 from weboob.capabilities.image import BaseImage
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 import re
 from datetime import datetime, timedelta
 
 from .video import NolifeTVVideo
 
-__all__ = ['VideoPage', 'VideoListPage', 'FamilyPage', 'AboPage', 'LoginPage', 'HomePage']
 
-class VideoPage(BasePage):
+class VideoPage(Page):
     def get_video(self, video):
         if not video:
             video = NolifeTVVideo(self.group_dict['id'])
@@ -68,9 +67,10 @@ class VideoPage(BasePage):
                                                    seconds=int(m.group(3)))
             return video
 
-class VideoListPage(BasePage):
+
+class VideoListPage(Page):
     def is_list_empty(self):
-        return self.document.getroot() == None
+        return self.document.getroot() is None
 
     def iter_video(self, available_videos):
         for el in self.document.getroot().xpath('//li/a'):
@@ -86,12 +86,13 @@ class VideoListPage(BasePage):
                         video.title = video.title + ' - ' + strongs[3].text
                     yield video
 
-class FamilyPage(BasePage):
+
+class FamilyPage(Page):
     def iter_category(self):
         subs = list()
 
         for el in self.document.xpath('//ul/li[@data-role="list-divider"]'):
-            if not el.text in subs:
+            if el.text not in subs:
                 yield Collection([el.text], unicode(el.text))
             subs.append(el.text)
 
@@ -102,7 +103,7 @@ class FamilyPage(BasePage):
 
             while True:
                 el = el.getnext()
-                if el == None or el.get('data-role'):
+                if el is None or el.get('data-role'):
                     break
                 h1 = el.find('.//h1')
                 id = h1.getparent().attrib['href']
@@ -110,7 +111,8 @@ class FamilyPage(BasePage):
                 if m and m.group(1):
                     yield Collection([m.group(1)], unicode(h1.text))
 
-class AboPage(BasePage):
+
+class AboPage(Page):
     def get_available_videos(self):
         available = ['[Gratuit]']
 
@@ -124,13 +126,14 @@ class AboPage(BasePage):
         return available
 
 
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, username, password):
         self.browser.select_form(name='login')
         self.browser['username'] = str(username)
         self.browser['password'] = str(password)
         self.browser.submit()
 
-class HomePage(BasePage):
+
+class HomePage(Page):
     def is_logged(self):
         return len(self.document.xpath('//a[@href="deconnexion/"]')) == 1

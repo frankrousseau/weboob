@@ -26,12 +26,9 @@ import random
 
 
 from weboob.capabilities.bank import Account
-from weboob.tools.browser import BasePage, BrowserUnavailable
+from weboob.deprecated.browser import Page, BrowserUnavailable
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard, VirtKeyboardError
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-
-
-__all__ = ['SkipPage', 'LoginPage', 'AccountsPage', 'AccountHistoryPage', 'ContractsPage']
 
 
 class LCLVirtKeyboard(MappedVirtKeyboard):
@@ -70,11 +67,11 @@ class LCLVirtKeyboard(MappedVirtKeyboard):
         return code
 
 
-class SkipPage(BasePage):
+class SkipPage(Page):
     pass
 
 
-class LoginPage(BasePage):
+class LoginPage(Page):
     def on_loaded(self):
         try:
             self.browser.select_form(name='form')
@@ -135,7 +132,8 @@ class LoginPage(BasePage):
         errors = self.document.xpath(u'//div[@class="erreur" or @class="messError"]')
         return len(errors) > 0
 
-class ContractsPage(BasePage):
+
+class ContractsPage(Page):
     def on_loaded(self):
         self.select_contract()
 
@@ -146,7 +144,7 @@ class ContractsPage(BasePage):
         self.browser.submit(nologin=True)
 
 
-class AccountsPage(BasePage):
+class AccountsPage(Page):
     def on_loaded(self):
         warn = self.document.xpath('//div[@id="attTxt"]')
         if len(warn) > 0:
@@ -224,17 +222,20 @@ class Transaction(FrenchTransaction):
                                                             FrenchTransaction.TYPE_CARD),
                 (re.compile('^(?P<category>(PRELEVEMENT|TELEREGLEMENT|TIP)) (?P<text>.*)'),
                                                             FrenchTransaction.TYPE_ORDER),
-                (re.compile('^(?P<category>ECHEANCEPRET)(?P<text>.*)'),   FrenchTransaction.TYPE_LOAN_PAYMENT),
-                (re.compile('^(?P<category>VIR(EM(EN)?)?T?(.PERMANENT)? ((RECU|FAVEUR) TIERS|SEPA RECU)?)( /FRM)?(?P<text>.*)'),
+                (re.compile('^(?P<category>(ECHEANCE\s*)?PRET)(?P<text>.*)'),   FrenchTransaction.TYPE_LOAN_PAYMENT),
+                (re.compile('^(?P<category>(EVI|VIR(EM(EN)?)?T?)(.PERMANENT)? ((RECU|FAVEUR) TIERS|SEPA RECU)?)( /FRM)?(?P<text>.*)'),
                                                             FrenchTransaction.TYPE_TRANSFER),
                 (re.compile('^(?P<category>REMBOURST)(?P<text>.*)'),     FrenchTransaction.TYPE_PAYBACK),
                 (re.compile('^(?P<category>COM(MISSIONS?)?)(?P<text>.*)'),   FrenchTransaction.TYPE_BANK),
                 (re.compile('^(?P<text>(?P<category>REMUNERATION).*)'),   FrenchTransaction.TYPE_BANK),
+                (re.compile('^(?P<text>(?P<category>ABON.*?)\s*.*)'),   FrenchTransaction.TYPE_BANK),
+                (re.compile('^(?P<text>(?P<category>RESULTAT .*?)\s*.*)'),   FrenchTransaction.TYPE_BANK),
+                (re.compile('^(?P<text>(?P<category>TRAIT\..*?)\s*.*)'),   FrenchTransaction.TYPE_BANK),
                 (re.compile('^(?P<category>REM CHQ) (?P<text>.*)'), FrenchTransaction.TYPE_DEPOSIT),
                ]
 
 
-class AccountHistoryPage(BasePage):
+class AccountHistoryPage(Page):
     def get_table(self):
         tables=self.document.findall("//table[@class='tagTab pyjama']")
         for table in tables:

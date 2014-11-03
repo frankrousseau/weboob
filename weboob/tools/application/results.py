@@ -69,7 +69,15 @@ class ResultsCondition(IResultsCondition):
     # =, != for strings
     # We build a list of list. Return true if each conditions of one list is TRUE
     def __init__(self, condition_str):
+        self.limit = None
         or_list = []
+        _condition_str = condition_str.split(' LIMIT ')
+        if len(_condition_str) == 2:
+            try:
+                self.limit = int(_condition_str[1])
+            except ValueError:
+                raise ResultsConditionError(u'Syntax error in the condition expression, please check documentation')
+        condition_str= _condition_str[0]
         for _or in condition_str.split(' OR '):
             and_list = []
             for _and in _or.split(' AND '):
@@ -91,7 +99,7 @@ class ResultsCondition(IResultsCondition):
 
     def is_valid(self, obj):
         import weboob.tools.date as date_utils
-        from datetime import date
+        from datetime import date, datetime
         d = obj.to_dict()
         # We evaluate all member of a list at each iteration.
         for _or in self.condition:
@@ -110,6 +118,10 @@ class ResultsCondition(IResultsCondition):
                         try:
                             if isinstance(d[condition.left], date_utils.date):
                                 tocompare = date(*[int(x) for x in condition.right.split('-')])
+                            elif isinstance(d[condition.left], date_utils.datetime):
+                                splitted_datetime = condition.right.split(' ')
+                                tocompare = datetime(*([int(x) for x in splitted_datetime[0].split('-')] +
+                                                       [int(x) for x in splitted_datetime[1].split(':')]))
                             else:
                                 tocompare = typed(condition.right)
                             myeval = functions[condition.op](tocompare, d[condition.left])

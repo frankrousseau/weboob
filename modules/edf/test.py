@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['EdfTest']
-
-
 class EdfTest(BackendTest):
-    BACKEND = 'edf'
+    MODULE = 'edf'
 
     def test_edf(self):
         for subscription in self.backend.iter_subscription():

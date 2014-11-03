@@ -24,15 +24,13 @@ import re
 from cStringIO import StringIO
 
 from weboob.capabilities.bank import Account
-from weboob.tools.browser2.page import HTMLPage, method, LoggedPage
-from weboob.tools.browser2.elements import ListElement, ItemElement
-from weboob.tools.browser2.filters import CleanText, Regexp, Attr, CleanDecimal, Env
+from weboob.browser.pages import HTMLPage, LoggedPage
+from weboob.browser.elements import ListElement, ItemElement, method
+from weboob.browser.filters.standard import CleanText, Regexp, CleanDecimal, Env
+from weboob.browser.filters.html import Attr
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard, VirtKeyboardError
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-from weboob.tools.exceptions import ParseError
-
-
-__all__ = ['LoginPage', 'IndexPage', 'AccountsPage', 'OperationsPage']
+from weboob.exceptions import ParseError
 
 
 class Transaction(FrenchTransaction):
@@ -68,8 +66,9 @@ class VirtKeyboard(MappedVirtKeyboard):
 
         return True
 
-    def get_symbol_coords(self, (x1, y1, x2, y2)):
+    def get_symbol_coords(self, coords):
         # strip borders
+        x1, y1, x2, y2 = coords
         return MappedVirtKeyboard.get_symbol_coords(self, (x1+10, y1+10, x2-10, y2-10))
 
     def get_symbol_code(self, md5sum_list):
@@ -88,6 +87,7 @@ class VirtKeyboard(MappedVirtKeyboard):
             code += self.get_symbol_code(self.symbols[c])
         return code
 
+
 class LoginPage(HTMLPage):
     def login(self, login, password):
         vk = VirtKeyboard(self)
@@ -98,6 +98,7 @@ class LoginPage(HTMLPage):
         form['identifiant'] = login
         form['code'] = code
         form.submit()
+
 
 class IndexPage(LoggedPage, HTMLPage):
     @method
@@ -153,6 +154,7 @@ class IndexPage(LoggedPage, HTMLPage):
     def get_card_name(self):
         return CleanText('//h1[1]')(self.doc)
 
+
 class AccountsPage(LoggedPage, HTMLPage):
     def get_balance(self):
         balance = Decimal('0.0')
@@ -169,7 +171,7 @@ class AccountsPage(LoggedPage, HTMLPage):
                 continue
 
             if len(left.xpath('./span[@class="precision"]')) == 0 or \
-               (left.text is None or not 'total' in left.text.lower()):
+               (left.text is None or 'total' not in left.text.lower()):
                 continue
 
             balance -= CleanDecimal('.', replace_dots=False)(right)
@@ -192,7 +194,6 @@ class OperationsPage(LoggedPage, HTMLPage):
                 self.env['amount'] = Transaction.Amount('./td[4]')(self.el)
                 return self.env['amount'] > 0
 
-
         class debit(ItemElement):
             klass = Transaction
             obj_type = Transaction.TYPE_CARD
@@ -201,5 +202,5 @@ class OperationsPage(LoggedPage, HTMLPage):
             obj_amount = Env('amount')
 
             def condition(self):
-                self.env['amount'] = Transaction.Amount('', './td[3]')(self.el)
-                return self.env['amount'] < 0
+                self.env['amount'] = - Transaction.Amount('./td[3]')(self.el)
+                return self.env['amount'] != 0

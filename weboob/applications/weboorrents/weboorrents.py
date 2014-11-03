@@ -17,8 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-import sys
+from __future__ import print_function
 
 from weboob.capabilities.torrent import CapTorrent, MagnetOnly
 from weboob.tools.application.repl import ReplApplication, defaultcount
@@ -91,8 +90,8 @@ class TorrentListFormatter(PrettyFormatter):
 
 class Weboorrents(ReplApplication):
     APPNAME = 'weboorrents'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2012 Romain Bignon'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Romain Bignon'
     DESCRIPTION = "Console application allowing to search for torrents on various trackers " \
                   "and download .torrent files."
     SHORT_DESCRIPTION = "search and download torrents"
@@ -117,7 +116,7 @@ class Weboorrents(ReplApplication):
         """
         torrent = self.get_object(id, 'get_torrent', ('description', 'files'))
         if not torrent:
-            print >>sys.stderr, 'Torrent not found: %s' % id
+            print('Torrent not found: %s' % id, file=self.stderr)
             return 3
 
         self.start_format()
@@ -142,35 +141,35 @@ class Weboorrents(ReplApplication):
 
         torrent = self.get_object(id, 'get_torrent', ('description', 'files'))
         if not torrent:
-            print >>sys.stderr, 'Torrent not found: %s' % id
+            print('Torrent not found: %s' % id, file=self.stderr)
             return 3
 
         dest = self.obj_to_filename(torrent, dest, '{id}-{name}.torrent')
 
         try:
-            for backend, buf in self.do('get_torrent_file', torrent.id, backends=torrent.backend):
+            for buf in self.do('get_torrent_file', torrent.id, backends=torrent.backend):
                 if buf:
                     if dest == '-':
-                        print buf
+                        print(buf)
                     else:
                         try:
                             with open(dest, 'w') as f:
                                 f.write(buf)
                         except IOError as e:
-                            print >>sys.stderr, 'Unable to write .torrent in "%s": %s' % (dest, e)
+                            print('Unable to write .torrent in "%s": %s' % (dest, e), file=self.stderr)
                             return 1
                     return
         except CallErrors as errors:
             for backend, error, backtrace in errors:
                 if isinstance(error, MagnetOnly):
-                    print >>sys.stderr, u'Error(%s): No direct URL available, ' \
-                        u'please provide this magnet URL ' \
-                        u'to your client:\n%s' % (backend, error.magnet)
+                    print(u'Error(%s): No direct URL available, '
+                          u'please provide this magnet URL '
+                          u'to your client:\n%s' % (backend, error.magnet), file=self.stderr)
                     return 4
                 else:
                     self.bcall_error_handler(backend, error, backtrace)
 
-        print >>sys.stderr, 'Torrent "%s" not found' % id
+        print('Torrent "%s" not found' % id, file=self.stderr)
         return 3
 
     @defaultcount(10)
@@ -185,5 +184,5 @@ class Weboorrents(ReplApplication):
             pattern = None
 
         self.start_format(pattern=pattern)
-        for backend, torrent in self.do('iter_torrents', pattern=pattern):
+        for torrent in self.do('iter_torrents', pattern=pattern):
             self.cached_format(torrent)

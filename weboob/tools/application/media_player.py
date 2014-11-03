@@ -61,6 +61,7 @@ class MediaPlayer(object):
     world, the media player used is chosen from a static list of
     programs. See PLAYERS for more information.
     """
+
     def __init__(self, logger=None):
         self.logger = getLogger('mediaplayer', logger)
 
@@ -94,8 +95,8 @@ class MediaPlayer(object):
         Play media.url with the media player.
         """
         # if flag play_proxy...
-        if hasattr(media, '_play_proxy') and media._play_proxy == True:
-           # use urllib2 to handle redirect and cookies
+        if hasattr(media, '_play_proxy') and media._play_proxy is True:
+            # use urllib2 to handle redirect and cookies
             self._play_proxy(media, player_name, args)
             return None
 

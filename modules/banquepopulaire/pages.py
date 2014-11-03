@@ -24,12 +24,9 @@ from decimal import Decimal
 import re
 from mechanize import Cookie, FormNotFoundError
 
-from weboob.tools.browser import BasePage as _BasePage, BrowserUnavailable, BrokenPageError
+from weboob.deprecated.browser import Page as _BasePage, BrowserUnavailable, BrokenPageError
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-
-
-__all__ = ['LoginPage', 'IndexPage', 'AccountsPage', 'CardsPage', 'TransactionsPage', 'UnavailablePage', 'RedirectPage']
 
 
 class WikipediaARC4(object):
@@ -269,18 +266,18 @@ class AccountsPage(BasePage):
                     currency = Account.get_currency(m.group(1))
 
             for tr in div.getnext().xpath('.//tbody/tr'):
-                if not 'id' in tr.attrib:
+                if 'id' not in tr.attrib:
                     continue
 
                 args = dict(parse_qsl(tr.attrib['id']))
                 tds = tr.findall('td')
 
-                if len(tds) < 4 or not 'identifiant' in args:
+                if len(tds) < 4 or 'identifiant' not in args:
                     self.logger.warning('Unable to parse an account')
                     continue
 
                 account = Account()
-                account.id = args['identifiant']
+                account.id = args['identifiant'].replace(' ', '')
                 account.label = u' '.join([u''.join([txt.strip() for txt in tds[1].itertext()]),
                                            u''.join([txt.strip() for txt in tds[2].itertext()])]).strip()
                 account.type = account_type
@@ -328,7 +325,7 @@ class CardsPage(BasePage):
                 if account is not None:
                     yield account
                 account = Account()
-                account.id = id
+                account.id = id.replace(' ', '')
                 account.balance = account.coming = Decimal('0')
                 account._next_debit = datetime.date.today()
                 account._prev_debit = datetime.date(2000,1,1)
@@ -382,12 +379,13 @@ class Transaction(FrenchTransaction):
                 (re.compile('^VIR(EMENT)? (?P<text>.*)'),   FrenchTransaction.TYPE_TRANSFER),
                 (re.compile('^(PRLV|PRELEVEMENT) (?P<text>.*)'),
                                                             FrenchTransaction.TYPE_ORDER),
-                (re.compile('^CHEQUE.*'),                   FrenchTransaction.TYPE_CHECK),
+                (re.compile('^(?P<text>CHEQUE .*)'),   FrenchTransaction.TYPE_CHECK),
                 (re.compile('^(AGIOS /|FRAIS) (?P<text>.*)', re.IGNORECASE),
                                                             FrenchTransaction.TYPE_BANK),
                 (re.compile('^(CONVENTION \d+ )?COTIS(ATION)? (?P<text>.*)', re.IGNORECASE),
                                                             FrenchTransaction.TYPE_BANK),
                 (re.compile('^REMISE (?P<text>.*)'),        FrenchTransaction.TYPE_DEPOSIT),
+                (re.compile('^(?P<text>ECHEANCE PRET .*)'), FrenchTransaction.TYPE_LOAN_PAYMENT),
                 (re.compile('^(?P<text>.*)( \d+)? QUITTANCE .*'),
                                                             FrenchTransaction.TYPE_ORDER),
                 (re.compile('^.* LE (?P<dd>\d{2})/(?P<mm>\d{2})/(?P<yy>\d{2})$'),
@@ -448,6 +446,14 @@ class TransactionsPage(BasePage):
 
             t.parse(date, re.sub(r'[ ]+', ' ', raw), vdate)
             t.set_amount(credit, debit)
+
+            # Strip the balance displayed in transaction labels
+            t.label = re.sub('solde en valeur : .*', '', t.label)
+
+            # XXX Fucking hack to include the check number not displayed in the full label.
+            if re.match("^CHEQUE ", t.label):
+                t.label = 'CHEQUE No: %s' % self.parser.tocleanstring(tds[self.COL_REF])
+
             yield t
 
     COL_CARD_DATE = 0

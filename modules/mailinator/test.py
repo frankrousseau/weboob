@@ -22,7 +22,7 @@ from weboob.tools.test import BackendTest
 
 
 class MailinatorTest(BackendTest):
-    BACKEND = 'mailinator'
+    MODULE = 'mailinator'
 
     def test_mailinator(self):
         t = self.backend.get_thread('qwerty')
@@ -32,4 +32,3 @@ class MailinatorTest(BackendTest):
         assert t.root.date
         assert t.root.sender
         assert t.root.receivers
-

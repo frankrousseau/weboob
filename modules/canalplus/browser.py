@@ -22,8 +22,8 @@ import urllib
 
 import lxml.etree
 
-from weboob.tools.browser import BaseBrowser
-from weboob.tools.browser.decorators import id2url
+from weboob.deprecated.browser import Browser
+from weboob.deprecated.browser.decorators import id2url
 
 from .pages import ChannelsPage, VideoPage
 from .video import CanalplusVideo
@@ -42,7 +42,7 @@ class XMLParser(object):
         return lxml.etree.XML(data.get_data(), parser)
 
 
-class CanalplusBrowser(BaseBrowser):
+class CanalplusBrowser(Browser):
     DOMAIN = u'service.canal-plus.com'
     ENCODING = 'utf-8'
     PAGES = {
@@ -60,7 +60,7 @@ class CanalplusBrowser(BaseBrowser):
         }
 
     def __init__(self, quality, *args, **kwargs):
-        BaseBrowser.__init__(self, parser=self.PARSER, *args, **kwargs)
+        Browser.__init__(self, parser=self.PARSER, *args, **kwargs)
         self.quality = self.FORMATS.get(quality, self.FORMATS['hd'])
 
     def home(self):
@@ -95,7 +95,7 @@ class CanalplusBrowser(BaseBrowser):
         elif len(split_path) == 1:
             for channel in channels:
                 if channel.path_level == 2 and split_path == channel.parent_path:
-                        yield channel
+                    yield channel
         elif len(split_path) == 2:
             subchannels = self.iter_resources(split_path[0:1])
             try:

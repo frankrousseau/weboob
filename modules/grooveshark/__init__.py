@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import GroovesharkBackend
+from .module import GroovesharkModule
 
 
-__all__ = ['GroovesharkBackend']
+__all__ = ['GroovesharkModule']

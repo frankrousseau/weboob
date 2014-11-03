@@ -19,7 +19,7 @@
 
 import urllib
 
-from weboob.tools.browser import BaseBrowser, BasePage
+from weboob.deprecated.browser import Browser, Page
 from weboob.tools.ordereddict import OrderedDict
 
 from .pages import LoginPage, ThreadPage, MessagesPage, PostMessagePage, ProfilePage, PhotosPage, VisitsPage, QuickMatchPage, SentPage
@@ -39,13 +39,13 @@ def check_login(func):
     return inner
 
 
-class OkCBrowser(BaseBrowser):
+class OkCBrowser(Browser):
     DOMAIN = 'm.okcupid.com'
     PROTOCOL = 'https'
     ENCODING = 'UTF-8'
     PAGES = OrderedDict((
             ('https://%s/login.*' % DOMAIN, LoginPage),
-            ('http://%s/home' % DOMAIN, BasePage),
+            ('http://%s/home' % DOMAIN, Page),
             ('http://%s/messages' % DOMAIN, ThreadPage),
             ('http://%s/messages\?compose=1' % DOMAIN, PostMessagePage),
             ('http://\w+.okcupid.com/messages\?.*', MessagesPage),
@@ -126,8 +126,8 @@ class OkCBrowser(BaseBrowser):
 
     @check_login
     def get_visits(self):
-       self.location('http://m.okcupid.com/visitors')
-       return self.page.get_visits()
+        self.location('http://m.okcupid.com/visitors')
+        return self.page.get_visits()
 
     @check_login
     def get_threads_list(self):
@@ -266,5 +266,3 @@ class OkCBrowser(BaseBrowser):
         self.addheaders = [('Referer', self.page.url), ('Content-Type', 'application/x-www-form-urlencoded;charset=UTF-8')]
         self.open('http://m.okcupid.com%s' %abs_url, data=data)
         return True
-
-

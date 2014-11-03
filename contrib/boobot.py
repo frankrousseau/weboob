@@ -18,26 +18,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 import re
 import os
 import sys
-import codecs
 from threading import Thread, Event
 from math import log
 import urlparse
 import urllib
 from random import randint, choice
-
+import itertools
 from irc.bot import SingleServerIRCBot
-import mechanize
-from mechanize import _headersutil as headersutil
-from mechanize._html import EncodingFinder
 
 from weboob.core import Weboob
-from weboob.tools.browser import StandardBrowser, BrowserUnavailable
+from weboob.exceptions import BrowserUnavailable, BrowserHTTPError
+from weboob.browser import Browser
+from weboob.browser.exceptions import HTTPNotFound
+from weboob.browser.pages import HTMLPage
 from weboob.tools.misc import get_backtrace
 from weboob.tools.misc import to_unicode
 from weboob.tools.storage import StandardStorage
@@ -45,7 +45,7 @@ from weboob.tools.application.base import ApplicationStorage
 
 IRC_CHANNELS = os.getenv('BOOBOT_CHANNELS', '#weboob').split(',')
 IRC_NICKNAME = os.getenv('BOOBOT_NICKNAME', 'boobot')
-IRC_SERVER = os.getenv('BOOBOT_SERVER', 'chat.freenode.net')
+IRC_SERVER = os.getenv('BOOBOT_SERVER', 'dickson.freenode.net')
 IRC_IGNORE = [re.compile(i) for i in os.getenv('BOOBOT_IGNORE', '!~?irker@').split(',')]
 STORAGE_FILE = os.getenv('BOOBOT_STORAGE', 'boobot.storage')
 
@@ -84,82 +84,50 @@ def fixurl(url):
     return urlparse.urlunsplit((scheme, netloc, path, query, fragment))
 
 
-class HeadRequest(mechanize.Request):
-    def get_method(self):
-        return "HEAD"
-
-
-class BoobotBrowser(StandardBrowser):
-    ENCODING = None
-    DEFAULT_TIMEOUT = 3
+class BoobotBrowser(Browser):
+    TIMEOUT = 3.0
 
     def urlinfo(self, url, maxback=2):
         if urlparse.urlsplit(url).netloc == 'mobile.twitter.com':
             url = url.replace('mobile.twitter.com', 'twitter.com', 1)
         try:
-            r = self.openurl(HeadRequest(url), _tries=2, _delay=0.2)
+            r = self.open(url, method='HEAD')
             body = False
-        except BrowserUnavailable as e:
-            if u'HTTP Error 501' in unicode(e) or u'HTTP Error 405' in unicode(e):
-                r = self.openurl(url, _tries=2, _delay=0.2)
-                body = True
-            elif u'HTTP Error 404' in unicode(e) \
-                    and maxback and not url[-1].isalnum():
+        except HTTPNotFound as e:
+            if maxback and not url[-1].isalnum():
                 return self.urlinfo(url[:-1], maxback-1)
+            raise e
+        except BrowserHTTPError as e:
+            if e.response.status_code in (501, 405):
+                r = self.open(url)
+                body = True
             else:
                 raise e
-        headers = r.info()
-        content_type = headers.get('Content-Type')
+        content_type = r.headers.get('Content-Type')
         try:
-            size = int(headers.get('Content-Length'))
+            size = int(r.headers.get('Content-Length'))
             hsize = self.human_size(size)
         except TypeError:
             size = None
             hsize = None
-        is_html = headersutil.is_html([content_type], url, True)
+        is_html = ('html' in content_type) if content_type else re.match(r'\.x?html?$', url)
         title = None
         if is_html:
             if not body:
-                r = self.openurl(url, _tries=2, _delay=0.2)
+                r = self.open(url)
             # update size has we might not have it from headers
-            size = len(r.read())
+            size = len(r.content)
             hsize = self.human_size(size)
-            r.seek(0)
 
-            encoding = EncodingFinder('windows-1252').encoding(r).lower()
-            try:
-                h = self.get_document(r, parser='lxml', encoding=encoding)
-                for meta in h.xpath('//head/meta'):
-                    # meta http-equiv=content-type content=...
-                    if meta.attrib.get('http-equiv', '').lower() == 'content-type':
-                        for k, v in headersutil.split_header_words([meta.attrib.get('content', '')]):
-                            if k == 'charset':
-                                encoding = v
-                    # meta charset=...
-                    encoding = meta.attrib.get('charset', encoding).lower()
-            except Exception as e:
-                print e
-            finally:
-                r.seek(0)
-            if encoding == 'iso-8859-1' or not encoding:
-                encoding = 'windows-1252'
-            try:
-                codecs.lookup(encoding)
-            except LookupError:
-                encoding = 'windows-1252'
+            page = HTMLPage(self, r)
 
-            try:
-                h = self.get_document(r, parser='lxml', encoding=encoding)
-                for title in h.xpath('//head/title'):
+            for title in page.doc.xpath('//head/title'):
+                title = to_unicode(title.text_content()).strip()
+                title = ' '.join(title.split())
+            if urlparse.urlsplit(url).netloc.endswith('twitter.com'):
+                for title in page.doc.getroot().cssselect('.permalink-tweet .tweet-text'):
                     title = to_unicode(title.text_content()).strip()
-                    title = ' '.join(title.split())
-                if urlparse.urlsplit(url).netloc.endswith('twitter.com'):
-                    for title in h.getroot().cssselect('.permalink-tweet .tweet-text'):
-                        title = to_unicode(title.text_content()).strip()
-                        title = ' '.join(title.splitlines())
-            except AssertionError as e:
-                # invalid HTML
-                print e
+                    title = ' '.join(title.splitlines())
 
         return content_type, hsize, title
 
@@ -188,6 +156,7 @@ class MyThread(Thread):
 
         self.weboob.repeat(300, self.check_board)
         self.weboob.repeat(600, self.check_dlfp)
+        self.weboob.repeat(600, self.check_twitter)
 
         self.weboob.loop()
 
@@ -196,27 +165,48 @@ class MyThread(Thread):
             'weboob', 'videoob', 'havesex', 'havedate', 'monboob', 'boobmsg',
             'flatboob', 'boobill', 'pastoob', 'radioob', 'translaboob', 'traveloob', 'handjoob',
             'boobathon', 'boobank', 'boobtracker', 'comparoob', 'wetboobs',
-            'webcontentedit', 'weboorrents', u'sàt', u'salut à toi', 'assnet',
-                'budget insight', 'budget-insight', 'budgetinsight', 'budgea']:
+            'webcontentedit', 'weboorrents', 'assnet', 'budget insight', 'budget-insight', 'budgetinsight', 'budgea']:
             if word in text.lower():
                 return word
         return None
 
+    def check_twitter(self):
+        nb_tweets = 10
+
+        for backend in self.weboob.iter_backends(module='twitter'):
+            for thread in list(itertools.islice(backend.iter_resources(None, ['search', 'weboob']),
+                                                0,
+                                                nb_tweets)):
+
+                if not backend.storage.get('lastpurge'):
+                    backend.storage.set('lastpurge', datetime.now() - timedelta(days=60))
+                    backend.storage.save()
+
+                if thread.id not in backend.storage.get('seen', default={}) and\
+                   thread.date > backend.storage.get('lastpurge'):
+                    _item = thread.id.split('#')
+                    url = 'https://twitter.com/%s/status/%s' % (_item[0], _item[1])
+                    for msg in self.bot.on_url(url):
+                        self.bot.send_message('%s: %s' % (_item[0], url))
+                        self.bot.send_message(msg)
+
+                    backend.set_message_read(backend.fill_thread(thread, ['root']).root)
+
     def check_dlfp(self):
-        for backend, msg in self.weboob.do('iter_unread_messages', backends=['dlfp']):
+        for msg in self.weboob.do('iter_unread_messages', backends=['dlfp']):
             word = self.find_keywords(msg.content)
             if word is not None:
                 url = msg.signature[msg.signature.find('https://linuxfr'):]
                 self.bot.send_message('[DLFP] %s talks about %s: %s' % (
                     msg.sender, word, url))
-            backend.set_message_read(msg)
+            self.weboob[msg.backend].set_message_read(msg)
 
     def check_board(self):
         def iter_messages(backend):
             with backend.browser:
                 return backend.browser.iter_new_board_messages()
 
-        for backend, msg in self.weboob.do(iter_messages, backends=['dlfp']):
+        for msg in self.weboob.do(iter_messages, backends=['dlfp']):
             word = self.find_keywords(msg.message)
             if word is not None and msg.login != 'moules':
                 message = msg.message.replace(word, '\002%s\002' % word)
@@ -291,7 +281,7 @@ class Boobot(SingleServerIRCBot):
         quotes.append({'author': nick, 'timestamp': datetime.now(), 'text': text})
         self.storage.set(channel, 'quotes', quotes)
         self.storage.save()
-        self.send_message('Quote #%s added' % len(quotes) - 1, channel)
+        self.send_message('Quote #%s added' % (len(quotes) - 1), channel)
 
     def cmd_delquote(self, nick, channel, text):
         quotes = self.storage.get(channel, 'quotes', default=[])
@@ -348,13 +338,13 @@ class Boobot(SingleServerIRCBot):
         if backend_name in self.weboob.backend_instances:
             backend = self.weboob.backend_instances[backend_name]
             for cap in backend.iter_caps():
-                func = 'obj_info_%s' % cap.__name__[4:].lower()
+                func = 'obj_info_%s' % cap.__name__[3:].lower()
                 if hasattr(self, func):
                     try:
                         for msg in getattr(self, func)(backend, _id):
                             yield msg
                     except Exception as e:
-                        print get_backtrace()
+                        print(get_backtrace())
                         yield u'Oops: [%s] %s' % (type(e).__name__, e)
                     break
 
@@ -371,7 +361,7 @@ class Boobot(SingleServerIRCBot):
         except BrowserUnavailable as e:
             yield u'URL (error): %s' % e
         except Exception as e:
-            print get_backtrace()
+            print(get_backtrace())
             yield u'Oops: [%s] %s' % (type(e).__name__, e)
 
     def obj_info_video(self, backend, id):
@@ -395,7 +385,7 @@ def main():
     try:
         bot.start()
     except KeyboardInterrupt:
-        print "Stopped."
+        print("Stopped.")
 
     thread.stop()
 

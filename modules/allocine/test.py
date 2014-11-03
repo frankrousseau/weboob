@@ -20,8 +20,9 @@
 from weboob.tools.test import BackendTest
 import re
 
+
 class AllocineTest(BackendTest):
-    BACKEND = 'allocine'
+    MODULE = 'allocine'
 
     def test_search_movie(self):
         movies = list(self.backend.iter_movies('spiderman'))

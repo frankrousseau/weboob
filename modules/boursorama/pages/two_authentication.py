@@ -17,20 +17,16 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-from weboob.tools.browser import BasePage, BrowserIncorrectPassword
+from weboob.deprecated.browser import Page, BrowserIncorrectPassword
 import urllib2
 import re
-
-
-__all__ = ['AuthenticationPage']
 
 
 class BrowserAuthenticationCodeMaxLimit(BrowserIncorrectPassword):
     pass
 
 
-class AuthenticationPage(BasePage):
+class AuthenticationPage(Page):
     MAX_LIMIT = "vous avez atteint le nombre maximum "\
         "d'utilisation de l'authentification forte."
 
@@ -88,7 +84,6 @@ class AuthenticationPage(BasePage):
         r = regex.search(info)
         token = r.group('value')
         #print "Extracted token", token
-        #self.print_cookies()
 
         #step2
         url = "https://" + DOMAIN + "/ajax/banque/otp.phtml"
@@ -99,7 +94,6 @@ class AuthenticationPage(BasePage):
         #print "after asking to send token authentification" \
         #   ,len(info), response.info()
 
-        #self.print_cookies()
 
         pin = raw_input('Enter the "Boursorama Banque" access code:')
         #print "Pin access code: ''%s''" % (pin)
@@ -110,8 +104,6 @@ class AuthenticationPage(BasePage):
         #info = response.read()
         #print "after pin authentification", len(info), response.info()
 
-        #self.print_cookies()
-
         url = "%s?" % (SECURE_PAGE)
         data = "org=/&device=%s" % (device)
         req = urllib2.Request(url, data, headers=headers)
@@ -119,9 +111,3 @@ class AuthenticationPage(BasePage):
 
         #result =        response.read()
         #print response, "\n", response.info()
-
-        #self.print_cookies()
-
-    def print_cookies(self):
-        for c in self.browser._ua_handlers["_cookies"].cookiejar:
-            print "%s : %s" % (c.name, c.value)

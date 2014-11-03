@@ -20,7 +20,7 @@
 
 import re
 
-from weboob.tools.browser import BaseBrowser
+from weboob.deprecated.browser import Browser
 
 from .pages import MainPage, ListingAutoPage, AnnoncePage
 
@@ -29,7 +29,7 @@ __all__ = ['LaCentraleBrowser']
 
 
 # I manage urls and page location, then trasnfert to page
-class LaCentraleBrowser(BaseBrowser):
+class LaCentraleBrowser(Browser):
     PROTOCOL = 'http'
     DOMAIN = 'www.lacentrale.fr'
     ENCODING = 'windows-1252'
@@ -45,7 +45,7 @@ class LaCentraleBrowser(BaseBrowser):
         return self.page.iter_products(criteria)
 
     def _buildUrl(self, product, request, criteria):
-        if product._criteria.has_key(criteria):
+        if criteria in product._criteria:
             return '&' + request.format(product._criteria.get(criteria))
         return ''
 

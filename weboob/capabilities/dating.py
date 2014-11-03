@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBase, BaseObject, Field, StringField, UserError
+from .base import Capability, BaseObject, Field, StringField, UserError
 from .date import DateField
 from .contact import Contact
 
@@ -32,7 +32,7 @@ class OptimizationNotFound(UserError):
     """
 
 
-class Optimization(object):
+class Optimization(BaseObject):
     """
     Optimization.
 
@@ -90,10 +90,11 @@ class Event(BaseObject):
     message =   StringField('Message of the event')
 
 
-class CapDating(CapBase):
+class CapDating(Capability):
     """
     Capability for dating websites.
     """
+
     def init_optimizations(self):
         """
         Initialization of optimizations.
@@ -155,4 +156,3 @@ class CapDating(CapBase):
         :rtype: iter[:class:`Contact`]
         """
         raise NotImplementedError()
-

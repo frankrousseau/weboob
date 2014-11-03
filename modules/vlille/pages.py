@@ -18,16 +18,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser2.page import HTMLPage, XMLPage, method
-from weboob.tools.browser2.elements import ListElement, ItemElement, TableElement
-from weboob.tools.browser2.filters import CleanText, TableCell, Filter
+from weboob.browser.pages import HTMLPage, XMLPage
+from weboob.browser.elements import ListElement, ItemElement, TableElement, method
+from weboob.browser.filters.standard import CleanText, TableCell, Filter
 
 from weboob.capabilities.gauge import Gauge, GaugeMeasure, GaugeSensor
 from weboob.capabilities.base import NotLoaded
 import datetime
 import re
-
-__all__ = ['InfoStationPage', 'ListStationsPage']
 
 
 class LastDateFilter(Filter):
@@ -36,6 +34,9 @@ class LastDateFilter(Filter):
 
 
 class InfoStationPage(XMLPage):
+
+    ENCODING = 'utf-8'
+
     @method
     class get_station_infos(ListElement):
         item_xpath = "."

@@ -22,13 +22,10 @@ import urllib
 from decimal import Decimal, InvalidOperation
 import re
 
-from weboob.tools.browser import BasePage as _BasePage, BrowserUnavailable, BrokenPageError
+from weboob.deprecated.browser import Page as _BasePage, BrowserUnavailable, BrokenPageError
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard
-
-
-__all__ = ['LoginPage', 'AccountsPage', 'TransactionsPage', 'CBTransactionsPage', 'UnavailablePage']
 
 
 class BasePage(_BasePage):
@@ -131,7 +128,7 @@ class AccountsPage(BasePage):
                     continue
 
                 self.logger.debug('Args: %r' % args)
-                if not 'paramNumCompte' in args:
+                if 'paramNumCompte' not in args:
                     try:
                         label = unicode(table.xpath('./caption')[0].text.strip())
                     except Exception:
@@ -258,6 +255,7 @@ class TransactionsPage(BasePage):
             t.set_amount(credit, debit)
 
             yield t
+
 
 class CBTransactionsPage(TransactionsPage):
     COL_CB_CREDIT = 2

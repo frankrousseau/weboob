@@ -17,9 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-
-import sys
+from __future__ import print_function
 
 from weboob.capabilities.lyrics import CapLyrics
 from weboob.capabilities.base import empty
@@ -58,8 +56,8 @@ class LyricsListFormatter(PrettyFormatter):
 
 class Booblyrics(ReplApplication):
     APPNAME = 'booblyrics'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2013 Julien Veyssier'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2013-YEAR Julien Veyssier'
     DESCRIPTION = "Console application allowing to search for song lyrics on various websites."
     SHORT_DESCRIPTION = "search and display song lyrics"
     CAPS = CapLyrics
@@ -85,7 +83,7 @@ class Booblyrics(ReplApplication):
 
         songlyrics = self.get_object(id, 'get_lyrics')
         if not songlyrics:
-            print >>sys.stderr, 'Song lyrics not found: %s' % id
+            print('Song lyrics not found: %s' % id, file=self.stderr)
             return 3
 
         self.start_format()
@@ -109,5 +107,5 @@ class Booblyrics(ReplApplication):
             pattern = None
 
         self.start_format(pattern=pattern)
-        for backend, songlyrics in self.do('iter_lyrics', criteria, pattern):
+        for songlyrics in self.do('iter_lyrics', criteria, pattern):
             self.cached_format(songlyrics)

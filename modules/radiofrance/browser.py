@@ -17,12 +17,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser import BaseBrowser, BasePage
+from weboob.deprecated.browser import Browser, Page
 from weboob.tools.json import json
 from weboob.capabilities.video import BaseVideo
-from weboob.tools.browser.decorators import id2url
+from weboob.deprecated.browser.decorators import id2url
 
-from StringIO import StringIO
 from time import time
 import re
 from urlparse import parse_qs
@@ -46,7 +45,7 @@ class RadioFranceVideo(BaseVideo):
             (radio_domain, replay_id)
 
 
-class PlayerPage(BasePage):
+class PlayerPage(Page):
     URL = r'^http://www\.(?P<rdomain>%s)\.fr/player/reecouter\?play=(?P<replay_id>\d+)$' \
         % '|'.join(RadioFranceVideo.RADIO_DOMAINS)
     MP3_REGEXP = re.compile(r'sites%2Fdefault.+.(?:MP3|mp3)')
@@ -58,7 +57,7 @@ class PlayerPage(BasePage):
         return 'http://www.%s.fr/%s' % (radio_domain, urlparams['urlAOD'][0])
 
 
-class ReplayPage(BasePage):
+class ReplayPage(Page):
     URL = r'^http://www\.(?P<rdomain>%s)\.fr/(?:emission|diffusion)-.+$' \
         % '|'.join(RadioFranceVideo.RADIO_DOMAINS)
     # the url does not always end with id-yyy-mm-dd, sometimes no mm or dd
@@ -89,10 +88,10 @@ class ReplayPage(BasePage):
                 return (radio_domain, player_id)
 
 
-class DataPage(BasePage):
+class DataPage(Page):
     def get_current(self):
         document = self.document
-        title = None
+        title = ''
         for metas in self.parser.select(document.getroot(), 'div.metas'):
             ftitle = unicode(metas.text_content()).strip()
             if ftitle:
@@ -104,12 +103,12 @@ class DataPage(BasePage):
             ftitle = document.findtext('//div[@class="subtitle"]')
             title = unicode(ftitle).strip() if ftitle else title
         else:
-            artist = None
+            artist = ''
 
         return (artist, title)
 
 
-class RssPage(BasePage):
+class RssPage(Page):
     def get_title(self):
         titles = []
         for heading in self.parser.select(self.document.getroot(), 'h1, h2, h3, h4'):
@@ -122,10 +121,10 @@ class RssPage(BasePage):
             return ' '.join(titles)
 
 
-class RadioFranceBrowser(BaseBrowser):
+class RadioFranceBrowser(Browser):
     DOMAIN = None
     ENCODING = 'UTF-8'
-    PAGES = {r'/playerjs/direct/donneesassociees/html\?guid=$': DataPage,
+    PAGES = {r'http://.*/player/direct': DataPage,
              r'http://players.tv-radio.com/radiofrance/metadatas/([a-z]+)RSS.html': RssPage,
              PlayerPage.URL: PlayerPage,
              ReplayPage.URL: ReplayPage,
@@ -141,7 +140,7 @@ class RadioFranceBrowser(BaseBrowser):
         return 'www.%s.fr' % _id
 
     def get_current_playerjs(self, _id):
-        self.location('http://%s/playerjs/direct/donneesassociees/html?guid=' % self.id2domain(_id))
+        self.location('http://%s/player/direct' % self.id2domain(_id))
         assert self.is_on_page(DataPage)
 
         return self.page.get_current()
@@ -155,28 +154,16 @@ class RadioFranceBrowser(BaseBrowser):
     def get_current_direct(self, _id):
         json_data = self.openurl('http://%s/sites/default/files/direct.json?_=%s' % (self.id2domain(_id), int(time())))
         data = json.load(json_data)
-
-        document = self.parser.parse(StringIO(data.get('html')))
-        artist = document.findtext('//span[@class="artiste"]')
-        title = document.findtext('//span[@class="titre"]')
-        artist = unicode(artist) if artist else None
-        title = unicode(title) if title else None
+        title = unicode(data['rf_titre_antenne']['titre'])
+        artist = unicode(data['rf_titre_antenne']['interprete'])
         return (artist, title)
 
     def get_current_direct_large(self, _id):
-        json_data = self.openurl('http://%s/sites/default/files/direct-large.json?_=%s' % (self.id2domain(_id), int(time())))
+        json_data = self.openurl('http://%s/sites/default/files/import_si/si_titre_antenne/FIP_player_current.json'
+                                 % self.id2domain(_id))
         data = json.load(json_data)
-
-        document = self.parser.parse(StringIO(data.get('html')))
-        current = document.find('//div[@class="direct-current"]')
-        if current is not None:
-            artist = current.findtext('.//div[@class="artiste"]')
-            title = current.findtext('.//div[@class="titre"]')
-            artist = unicode(artist) if artist else None
-            title = unicode(title) if title else None
-        else:
-            artist = None
-            title = None
+        artist = unicode(data['current']['song']['interpreteMorceau'])
+        title = unicode(data['current']['song']['titre'])
         return (artist, title)
 
     @id2url(RadioFranceVideo.id2url)

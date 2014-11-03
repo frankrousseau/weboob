@@ -22,15 +22,15 @@
 from datetime import date
 from dateutil.relativedelta import relativedelta
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword
 
 from .pages.login import LoginPage
-from .pages.accounts_list import GlobalAccountsList, AccountsList, AccountHistoryPage
+from .pages.accounts_list import GlobalAccountsList, AccountsList, AccountHistoryPage, InvestmentHistoryPage
 
 __all__ = ['Fortuneo']
 
 
-class Fortuneo(BaseBrowser):
+class Fortuneo(Browser):
     DOMAIN_LOGIN = 'www.fortuneo.fr'
     DOMAIN = 'www.fortuneo.fr'
     PROTOCOL = 'https'
@@ -45,11 +45,12 @@ class Fortuneo(BaseBrowser):
 
             '.*/prive/mes-comptes/livret/consulter-situation/consulter-solde\.jsp.*' :          AccountHistoryPage,
             '.*/prive/mes-comptes/compte-courant/consulter-situation/consulter-solde\.jsp.*' :  AccountHistoryPage,
-
+            '.*/prive/mes-comptes/compte-titres-.*':                                            InvestmentHistoryPage,
+            '.*/prive/mes-comptes/assurance-vie.*':                                             InvestmentHistoryPage,
             }
 
     def __init__(self, *args, **kwargs):
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def home(self):
         """main page (login)"""
@@ -85,11 +86,12 @@ class Fortuneo(BaseBrowser):
     def get_history(self, account):
         self.location(account._link_id)
 
-        self.select_form(name='ConsultationHistoriqueOperationsForm')
-        self.set_all_readonly(False)
-        self['dateRechercheDebut'] = (date.today() - relativedelta(years=1)).strftime('%d/%m/%Y')
-        self['nbrEltsParPage'] = '100'
-        self.submit()
+        if self.is_on_page(AccountHistoryPage):
+            self.select_form(name='ConsultationHistoriqueOperationsForm')
+            self.set_all_readonly(False)
+            self['dateRechercheDebut'] = (date.today() - relativedelta(years=1)).strftime('%d/%m/%Y')
+            self['nbrEltsParPage'] = '100'
+            self.submit()
 
         return self.page.get_operations(account)
 

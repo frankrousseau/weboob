@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 from PyQt4.QtGui import QWidget, QTreeWidgetItem, QImage, QIcon, QPixmap
 from PyQt4.QtCore import SIGNAL, Qt
 
@@ -64,7 +66,12 @@ class EventsWidget(QWidget):
         self.ui.typeBox.setEnabled(False)
         self.ui.typeBox.clear()
         self.ui.typeBox.addItem('All', None)
-        self.process = QtDo(self.weboob, self.gotEvent)
+
+        def finished():
+            self.ui.refreshButton.setEnabled(True)
+            self.ui.typeBox.setEnabled(True)
+
+        self.process = QtDo(self.weboob, self.gotEvent, fb=finished)
         self.process.do('iter_events')
 
     def setPhoto(self, contact, item):
@@ -89,24 +96,22 @@ class EventsWidget(QWidget):
 
         return False
 
-    def gotEvent(self, backend, event):
-        if not backend:
-            self.ui.refreshButton.setEnabled(True)
-            self.ui.typeBox.setEnabled(True)
-            return
-
+    def gotEvent(self, event):
         found = False
         for i in xrange(self.ui.typeBox.count()):
             s = self.ui.typeBox.itemData(i)
             if s == event.type:
                 found = True
         if not found:
-            print event.type
+            print(event.type)
             self.ui.typeBox.addItem(event.type.capitalize(), event.type)
             if event.type == self.event_filter:
                 self.ui.typeBox.setCurrentIndex(self.ui.typeBox.count()-1)
 
         if self.event_filter and self.event_filter != event.type:
+            return
+
+        if not event.contact:
             return
 
         contact = event.contact
@@ -137,13 +142,13 @@ class EventsWidget(QWidget):
         item = QTreeWidgetItem(None, [name, date, type, message])
         item.setData(0, Qt.UserRole, event)
         if contact.photos is NotLoaded:
-            process = QtDo(self.weboob, lambda b, c: self.setPhoto(c, item))
+            process = QtDo(self.weboob, lambda c: self.setPhoto(c, item))
             process.do('fillobj', contact, ['photos'], backends=contact.backend)
             self.photo_processes[contact.id] = process
         elif len(contact.photos) > 0:
             if not self.setPhoto(contact, item):
                 photo = contact.photos.values()[0]
-                process = QtDo(self.weboob, lambda b, p: self.setPhoto(contact, item))
+                process = QtDo(self.weboob, lambda p: self.setPhoto(contact, item))
                 process.do('fillobj', photo, ['thumbnail_data'], backends=contact.backend)
                 self.photo_processes[contact.id] = process
 

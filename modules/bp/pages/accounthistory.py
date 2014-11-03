@@ -22,10 +22,7 @@ import datetime
 import re
 
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-from weboob.tools.browser import BasePage
-
-
-__all__ = ['AccountHistory', 'CardsList']
+from weboob.deprecated.browser import Page
 
 
 class Transaction(FrenchTransaction):
@@ -49,7 +46,7 @@ class Transaction(FrenchTransaction):
                ]
 
 
-class AccountHistory(BasePage):
+class AccountHistory(Page):
     def get_next_link(self):
         for a in self.document.xpath('//a[@class="btn_crt"]'):
             txt = u''.join([txt.strip() for txt in a.itertext()])
@@ -108,7 +105,7 @@ class AccountHistory(BasePage):
         return operations
 
 
-class CardsList(BasePage):
+class CardsList(Page):
     def get_cards(self):
         cards = []
         for tr in self.document.xpath('//table[@class="dataNum"]/tbody/tr'):

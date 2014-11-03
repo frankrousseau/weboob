@@ -1,9 +1,7 @@
 # -*- coding: utf-8 -*-
 
-from weboob.tools.browser import BasePage
-
-__all__ = ['IndexPage']
+from weboob.deprecated.browser import Page
 
 
-class IndexPage(BasePage):
+class IndexPage(Page):
     pass

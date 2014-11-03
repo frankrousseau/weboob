@@ -17,13 +17,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from nose.plugins.skip import SkipTest
-from weboob.tools.test import BackendTest
 from weboob.capabilities.audio import BaseAudio
+from weboob.tools.test import BackendTest, SkipTest
 
 
 class GroovesharkTest(BackendTest):
-    BACKEND = 'grooveshark'
+    MODULE = 'grooveshark'
 
     def test_grooveshark_audio_search(self):
         result = list(self.backend.search_audio("Gronibard"))

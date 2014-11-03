@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.tools.html import html2text
 from weboob.capabilities.image import BaseImage
 
@@ -28,10 +28,7 @@ import re
 from .gallery import EHentaiGallery
 
 
-__all__ = ['GalleryPage', 'ImagePage', 'IndexPage', 'HomePage', 'LoginPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def is_logged(self):
         success_p = self.document.xpath(
                 '//p[text() = "Login Successful. You will be returned momentarily."]')
@@ -41,11 +38,11 @@ class LoginPage(BasePage):
             return False
 
 
-class HomePage(BasePage):
+class HomePage(Page):
     pass
 
 
-class IndexPage(BasePage):
+class IndexPage(Page):
     def iter_galleries(self):
         lines = self.document.xpath('//table[@class="itg"]//tr[@class="gtr0" or @class="gtr1"]')
         for line in lines:
@@ -55,7 +52,7 @@ class IndexPage(BasePage):
             yield EHentaiGallery(re.search('(?<=/g/)\d+/[\dabcdef]+', url).group(0), title=title)
 
 
-class GalleryPage(BasePage):
+class GalleryPage(Page):
     def image_pages(self):
         return self.document.xpath('//div[@class="gdtm"]//a/attribute::href')
 
@@ -100,6 +97,6 @@ class GalleryPage(BasePage):
         gallery.thumbnail.url = gallery.thumbnail.id
 
 
-class ImagePage(BasePage):
+class ImagePage(Page):
     def get_url(self):
         return self.document.xpath('//div[@class="sni"]/a/img/attribute::src')[0]

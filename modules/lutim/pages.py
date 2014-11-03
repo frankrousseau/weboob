@@ -18,13 +18,11 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 import re
 
-__all__ = ['PageAll']
 
-
-class PageAll(BasePage):
+class PageAll(Page):
     def post(self, name, content, max_days):
         pass
 

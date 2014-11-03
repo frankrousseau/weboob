@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBase, BaseObject, Field, IntField, DecimalField, \
+from .base import Capability, BaseObject, Field, IntField, DecimalField, \
                   StringField, BytesField
 from .date import DateField
 
@@ -61,6 +61,7 @@ class Housing(BaseObject):
     phone =         StringField('Phone number to contact')
     photos =        Field('List of photos', list)
     details =       Field('Key/values of details', dict)
+    url =           StringField('Url of the the advert')
 
 
 class Query(BaseObject):
@@ -70,16 +71,32 @@ class Query(BaseObject):
     TYPE_RENT = 0
     TYPE_SALE = 1
 
-    type =      IntField('Type of housing to find (TYPE_* constants)')
-    cities =    Field('List of cities to search in', list, tuple)
-    area_min =  IntField('Minimal area (in m2)')
-    area_max =  IntField('Maximal area (in m2)')
-    cost_min =  IntField('Minimal cost')
-    cost_max =  IntField('Maximal cost')
-    nb_rooms =  IntField('Number of rooms')
+    def enum(**enums):
+        _values = enums.values()
+        _items = enums.items()
+        _index = dict((value, i) for i, value in enumerate(enums.values()))
+        _types = list((type(value) for value in enums.values()))
+        enums['values'] = _values
+        enums['items'] = _items
+        enums['index'] = _index
+        enums['types'] = _types
+        return type('Enum', (), enums)
 
-    def __init__(self):
-        BaseObject.__init__(self, '')
+    HOUSE_TYPES = enum(APART=u'Apartment',
+                       HOUSE=u'House',
+                       PARKING=u'Parking',
+                       LAND=u'Land',
+                       OTHER=u'Other',
+                       UNKNOWN=u'Unknown')
+
+    type = IntField('Type of housing to find (TYPE_* constants)')
+    cities = Field('List of cities to search in', list, tuple)
+    area_min = IntField('Minimal area (in m2)')
+    area_max = IntField('Maximal area (in m2)')
+    cost_min = IntField('Minimal cost')
+    cost_max = IntField('Maximal cost')
+    nb_rooms = IntField('Number of rooms')
+    house_types = Field('List of house types', list, tuple, default=HOUSE_TYPES.values)
 
 
 class City(BaseObject):
@@ -89,10 +106,11 @@ class City(BaseObject):
     name =      StringField('Name of city')
 
 
-class CapHousing(CapBase):
+class CapHousing(Capability):
     """
     Capability of websites to search housings.
     """
+
     def search_housings(self, query):
         """
         Search housings.

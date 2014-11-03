@@ -23,14 +23,12 @@ import re
 
 from weboob.capabilities import NotAvailable
 from weboob.capabilities.image import BaseImage
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 from ..video import InaVideo
 
-__all__ = ['VideoPage']
 
-
-class VideoPage(BasePage):
+class VideoPage(Page):
     URL_REGEXP = re.compile('http://player.ina.fr/notices/(.+)\.mrss')
 
     def get_id(self):
@@ -68,7 +66,6 @@ class VideoPage(BasePage):
                                    1,
                                    method='xpath').text
         video.date = datetime.strptime(_date[:-6], '%a, %d %b %Y %H:%M:%S')
-
 
         video.description = u'%s' % self.parser.select(self.document.getroot(),
                                                        '//rss/channel/item/description',

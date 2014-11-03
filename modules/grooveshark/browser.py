@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword
 from weboob.tools.json import json as simplejson
 from weboob.capabilities.audio import BaseAudio, Album, Playlist
 from weboob.capabilities.image import BaseImage
@@ -42,7 +42,7 @@ class APIError(Exception):
     pass
 
 
-class GroovesharkBrowser(BaseBrowser):
+class GroovesharkBrowser(Browser):
     PROTOCOL = 'http'
     DOMAIN = 'html5.grooveshark.com'
     API_URL = 'https://html5.grooveshark.com/more.php'
@@ -162,7 +162,9 @@ class GroovesharkBrowser(BaseBrowser):
             album.title = u'%s' % _album['Name']
 
         album.author = u'%s' % _album['ArtistName']
-        album.year = int(_album['Year'])
+        if _album['Year']:
+            album.year = int(_album['Year'])
+
         if _album['CoverArtFilename']:
             album.thumbnail = BaseImage(u'http://images.gs-cdn.net/static/albums/80_' + _album['CoverArtFilename'])
             album.thumbnail.url = album.thumbnail.id

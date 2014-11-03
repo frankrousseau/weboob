@@ -30,6 +30,7 @@ class SubscriptionNotFound(UserError):
     """
     Raised when a subscription is not found.
     """
+
     def __init__(self, msg='Subscription not found'):
         UserError.__init__(self, msg)
 
@@ -38,6 +39,7 @@ class BillNotFound(UserError):
     """
     Raised when a bill is not found.
     """
+
     def __init__(self, msg='Bill not found'):
         UserError.__init__(self, msg)
 
@@ -170,6 +172,6 @@ class CapBill(CapCollection):
 
         :param subscription: subscription to get balance
         :type subscription: :class:`Subscription`
-        :rtype :class:`Detail`
+        :rtype: class:`Detail`
         """
         raise NotImplementedError()

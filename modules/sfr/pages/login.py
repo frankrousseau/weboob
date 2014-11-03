@@ -18,13 +18,10 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 
-__all__ = ['LoginPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, login, password):
         self.browser.select_form(nr=0)
         self.browser['username'] = login

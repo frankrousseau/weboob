@@ -32,15 +32,11 @@ import urllib
 import io
 
 from weboob.capabilities.base import UserError
-from weboob.tools.browser import BasePage, BrokenPageError, BrowserIncorrectPassword
+from weboob.deprecated.browser import Page, BrokenPageError, BrowserIncorrectPassword
 from weboob.tools.json import json
 
 
-__all__ = ['LoginPage', 'LoginRedirectPage', 'ForbiddenVideo', 'ForbiddenVideoPage',
-           'VerifyAgePage', 'VerifyControversyPage', 'VideoPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def on_loaded(self):
         errors = []
         for errdiv in self.parser.select(self.document.getroot(), 'div.errormsg'):
@@ -56,7 +52,7 @@ class LoginPage(BasePage):
         self.browser.submit()
 
 
-class LoginRedirectPage(BasePage):
+class LoginRedirectPage(Page):
     pass
 
 
@@ -64,7 +60,7 @@ class ForbiddenVideo(UserError):
     pass
 
 
-class BaseYoutubePage(BasePage):
+class BaseYoutubePage(Page):
     def is_logged(self):
         try:
             self.parser.select(self.document.getroot(), 'span#yt-masthead-account-picker', 1)
@@ -183,11 +179,11 @@ class VideoPage(BaseYoutubePage):
     }
 
     def __init__(self, *args, **kwargs):
-        BasePage.__init__(self, *args, **kwargs)
+        Page.__init__(self, *args, **kwargs)
         self._player_cache = {}
 
     def _extract_signature_function(self, video_id, player_url, slen):
-        id_m = re.match(r'.*-(?P<id>[a-zA-Z0-9_-]+)\.(?P<ext>[a-z]+)$',
+        id_m = re.match(r'.*-(?P<id>[a-zA-Z0-9_-]+)(?:/watch_as3|/html5player)?\.(?P<ext>[a-z]+)$',
                         player_url)
         player_type = id_m.group('ext')
         player_id = id_m.group('id')
@@ -214,6 +210,8 @@ class VideoPage(BaseYoutubePage):
             u'Initial JS player signature function name')
 
         functions = {}
+        objects = {}
+        code = jscode
 
         def argidx(varname):
             return string.lowercase.index(varname)
@@ -245,11 +243,39 @@ class VideoPage(BaseYoutubePage):
                 assign = lambda v: v
                 expr = stmt[len(u'return '):]
             else:
-                raise BrokenPageError(
-                    u'Cannot determine left side of statement in %r' % stmt)
+                # Try interpreting it as an expression
+                expr = stmt
+                assign = lambda v: v
 
             v = interpret_expression(expr, local_vars, allow_recursion)
             return assign(v)
+
+        def extract_object(objname):
+            obj = {}
+            obj_m = re.search(
+                (r'(?:var\s+)?%s\s*=\s*\{' % re.escape(objname)) +
+                r'\s*(?P<fields>([a-zA-Z$0-9]+\s*:\s*function\(.*?\)\s*\{.*?\})*)' +
+                r'\}\s*;',
+                code)
+            fields = obj_m.group('fields')
+            # Currently, it only supports function definitions
+            fields_m = re.finditer(
+                r'(?P<key>[a-zA-Z$0-9]+)\s*:\s*function'
+                r'\((?P<args>[a-z,]+)\){(?P<code>[^}]+)}',
+                fields)
+            for f in fields_m:
+                argnames = f.group('args').split(',')
+                obj[f.group('key')] = build_function(argnames, f.group('code'))
+
+            return obj
+
+        def build_function(argnames, code):
+            def resf(args):
+                local_vars = dict(zip(argnames, args))
+                for stmt in code.split(';'):
+                    res = interpret_statement(stmt, local_vars)
+                return res
+            return resf
 
         def interpret_expression(expr, local_vars, allow_recursion):
             if expr.isdigit():
@@ -258,48 +284,87 @@ class VideoPage(BaseYoutubePage):
             if expr.isalpha():
                 return local_vars[expr]
 
-            m = re.match(r'^(?P<in>[a-z]+)\.(?P<member>.*)$', expr)
+            try:
+                return json.loads(expr)
+            except ValueError:
+                pass
+
+            m = re.match(r'^(?P<var>[a-zA-Z0-9_]+)\.(?P<member>[^(]+)(?:\(+(?P<args>[^()]*)\))?$', expr)
             if m:
+                variable = m.group('var')
                 member = m.group('member')
-                val = local_vars[m.group('in')]
-                if member == 'split("")':
-                    return list(val)
-                if member == 'join("")':
-                    return u''.join(val)
-                if member == 'length':
-                    return len(val)
-                if member == 'reverse()':
-                    return val[::-1]
-                slice_m = re.match(r'slice\((?P<idx>.*)\)', member)
-                if slice_m:
-                    idx = interpret_expression(
-                        slice_m.group('idx'), local_vars, allow_recursion-1)
-                    return val[idx:]
+                arg_str = m.group('args')
+
+                if variable in local_vars:
+                    obj = local_vars[variable]
+                else:
+                    if variable not in objects:
+                        objects[variable] = extract_object(variable)
+                    obj = objects[variable]
+
+                if arg_str is None:
+                    # Member access
+                    if member == 'length':
+                        return len(obj)
+                    return obj[member]
+
+                assert expr.endswith(')')
+                # Function call
+                if arg_str == '':
+                    argvals = tuple()
+                else:
+                    argvals = tuple([
+                        interpret_expression(v, local_vars, allow_recursion)
+                        for v in arg_str.split(',')])
+
+                if member == 'split':
+                    assert argvals == ('',)
+                    return list(obj)
+                if member == 'join':
+                    assert len(argvals) == 1
+                    return argvals[0].join(obj)
+                if member == 'reverse':
+                    assert len(argvals) == 0
+                    obj.reverse()
+                    return obj
+                if member == 'slice':
+                    assert len(argvals) == 1
+                    return obj[argvals[0]:]
+                if member == 'splice':
+                    assert isinstance(obj, list)
+                    index, howMany = argvals
+                    res = []
+                    for i in range(index, min(index + howMany, len(obj))):
+                        res.append(obj.pop(index))
+                    return res
+
+                return obj[member](argvals)
 
             m = re.match(
                 r'^(?P<in>[a-z]+)\[(?P<idx>.+)\]$', expr)
             if m:
                 val = local_vars[m.group('in')]
-                idx = interpret_expression(m.group('idx'), local_vars,
-                                           allow_recursion-1)
+                idx = interpret_expression(
+                    m.group('idx'), local_vars, allow_recursion - 1)
                 return val[idx]
 
             m = re.match(r'^(?P<a>.+?)(?P<op>[%])(?P<b>.+?)$', expr)
             if m:
-                a = interpret_expression(m.group('a'),
-                                         local_vars, allow_recursion)
-                b = interpret_expression(m.group('b'),
-                                         local_vars, allow_recursion)
+                a = interpret_expression(
+                    m.group('a'), local_vars, allow_recursion)
+                b = interpret_expression(
+                    m.group('b'), local_vars, allow_recursion)
                 return a % b
 
             m = re.match(
                 r'^(?P<func>[a-zA-Z$]+)\((?P<args>[a-z0-9,]+)\)$', expr)
             if m:
                 fname = m.group('func')
+                argvals = tuple([
+                    int(v) if v.isdigit() else local_vars[v]
+                    for v in m.group('args').split(',')])
                 if fname not in functions:
                     functions[fname] = extract_function(fname)
-                argvals = [int(v) if v.isdigit() else local_vars[v]
-                           for v in m.group('args').split(',')]
                 return functions[fname](argvals)
             raise BrokenPageError(u'Unsupported JS expression %r' % expr)
 
@@ -799,6 +864,7 @@ class VideoPage(BaseYoutubePage):
 
     def _extract_from_m3u8(self, manifest_url, video_id):
         url_map = {}
+
         def _get_urls(_manifest):
             lines = _manifest.split('\n')
             urls = filter(lambda l: l and not l.startswith('#'), lines)

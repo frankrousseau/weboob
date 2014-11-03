@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['EbonicsTest']
-
-
 class EbonicsTest(BackendTest):
-    BACKEND = 'ebonics'
+    MODULE = 'ebonics'
 
     def test_translate(self):
         self.backend.translate('English', 'Nigger!', 'I like penis.')

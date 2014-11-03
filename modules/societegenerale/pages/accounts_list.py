@@ -28,12 +28,9 @@ import re
 from weboob.capabilities.base import empty, NotAvailable
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-from weboob.tools.browser import BrokenPageError
+from weboob.deprecated.browser import BrokenPageError
 
 from .base import BasePage
-
-
-__all__ = ['AccountsList', 'CardsList', 'AccountHistory']
 
 
 class AccountsList(BasePage):
@@ -53,10 +50,9 @@ class AccountsList(BasePage):
              u'Prêt':                Account.TYPE_LOAN,
             }
 
-
     def get_list(self):
         for tr in self.document.getiterator('tr'):
-            if not 'LGNTableRow' in tr.attrib.get('class', '').split():
+            if 'LGNTableRow' not in tr.attrib.get('class', '').split():
                 continue
 
             account = Account()

@@ -20,14 +20,11 @@
 
 import re
 
-from weboob.tools.browser2.page import method, HTMLPage
-from weboob.tools.browser2.elements import ItemElement
-from weboob.tools.browser2.filters import CleanText, Env, Duration
+from weboob.browser.pages import HTMLPage
+from weboob.browser.elements import ItemElement, method
+from weboob.browser.filters.standard import CleanText, Env, Duration
 from weboob.capabilities.video import BaseVideo
 from weboob.tools.misc import to_unicode
-
-
-__all__ = ['VideoPage']
 
 
 class VideoPage(HTMLPage):

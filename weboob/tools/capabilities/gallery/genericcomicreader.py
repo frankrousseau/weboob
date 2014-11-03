@@ -18,17 +18,16 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-
 import re
 
 from weboob.capabilities.gallery import CapGallery, BaseGallery, BaseImage
-from weboob.tools.backend import BaseBackend
-from weboob.tools.browser import BaseBrowser, BasePage
+from weboob.tools.backend import Module
+from weboob.deprecated.browser import Browser, Page
 
-__all__ = ['GenericComicReaderBackend']
+__all__ = ['GenericComicReaderModule']
 
 
-class DisplayPage(BasePage):
+class DisplayPage(Page):
     def get_page(self, gallery):
         src = self.document.xpath(self.browser.params['img_src_xpath'])[0]
 
@@ -40,10 +39,10 @@ class DisplayPage(BasePage):
         return self.document.xpath(self.browser.params['page_list_xpath'])
 
 
-class GenericComicReaderBrowser(BaseBrowser):
+class GenericComicReaderBrowser(Browser):
     def __init__(self, browser_params, *args, **kwargs):
         self.params = browser_params
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def iter_gallery_images(self, gallery):
         self.location(gallery.url)
@@ -63,11 +62,11 @@ class GenericComicReaderBrowser(BaseBrowser):
             image.data = self.readurl(image.url)
 
 
-class GenericComicReaderBackend(BaseBackend, CapGallery):
+class GenericComicReaderModule(Module, CapGallery):
     NAME = 'genericcomicreader'
     MAINTAINER = u'Noé Rubinstein'
     EMAIL = 'noe.rubinstein@gmail.com'
-    VERSION = '0.j'
+    VERSION = '1.1'
     DESCRIPTION = 'Generic comic reader backend; subclasses implement specific sites'
     LICENSE = 'AGPLv3+'
     BROWSER = GenericComicReaderBrowser

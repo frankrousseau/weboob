@@ -20,9 +20,9 @@
 
 import urllib
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword, BrowserUnavailable,\
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword, BrowserUnavailable,\
         BrowserBanned
-from weboob.tools.browser.decorators import id2url
+from weboob.deprecated.browser.decorators import id2url
 
 #from .pages.index import IndexPage
 from .pages import VideoPage, IndexPage, SearchPage
@@ -36,7 +36,7 @@ from weboob.capabilities.base import NotAvailable
 __all__ = ['GDCVaultBrowser']
 
 
-class GDCVaultBrowser(BaseBrowser):
+class GDCVaultBrowser(Browser):
     DOMAIN = 'gdcvault.com'
     ENCODING = 'utf-8'
     PAGES = {r'http://[w\.]*gdcvault.com/play/(?P<id>[\d]+)/?.*': VideoPage,
@@ -69,7 +69,6 @@ class GDCVaultBrowser(BaseBrowser):
         data = self.readurl('http://gdcvault.com/api/login.php',
                             urllib.urlencode(params))
         # some data returned as JSON, not sure yet if it's useful
-        #print data
 
         if data is None:
             self.openurl('/logout', '')
@@ -98,9 +97,7 @@ class GDCVaultBrowser(BaseBrowser):
             self.open_novisit(url)
             #headers = req.info()
         except HTTPError as e:
-            # print e.getcode()
             if e.getcode() == 302 and hasattr(e, 'hdrs'):
-                #print e.hdrs['Location']
                 if e.hdrs['Location'] in ['/', '/login']:
                     requires_account = True
                 else:
@@ -115,7 +112,6 @@ class GDCVaultBrowser(BaseBrowser):
             if video is None:
                 m = re.match('http://[w\.]*gdcvault.com/play/(?P<id>[\d]+)/?.*', url)
                 if m:
-                    # print m.group(1)
                     video = GDCVaultVideo(int(m.group(1)))
                 else:
                     raise BrowserUnavailable('Cannot find ID on page with redirection')
@@ -140,7 +136,6 @@ class GDCVaultBrowser(BaseBrowser):
         self.addheaders = [('Referer', 'http://gdcvault.com/'),
                            ("Content-Type" , 'application/x-www-form-urlencoded') ]
 
-        #print post_data
         # is_logged assumes html page
         self.location('http://gdcvault.com/search.php',
                       data=post_data, no_login=True)
@@ -149,7 +144,6 @@ class GDCVaultBrowser(BaseBrowser):
         return self.page.iter_videos()
 
     def latest_videos(self):
-        print "browser:latest_videos()"
         #self.home()
         self.location('/free')
         assert self.is_on_page(IndexPage)

@@ -1,3 +1,3 @@
-from .backend import SeLogerBackend
+from .module import SeLogerModule
 
-__all__ = ['SeLogerBackend']
+__all__ = ['SeLogerModule']

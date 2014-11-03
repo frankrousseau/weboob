@@ -26,11 +26,8 @@ import shutil
 from datetime import datetime, date, time
 from decimal import Decimal
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.capabilities.bill import Detail, Bill
-
-
-__all__ = ['HistoryPage', 'PdfPage']
 
 
 def _get_date(detail):
@@ -94,10 +91,10 @@ class PdfPage():
         return details
 
     # Standard pdf text extractor take text line by line
-    # But the position in the file is not always the "real" position to display...
+    # But the position in the file is not always the "real" position to display...
     # It produce some unsorted and unparsable data
-    # Example of bad software: pdfminer and others python tools
-    # This is why we have to use "ebook-convert" from calibre software,
+    # Example of bad software: pdfminer and others python tools
+    # This is why we have to use "ebook-convert" from calibre software,
     # it is the only one to 'reflow" text and give some relevant results
     # The bad new is that ebook-convert doesn't support simple use with stdin/stdout
     def get_calls(self):
@@ -159,7 +156,7 @@ class PdfPage():
         return sorted(details, key=_get_date, reverse=True)
 
 
-class HistoryPage(BasePage):
+class HistoryPage(Page):
     def on_loaded(self):
         pass
 

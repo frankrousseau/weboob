@@ -18,7 +18,6 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-
 from PyQt4.QtGui import QDialog, QTreeWidgetItem, QLabel, QFormLayout, \
                         QMessageBox, QPixmap, QImage, QIcon, QHeaderView, \
                         QListWidgetItem, QTextDocument, QVBoxLayout, \
@@ -128,7 +127,7 @@ class BackendCfg(QDialog):
         self.connect(self.ui.configButtonBox, SIGNAL('rejected()'), self.rejectBackend)
 
     def get_icon_cache(self, path):
-        if not path in self.icon_cache:
+        if path not in self.icon_cache:
             img = QImage(path)
             self.icon_cache[path] = QIcon(QPixmap.fromImage(img))
         return self.icon_cache[path]
@@ -358,7 +357,7 @@ class BackendCfg(QDialog):
         self.ui.moduleInfo.document().addResource(QTextDocument.ImageResource, QUrl('mydata://logo.png'),
             QVariant(img))
 
-        if not module.name in [n for n, ign, ign2 in self.weboob.backends_config.iter_backends()]:
+        if module.name not in [n for n, ign, ign2 in self.weboob.backends_config.iter_backends()]:
             self.ui.nameEdit.setText(module.name)
         else:
             self.ui.nameEdit.setText('')

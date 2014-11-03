@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
 from email.mime.text import MIMEText
 from smtplib import SMTP
@@ -26,7 +27,6 @@ from email import message_from_file, message_from_string
 from smtpd import SMTPServer
 import time
 import re
-import sys
 import logging
 import asyncore
 import subprocess
@@ -89,8 +89,8 @@ class MonboobScheduler(Scheduler):
 
 class Monboob(ReplApplication):
     APPNAME = 'monboob'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2011 Romain Bignon'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Romain Bignon'
     DESCRIPTION = 'Daemon allowing to regularly check for new messages on various websites, ' \
                   'and send an email for each message, and post a reply to a message on a website.'
     SHORT_DESCRIPTION = "daemon to send and check messages"
@@ -119,7 +119,7 @@ class Monboob(ReplApplication):
             if self.config.get('interval') < 1:
                 raise ValueError()
         except ValueError:
-            print >>sys.stderr, 'Configuration error: interval must be an integer >0.'
+            print('Configuration error: interval must be an integer >0.', file=self.stderr)
             return 1
 
         try:
@@ -127,7 +127,7 @@ class Monboob(ReplApplication):
             if self.config.get('html') not in (0, 1):
                 raise ValueError()
         except ValueError:
-            print >>sys.stderr, 'Configuration error: html must be 0 or 1.'
+            print('Configuration error: html must be 0 or 1.', file=self.stderr)
             return 2
 
         return ReplApplication.main(self, argv)
@@ -151,7 +151,7 @@ class Monboob(ReplApplication):
 
         Pipe with a mail to post message.
         """
-        msg = message_from_file(sys.stdin)
+        msg = message_from_file(self.stdin)
         return self.process_incoming_mail(msg)
 
     def process_incoming_mail(self, msg):
@@ -190,7 +190,7 @@ class Monboob(ReplApplication):
                         break
 
         if len(content) == 0:
-            print >>sys.stderr, 'Unable to send an empty message'
+            print('Unable to send an empty message', file=self.stderr)
             return 1
 
         # remove signature
@@ -210,7 +210,7 @@ class Monboob(ReplApplication):
                 bname, id = reply_to.split('.', 1)
                 thread_id, parent_id = id.rsplit('.', 1)
             except ValueError:
-                print >>sys.stderr, 'In-Reply-To header might be in form <backend.thread_id.message_id>'
+                print('In-Reply-To header might be in form <backend.thread_id.message_id>', file=self.stderr)
                 return 1
 
             # Default use the To header field to know the backend to use.
@@ -220,11 +220,11 @@ class Monboob(ReplApplication):
         try:
             backend = self.weboob.backend_instances[bname]
         except KeyError:
-            print >>sys.stderr, 'Backend %s not found' % bname
+            print('Backend %s not found' % bname, file=self.stderr)
             return 1
 
         if not backend.has_caps(CapMessagesPost):
-            print >>sys.stderr, 'The backend %s does not implement CapMessagesPost' % bname
+            print('The backend %s does not implement CapMessagesPost' % bname, file=self.stderr)
             return 1
 
         thread = Thread(thread_id)
@@ -240,9 +240,9 @@ class Monboob(ReplApplication):
         except Exception as e:
             content = u'Unable to send message to %s:\n' % thread_id
             content += u'\n\t%s\n' % to_unicode(e)
-            if logging.root.level == logging.DEBUG:
+            if logging.root.level <= logging.DEBUG:
                 content += u'\n%s\n' % to_unicode(get_backtrace(e))
-            self.send_email(backend, Message(thread,
+            self.send_email(backend.name, Message(thread,
                                              0,
                                              title='Unable to send message',
                                              sender='Monboob',
@@ -268,26 +268,26 @@ class Monboob(ReplApplication):
 
     def process(self):
         try:
-            for backend, message in self.weboob.do('iter_unread_messages'):
-                if self.send_email(backend, message):
-                    backend.set_message_read(message)
+            for message in self.weboob.do('iter_unread_messages'):
+                if self.send_email(message.backend, message):
+                    self.weboob[message.backend].set_message_read(message)
         except CallErrors as e:
             self.bcall_errors_handler(e)
 
-    def send_email(self, backend, mail):
+    def send_email(self, backend_name, mail):
         domain = self.config.get('domain')
         recipient = self.config.get('recipient')
 
         reply_id = ''
         if mail.parent:
-            reply_id = u'<%s.%s@%s>' % (backend.name, mail.parent.full_id, domain)
+            reply_id = u'<%s.%s@%s>' % (backend_name, mail.parent.full_id, domain)
         subject = mail.title
         sender = u'"%s" <%s@%s>' % (mail.sender.replace('"', '""') if mail.sender else '',
-                                    backend.name, domain)
+                                    backend_name, domain)
 
         # assume that .date is an UTC datetime
         date = formatdate(time.mktime(utc2local(mail.date).timetuple()), localtime=True)
-        msg_id = u'<%s.%s@%s>' % (backend.name, mail.full_id, domain)
+        msg_id = u'<%s.%s@%s>' % (backend_name, mail.full_id, domain)
 
         if self.config.get('html') and mail.flags & mail.IS_HTML:
             body = mail.content

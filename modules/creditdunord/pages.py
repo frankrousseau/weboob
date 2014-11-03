@@ -23,21 +23,18 @@ from decimal import Decimal
 import re
 from cStringIO import StringIO
 
-from weboob.tools.browser import BasePage, BrokenPageError
+from weboob.deprecated.browser import Page, BrokenPageError
 from weboob.tools.json import json
 from weboob.capabilities.bank import Account
 from weboob.capabilities import NotAvailable
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
 
-__all__ = ['LoginPage', 'AccountsPage', 'TransactionsPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     pass
 
 
-class CDNBasePage(BasePage):
+class CDNBasePage(Page):
     def get_from_js(self, pattern, end, is_list=False):
         """
         find a pattern in any javascript text
@@ -299,7 +296,7 @@ class ProTransactionsPage(TransactionsPage):
 
             for i, key, value in re.findall('listeopecv\[(\d+)\]\[\'(\w+)\'\]="(.*)";', txt):
                 i = int(i)
-                if not i in transactions:
+                if i not in transactions:
                     transactions[i] = {}
                 transactions[i][key] = value
 

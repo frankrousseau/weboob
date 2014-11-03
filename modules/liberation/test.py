@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['LiberationTest']
-
-
 class LiberationTest(BackendTest):
-    BACKEND = 'liberation'
+    MODULE = 'liberation'
 
     def test_new_messages(self):
         for message in self.backend.iter_unread_messages():

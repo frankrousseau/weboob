@@ -17,6 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import time
 import logging
 
@@ -86,16 +88,15 @@ class MessagesManager(QWidget):
         self.ui.backendsList.setEnabled(False)
         self.ui.threadsList.setEnabled(False)
 
-        self.process_threads = QtDo(self.weboob, self._gotThread)
+        self.process_threads = QtDo(self.weboob, self._gotThread, fb=self._gotThreadsEnd)
         self.process_threads.do('iter_threads', backends=self.backend, caps=CapMessages)
 
-    def _gotThread(self, backend, thread):
-        if not backend:
-            self.process_threads = None
-            self.ui.backendsList.setEnabled(True)
-            self.ui.threadsList.setEnabled(True)
-            return
+    def _gotThreadsEnd(self):
+        self.process_threads = None
+        self.ui.backendsList.setEnabled(True)
+        self.ui.threadsList.setEnabled(True)
 
+    def _gotThread(self, thread):
         item = QListWidgetItem(thread.title)
         item.setData(Qt.UserRole, (thread.backend, thread.id))
         self.ui.threadsList.addItem(item)
@@ -118,16 +119,15 @@ class MessagesManager(QWidget):
         self.ui.profileButton.hide()
         self.hideReply()
 
-        self.process = QtDo(self.weboob, self._gotThreadMessages)
+        self.process = QtDo(self.weboob, self._gotThreadMessages, fb=self._gotThreadMessagesEnd)
         self.process.do('get_thread', id, backends=backend)
 
-    def _gotThreadMessages(self, backend, thread):
-        if thread is None:
-            self.ui.backendsList.setEnabled(True)
-            self.ui.threadsList.setEnabled(True)
-            self.process = None
-            return
+    def _gotThreadMessagesEnd(self):
+        self.ui.backendsList.setEnabled(True)
+        self.ui.threadsList.setEnabled(True)
+        self.process = None
 
+    def _gotThreadMessages(self, thread):
         self.thread = thread
         if thread.flags & thread.IS_THREADS:
             top = self.ui.messagesTree.invisibleRootItem()
@@ -208,7 +208,7 @@ class MessagesManager(QWidget):
             self.ui.profileButton.hide()
 
     def _profilePressed(self):
-        print self.thread.id
+        print(self.thread.id)
         self.emit(SIGNAL('display_contact'), self.thread.id)
 
     def displayReply(self):
@@ -251,13 +251,10 @@ class MessagesManager(QWidget):
                     content=text,
                     parent=self.message,
                     flags=flags)
-        self.process_reply = QtDo(self.weboob, self._postReply_cb, self._postReply_eb)
+        self.process_reply = QtDo(self.weboob, None, self._postReply_eb, self._postReply_fb)
         self.process_reply.do('post_message', m, backends=self.thread.backend)
 
-    def _postReply_cb(self, backend, ignored):
-        if not backend:
-            return
-
+    def _postReply_fb(self):
         self.ui.backendsList.setEnabled(True)
         self.ui.threadsList.setEnabled(True)
         self.ui.messagesTree.setEnabled(True)
@@ -267,11 +264,11 @@ class MessagesManager(QWidget):
         self.ui.sendButton.setText(self.tr('Send'))
         self.hideReply()
         self.process_reply = None
-        self.refreshThreadMessages(backend.name, self.thread.id)
+        self.refreshThreadMessages(self.thread.backend, self.thread.id)
 
     def _postReply_eb(self, backend, error, backtrace):
         content = unicode(self.tr('Unable to send message:\n%s\n')) % to_unicode(error)
-        if logging.root.level == logging.DEBUG:
+        if logging.root.level <= logging.DEBUG:
             content += '\n%s\n' % to_unicode(backtrace)
         QMessageBox.critical(self, self.tr('Error while posting reply'),
                              content, QMessageBox.Ok)

@@ -18,17 +18,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 from weboob.tools.html import html2text
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 import dateutil.parser
 import re
 
 from .job import PopolemploiJobAdvert
 
 
-__all__ = ['SearchPage', 'AdvertPage']
-
-
-class SearchPage(BasePage):
+class SearchPage(Page):
     def iter_job_adverts(self):
         rows = self.document.getroot().xpath('//table[@class="definition-table ordered"]/tbody/tr')
         for row in rows:
@@ -53,7 +50,7 @@ class SearchPage(BasePage):
             return advert
 
 
-class AdvertPage(BasePage):
+class AdvertPage(Page):
     def get_job_advert(self, url, advert):
         content = self.document.getroot().xpath('//div[@id="offre-body"]')[0]
         if not advert:

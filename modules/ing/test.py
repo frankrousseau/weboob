@@ -20,11 +20,12 @@
 
 from weboob.tools.test import BackendTest
 from weboob.capabilities.bank import Account
+from datetime import timedelta
 import random
 
 
 class INGTest(BackendTest):
-    BACKEND = 'ing'
+    MODULE = 'ing'
 
     def test_accounts(self):
         l = list(self.backend.iter_accounts())
@@ -34,9 +35,13 @@ class INGTest(BackendTest):
             self.assertTrue(_id.id == account.id)
             # Methods can use Account objects or id. Try one of them
             id_or_account = random.choice([account, account.id])
-            if account.type == Account.TYPE_CHECKING or account.type == Account.TYPE_CHECKING:
+            if account.type == Account.TYPE_CHECKING or account.type == Account.TYPE_SAVINGS:
                 history = list(self.backend.iter_history(id_or_account))
                 self.assertTrue(len(history) > 0)
+                date = history.pop(0).date
+                for elem in history:
+                    self.assertTrue(date + timedelta(days=2) >= elem.date)
+                    date = elem.date
                 recipients = list(self.backend.iter_transfer_recipients(id_or_account))
                 self.assertTrue(len(recipients) > 0)
             elif account.type == Account.TYPE_MARKET:

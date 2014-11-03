@@ -21,11 +21,11 @@ import os
 import imp
 import logging
 
-from weboob.tools.backend import BaseBackend
+from weboob.tools.backend import Module
 from weboob.tools.log import getLogger
 
 
-__all__ = ['Module', 'ModulesLoader', 'RepositoryModulesLoader', 'ModuleLoadError']
+__all__ = ['LoadedModule', 'ModulesLoader', 'RepositoryModulesLoader', 'ModuleLoadError']
 
 
 class ModuleLoadError(Exception):
@@ -34,17 +34,17 @@ class ModuleLoadError(Exception):
         self.module = module_name
 
 
-class Module(object):
+class LoadedModule(object):
     def __init__(self, package):
         self.logger = getLogger('backend')
         self.package = package
         self.klass = None
         for attrname in dir(self.package):
             attr = getattr(self.package, attrname)
-            if isinstance(attr, type) and issubclass(attr, BaseBackend) and attr != BaseBackend:
+            if isinstance(attr, type) and issubclass(attr, Module) and attr != Module:
                 self.klass = attr
         if not self.klass:
-            raise ImportError('%s is not a backend (no BaseBackend class found)' % package)
+            raise ImportError('%s is not a backend (no Module class found)' % package)
 
     @property
     def name(self):
@@ -95,7 +95,7 @@ class Module(object):
 
     def create_instance(self, weboob, instance_name, config, storage):
         backend_instance = self.klass(weboob, instance_name, config, storage, self.logger)
-        self.logger.debug(u'Created backend instance "%s" for backend "%s"' % (instance_name, self.name))
+        self.logger.debug(u'Created backend "%s" for module "%s"' % (instance_name, self.name))
         return backend_instance
 
 
@@ -103,6 +103,7 @@ class ModulesLoader(object):
     """
     Load modules.
     """
+
     def __init__(self, path, version=None):
         self.version = version
         self.path = path
@@ -143,12 +144,12 @@ class ModulesLoader(object):
         try:
             fp, pathname, description = imp.find_module(module_name, [path])
             try:
-                module = Module(imp.load_module(module_name, fp, pathname, description))
+                module = LoadedModule(imp.load_module(module_name, fp, pathname, description))
             finally:
                 if fp:
                     fp.close()
         except Exception as e:
-            if logging.root.level == logging.DEBUG:
+            if logging.root.level <= logging.DEBUG:
                 self.logger.exception(e)
             raise ModuleLoadError(module_name, e)
 
@@ -162,10 +163,12 @@ class ModulesLoader(object):
     def get_module_path(self, module_name):
         return self.path
 
+
 class RepositoryModulesLoader(ModulesLoader):
     """
     Load modules from repositories.
     """
+
     def __init__(self, repositories):
         super(RepositoryModulesLoader, self).__init__(repositories.modules_dir, repositories.version)
         self.repositories = repositories

@@ -22,10 +22,8 @@ import time
 import re
 import urllib
 
-from weboob.tools.browser import BasePage, BrowserUnavailable
+from weboob.deprecated.browser import Page, BrowserUnavailable
 from weboob.tools.captcha.virtkeyboard import VirtKeyboard, VirtKeyboardError
-
-__all__ = ['LoginPage', 'ConfirmPage', 'ChangePasswordPage']
 
 
 class BNPVirtKeyboard(VirtKeyboard):
@@ -74,7 +72,7 @@ class BNPVirtKeyboard(VirtKeyboard):
         return code
 
 
-class LoginPage(BasePage):
+class LoginPage(Page):
     def on_loaded(self):
         for td in self.document.getroot().cssselect('td.LibelleErreur'):
             if td.text is None:
@@ -103,7 +101,7 @@ class LoginPage(BasePage):
         self.browser.location(url, urllib.urlencode(params))
 
 
-class ConfirmPage(BasePage):
+class ConfirmPage(Page):
     def get_error(self):
         for td in self.document.xpath('//td[@class="hdvon1"]'):
             if td.text:
@@ -117,12 +115,12 @@ class ConfirmPage(BasePage):
             return m.group(1)
 
 
-class InfoMessagePage(BasePage):
+class InfoMessagePage(Page):
     def on_loaded(self):
         pass
 
 
-class ChangePasswordPage(BasePage):
+class ChangePasswordPage(Page):
     def change_password(self, current, new):
         try:
             vk=BNPVirtKeyboard(self)

@@ -1,3 +1,731 @@
+Weboob 1.0 (2014-10-17)
+
+	General
+	* New agendadulibre module http://www.agendadulibre.org/ (CapCalendarEvent)
+	* New Citibank module https://online.citibank.com (CapBank) (#1642)
+	* New leboncoin module http://www.leboncoin.fr/ (CapHousing)
+	* New mareeinfo module http://maree.info/ (CapGauge)
+	* New playme module http://goplayme.com/ (CapMessages, CapMessagesPost, CapDating)
+	* New razibus module http://razibus.net/ (CapCalendarEvent)
+
+	API Big-Bang
+	* Rename BaseBackend to Module
+	* Rename BACKEND to MODULE
+	* Rename backend.py to module.py
+	* Rename BaseApplication to Application
+	* Rename CapBase to Capability
+	* Rename BasePage to Page
+	* Rename BaseBrowser to Browser
+	* Move CleanHTML to html filters
+	* Remove * imports in filters
+	* Move weboob.tools.browser2 to weboob.browser
+	* Move weboob.tools.exceptions to weboob.exceptions
+	* Move weboob.tools.browser to weboob.deprecated.browser
+	* Move weboob.tools.parsers to weboob.deprecated.browser.parsers
+	* Move weboob.tools.mech to weboob.deprecated.mech
+	* Remove the "backend" result in do() calls
+
+	Core
+	* Catch the proper exception for missing icon
+	* Replace usage of os.mknod() by os.open(O_CREAT)
+	* Use the print() function everywhere
+	* WebNip.iter_backends takes a new optional parameter 'module'
+	* Add __getitem__ on WebNip to get a loaded backend by name
+	* Create PrintProgress class instead of using IProgress as default one
+	* Allow to load a module with config=None
+	* A lot of pep8 fixes
+
+	Capabilities
+	* Let get_currency guess US$ means USD
+	* Prevent mess when copying BaseObject instances
+
+	Capabilities: bank
+	* Add Investment.description field
+	* Add Emirati Dirham AEB currency
+
+	Capabilities: calendar
+	* Add Conference event category
+
+	Capabilities: parcel
+	* Add parcelnotfound exception
+
+	Capabilities: housing
+	* Add and handle in flatboob house_types field
+	* Add and handle in leboncoin a new house type: UNKNOWN
+	* Adding a url field in housing capability and management of it in
+	  flatboob
+
+	Applications
+	* Add a new debug level (-dd option)
+	* Add a " LIMIT " keyword in conditions
+	* Centralize encoding guesses, default to UTF-8 (#1352)
+	* Use class attributes as much as possible for application output
+	* Define std* in the proper class
+	* Handle datetime in condition argument
+	* os.isatty is now forbidden (as stream.fileno() is not implemented by
+	  StringIO)
+	* logging: Output to stderr, not stdout
+	* logging: better colors
+
+	Applications: repl
+	* When getting an object, if at least one is found, display errors but
+	  correctly return the found object
+
+	Applications: boobmsg
+	* Fix "show" for threads
+
+	Applications: flatboob
+	* Ask for query.type in flatboob
+	* Add load command
+	* Fix bug type_of_good does not exist anymore
+
+	Applications: Qflatboob
+	* Manage count to avoid problems during pagination
+
+	Applications: pastoob
+	* Add an option to set a custom file encoding
+
+	Applications: parceloob
+	* Catch parcelnotfound by untracking
+
+	Applicatitons: traveloob
+	* Fix: crash if departure time is not available
+
+	Applications: videoob
+	* Set non verbose mode for wget  when downloading m3u8 (fix #1643)
+
+	Applications: weboobcfg
+	* Return correct exit status code for enable and disable commands
+
+	Applications: webcontentedit
+	* Better checks for vim usage
+
+	Browser
+	* Add a way to asynchronously handle requests and pages
+	* Backporting mergin_hook to support hook's requests in wheezy
+	* HTMLPage checks the inner charset and parse again document if it is not
+	  the same than Content-Type HTTP header
+	* Add a trivial android profile
+	* Add has-class xpath function
+
+	Browser: filters
+	* Add debug informations
+	* Raise ParseError only with None/NotAvailable/NotLoaded values, not with
+	  empty strings
+	* Add a way to customize sign handling for CleanDecimal
+	* Regexp: let template be a callable
+	* Add some javascript dedicated filters
+	* Add an nth parameter to Regexp filter
+	* Add __str__ to _Filters
+
+	Browser: elements
+	* handle_loaders into AbstractElement
+	* Ability to select an ItemElement
+
+	DeprecatedBrowser
+	* Fix: certificate check on servers which don't allow SSLv3
+
+	Documentation
+	* Update to the new API
+	* Show base classes in documentation
+
+	Tools
+	* American amount to decimal conversion (ref #1641)
+	* PDF decompression function (ref #1641)
+	* Regexp-based tokenizer (ref #1641)
+
+	Tools: html2text
+	* Use the class if possible
+
+	Tools: make_man
+	* Copyright on top of file
+
+	Tools: newsfeed
+	* No need for workaround with feedparser>=5.1
+
+	Tools: tests
+	* Allow changing modules path and adding to PYTHONPATH
+
+	Tools: pyflakes
+	* Add test to prevent usage of prints in modules
+	* Detect deprecated has_key function
+
+	Tools: values
+	* Ability to set value to an empty string if it is available in choices
+
+	Packaging: setup
+	* Add futures, avoid Py2-only libs under Py3
+	* Use Python3-compatible syntax in debpydep
+	* Add ignore dirs for flake8
+
+	Contrib: boobot
+	* Add a check_twitter method
+
+	Contrib: videoobmc
+	* Force relative imports
+
+	Contrib: weboob-generic (munin script)
+	* Add category option
+
+	Modules: alloresto
+	* Fix: website changes (enable https and fix the form xpath)
+
+	Modules: arretsurimages
+	* Fix: site changed
+
+	Modules: aum
+	* Remove useless features of module that don't work anymore
+	* Enable https
+	* Import exceptions from core
+
+	Modules: banqueaccord
+	* Support canceled transactions
+	* Increase timeout because of slow website
+
+	Modules: biplan
+	* Use the Python SkipTest if possible
+
+	Modules: boursorama
+	* Remove prints
+
+	Modules: bred
+	* Limit length of password
+	* Remove lot of old code and keep card transactions in separate card accounts
+	* Translating accnum description
+
+	Modules: carrefourbanque
+	* Do not try to parse useless accounts (closes #1432)
+	* Fix: login form is now the second form on the page
+
+	Modules: cic
+	* Fix: new certificate hash
+	* Set an unique id
+
+	Modules: cmso
+	* Fix: parsing of transaction amounts (strip nbsp)
+	* Fix: parsing of huge account balances
+
+	Modules: colissimo
+	* Fix: return the real error message, not "label"
+	* Raise ParcelNotFound in colissimo
+	* Return the fullid of not found parcel
+	* Upgrade to browser2
+
+	Modules: cragr
+	* Remove prints
+	* Add a regexp for checking password
+
+	Modules: creditcooperatif
+	* Add unique id to creditcooperatif (perso)
+	* Update regexps
+	* Use find object
+	* Upgrade to browser2 (perso)
+
+	Modules: creditmutuel
+	* Fix: do not lock browser2 anymore (#1635)
+
+	Modules: dresdenwetter
+	* Add the debug decorator to dresdenwetter filter
+
+	Modules: europarl
+	* Remove prints
+
+	Modules: feedly
+	* Use the Python SkipTest if possible
+	* Fix: unicode warning
+
+	Modules: fortuneo
+	* Do exactly the same thing than js to always get accounts list
+
+	Modules: gazelle
+	* Fix: infinite loop on fail login, and fix error message lookup
+
+	Modules: gdcvault
+	* Remove prints
+
+	Modules: grooveshark
+	* Fix: bug when Year field is empty in grooveshark json
+	* Use the Python SkipTest if possible
+
+	Modules: hds
+	* Convert to browser2 and fix it
+
+	Modules: hellobank
+	* Remove prints
+
+	Modules: hybride
+	* Use the Python SkipTest if possible
+
+	Modules: imgur
+	* Restrict URL to imgur domains
+
+	Modules: ing
+	* Fix: add an Index for some accounts...
+	* Add a test to detect loops in the history
+	* Fix: testing of saving accounts
+	* Fix: crash on coming operations
+	* Add loggedPage on bourse.ingdirect.fr
+	* Add a @ckeck_bourse decorator for a clean redirect
+
+	Modules: kickass
+	* Fix: parsing of torrent titles
+
+	Modules: lacentrale
+	* Fix: deprecated has_key
+
+	Modules: lcl
+	* Always raise instances of NotImplementedError
+
+	Modules: minutes20
+	* Fix: parsing insolite pages
+
+	Modules: nettokom
+	* Add tests
+
+	Modules: okc
+	* Remove prints
+
+	Modules: oney
+	* Add a favicon
+	* Add missing symbols for the virtual keyboard
+	* Fix: do not crash on months with no transactions
+
+	Modules: ouifm
+	* Fix: new radio names
+
+	Modules: ovs
+	* Force relative import
+
+	Modules: pap
+	* Adapt to browser2
+	* Exclude adverts from other websites
+	* Fix: image retrieving
+
+	Modules: pastebin
+	* Fix: crash on spam page
+
+	Modules: paypal
+	* Use AmericanTransaction.decimal_amount in PayPal module. Part of #1641
+
+	Modules: quvi
+	* Force relative import
+
+	Modules: seloger
+	* Adapt to browser2
+	* Fix: pagination
+	* Fix: obj filling
+
+	Modules: societegenerale
+	* Remove prints
+	* PIL is a global requirement, remove the check
+
+	Modules: tinder
+	* Fix: auth on tinder by correctly set the User-Agent header
+
+	Modules: transilien
+	* Fix: crash on late departures
+
+	Modules: twitter
+	* Fix storage system
+	* Fix purge system
+	* Do not import Browser1 exception
+
+	Modules: unsee
+	* Restrict URL to unsee domains
+
+	Modules: vlille
+	* Better description
+
+	Modules: wellsfargo
+	* Fix: compatibility with old versions of mechanize
+	* Add a favicon
+	* Rewrite Wells Fargo with browser2 (closes #1624)
+	* Improved Wells Fargo module stability.
+	* Use AmericanTransaction.decimal_amount, closest_date, decompress_pdf and ReTokenizer in WellsFargo module.
+	  Part of #1641
+
+	Modules: youjizz
+	* Fix: fillobj on video thumbnail
+
+	Modules: youtube
+	* Update part of the js interpreter
+
+
+Weboob 0.j (2014-09-03)
+
+	General:
+	* New module: feedly (CapMessages)
+	* New module: oney (CapBank)
+	* New module: twitter (CapMessages)
+	* New module: wellsfargo (CapBank) (#1430)
+
+	Core
+	* Rename CapBaseObject to BaseObject (#1424)
+	* Rename ICap to Cap (#1424)
+	* Ability to use weboob.function as alias to weboob.do('function') (#1425)
+
+	Core: repositories
+	* Fix HTTP error handling for browser2
+	* Use ConfigParser in priority with python2 (#1393)
+	* Load browser only when needed
+
+	Capabilities
+	* Move DateField/TimeField/Delta out of BaseObject
+	* Add LBP to currencies
+	* Add documentation on object constants
+
+	Capabilities: audio
+	* Add Playlist and Album classes
+
+	Capabilities: audiostream
+	* Fix: get_audiostream does not have pattern name (#1626)
+
+	Capabilities: dating
+	* Add iter_new_contacts method
+
+	Capabilities: files
+	* Fix repr() and str() on File-based objects
+
+	Capabilities: image
+	* Remove data field in to_dict method to avoid json crash during
+	conversion
+
+	Capabilities: messages
+	* Remove required items in Message constructor
+
+	Capabilities: travel
+	* Do not require in id in constructor
+
+	Applications
+	* Remove default import of browser1
+	* Import debug modules only when needed
+
+	Applications: console
+	* Remove the import of SSL exceptions
+	* Add the default value displayed "upper" in aliases (#1319)
+	* Allows shortcuts for modules (#881)
+	* Use shortcut of id in interactive mode (#881)
+
+	Applications: REPL
+	* Allow to browse subfolders with ls
+	* Change formatter when it cannot handle all selected fields
+	* Introduce the DISPLAYED_FIELDS in formatter
+	* Set fields in a consistant way with do()
+	* Introduce parse_fields function
+	* Use fullid parameter for CapObjects
+	* Correct multiple language error
+	* Move format_collection from repl to ifromatter
+	* Remove the 'inspect' command
+
+	Applications: formatters
+	* Remove the '*' special fields in formatter
+	* Table and Json formatters can write output to a file now (#1412)
+	* Handle format_collection with JSON formatter
+
+	Applications: boobank
+	* Do not crash if the account type isn't in list (#1542)
+	* Write the account currency in ofx output
+
+	Applications: radioob
+	* Manage Albums and Playlists
+	* Fix: bug when a radio id contains a dot
+
+	Applications: QHaveDate
+	* Add tab to send queries
+
+	Applications: videoob
+	* Improve m3u8 management in download
+
+	Browser1
+	* Introduce local exception for SSL errors
+	* Only load FirefoxCookies as needed
+	* Update Firefox versions to latest ESR
+
+	Browser2
+	* Add more specialized exceptions
+	* Allow setting query string params on build_url
+	* Matching content with url using is_here
+	* Ability to override the flush() method
+	* Allow for a custom element finder
+	* Add CSV pages
+	* Do not crash if total_seconds() is not implemented
+	* Fix documentation of nr parameter
+	* Update Firefox versions to latest ESR
+	* Add support for forms with multiple "submit" elements
+	* Allow more flexibility for the submit button parameter
+
+	Browser2: ListElement
+	* Move ItemListTable-Element outside of page.py
+
+	Browser2: filters
+	* Overload & and | operators to chain filters (#1426)
+	* Split filters in several files
+	* Fix filters doctest
+	* Force unicode
+	* New RawText filter
+	* New Base filter
+	* New Type filter
+	* Date: use default value for empty input
+	* Date: properly handle defaults that are not datetimes
+	* MultiFilter: allow for a default argument
+	* Dict: manage default
+	* Dict: ability to use Dict['a']['b']['c'] instead of Dict('a/b/c') (#1426)
+	* CleanHTML: manage basestring
+	* CleanDecimal: possibility to set custom separators
+	* CleanDecimal: set replace_dots default value to False
+	* CleanDecimal: do not crash with inputs like NotAvailable
+	* CleanText: handle the non-breaking space thanks to the re.UNICODE flag
+	* CleanText: add an option to keep (but normalize) newlines
+	* CleanText: \t is always in \s so no need to add it
+	* CleanText: add tests
+	* CleanText: fix re flags usage for Python 2.6 (#1444)
+	* Env: add support for a default
+
+	Documentation
+	* New Home Page
+	* Add a "How to contribute" page
+	* Add logo/favicon
+	* Set more customizations
+	* Add instruction for developers missing the first steps (#868)
+	* Define backends/modules
+	* Add local_run in documentation for developers
+	* Fix many docstring issues
+	* Change module documentation to learn browser2 (#1451)
+	* Add __repr__ on NotAvailable, NotLoaded and _NO_DEFAULT constants to be
+	more readable on doc
+	* Import several pages from the wiki
+	* Add documentation to report a bug (#873)
+
+	Tools: AmericanTransaction
+	* Add a transaction amounts cleaner helper for american banks
+
+	Tools: captcha
+	* Refactor VirtKeyboard class
+	* Add a margin attribut
+	* Add a grid based virtual keyboard
+
+	Tools: date
+	* Add more french dates translations
+	* Class methods to convert date[time] objects
+
+	Tools: genericArticle
+	* Fix unicode warning
+
+	Tools: make_man
+	* Tell that it was generated automatically
+
+	Tools: pyflakes
+	* Fix: call of pyflakes on Archlinux (#1404)
+
+	Tools: test
+	* Fix: call of test.py (#1403)
+
+	Tools: yaml
+	* Represent weboob date[time] objects as timestamps
+
+	Misc: local_run script
+	* Allow customizing where the modules are
+
+	Misc: setup
+	* Support python3 (#1417 #1418 #1419)
+	* Add prettytable in dependencies (#929)
+	* Configure isort and flake8
+
+	Misc: Windows Installer
+	* Remove some files
+	* Fix bugs in windows installer scripts
+
+	Contrib: munin
+	* Rename generic-munin to weboob-munin
+	* Move all scripts in the same folder
+	* Encode and decode ID's in weboob-munin
+
+	Contrib: boobot
+	* Add command %delquote
+	* Fix: %searchquote on unicode strings
+
+	Contrib: XBMC/Kodi
+	* Add a xbmc/Kodi plugin that interracts with videoob
+
+	Modules: arte
+	* Fix: Do not crash if 'VDA' fields is missing in json
+	* Use M3U8 format instead of HBBTV
+	* Fill video.url with NotAvailable if url is not found
+	* Improve tests
+	* Improve video quality choice
+	* Handle arte podcasts
+	* Add tests for program categories
+
+	Modules: aum
+	* Implement iter_new_contacts
+
+	Modules: banquepopulaire
+	* Strip displayed balance at end of transaction labels
+	* Display check number in label (#1027)
+	* Fix: remove spaces in IDs (#1368)
+	* Support loan payment type
+
+	Modules: biplan
+	* Handle summer holiday in tests
+
+	Modules: bnporc
+	* Update order regexp
+	* Fix: transfer regexp
+	* Remove space in ids
+
+	Modules: boursorama
+	* Some English fixes in comments
+	* Add new certificat hash
+
+	Modules: bp
+	* Fix: new login image for virtkeyboard
+
+	Modules: bred
+	* Handle space in account number
+	* Switch configuration description strings to unicode
+
+	Modules: caissedepargne
+	* Force use of TLSv1 on lowsslcheck as the web server support of SSLv3 is broken
+
+	Modules: colissimo
+	* Fix: New API key for collisimo (#1617)
+
+	Modules: cragr
+	* Order transactions by date to prevent LinearDateGuesser to be duped by the f*cking website
+
+	Modules: creditmutuel
+	* Fix: set of debit date for card transactions
+
+	Modules: dailymotion
+	* Fix: dailymotion mplayer error "No stream found to handle url"
+	* Fix: use https for test
+
+	Modules: francetelevisions
+	* Use filters as classes in chain (refs #1426)
+
+	Modules: freemobile
+	* Some English fixes in comments
+	* Fix date of subscriptions when next month as less days than excepted
+	(#1347)
+
+	Modules: gdcvault
+	* Remove unused import of ControlNotFoundError
+
+	Modules: grooveshark
+	* Update to match Album and Playlist management in radioob
+	* Display users playlists only when split_path length is 0
+	* Fix: catch exception when id is not an integer
+
+	Modules: hellobank
+	* Get default account name if the custom name is empty
+
+	Modules: hybride
+	* Fix: handle summer holiday in tests
+
+	Modules: imdb
+	* Some English fixes in comments
+	* Use omdbapi instead of imdbapi
+	* Fix: site changed
+
+	Modules: ina
+	* Fix: bad characters in titles (double encoded unicode)
+
+	Modules: ing
+	* Some English fixes in comments
+	* Remove the index on ing for pagination
+	* Support coming operations
+	* Fix: parsing of 'tomorrow' transaction dates
+
+	Modules: izneo
+	* Fix: bug in page list
+
+	Modules: lcl
+	* Handle lcl pro https://professionnels.secure.lcl.fr
+	* New certificate
+	* Add transaction patterns
+
+	Modules: leclercmobile
+	* Fix: do not crash if balance is not available
+
+	Modules: lefigaro
+	* Remove dead code
+
+	Modules: meteofrance
+	* Fix: site changed (#1390)
+	* Fix: call the url that retrieve all the search results (#1431)
+	* Raise an exception if forecast param is not a city id (#1433)
+
+	Modules: opensubtitles
+	* Some English fixes in comments
+	* Fix: site changed (#1295)
+
+	Modules: pastealacon
+	* Convert to Browser2 (#674)
+	* Use specialized Browser exception
+
+	Modules: pastebin
+	* Convert to browser2
+	* overload & and | operators to chain filters (refs #1426)
+	* Handle limit exceeded warning
+	* Fix: crash with Base() and filter chaining
+
+	Modules: paypal
+	* Get more transactions on paypal (#1405)
+	* Retrieve all transactions from the history, merchant and regular account support (#1406)
+	* Paypal transactions history fetching with adaptive steps (#1406)
+	* Checking if tr contains text
+	* Make Paypal module use AmericanTransaction helper.
+	* Fix: empty amount. (#1415)
+	* Support french dates for last CSV request
+	* Ignore canceled transactions
+
+	Modules: popolemploi
+	* Fix: site is now only availbe using https
+
+	Modules: presseurop
+	* Presseurop is back! (named now voxeurop)
+
+	Modules: radiofrance
+	* Fix: FIP radio does not work (#1449)
+
+	Modules: sachsen
+	* Set the datetime to NotAvailable by default
+
+	Modules: senscritique
+	* Fix: bug in network selection
+	* Fix: set channels and programs parameters in get_event
+
+	Modules: societegenerale
+	* Fix: certificate changed
+	* Fix: certificate updated (#1414)
+
+	Modules: sueurdemetal
+	* Fix: broken module due to departments containing letters
+
+	Modules: tinder
+	* Update recs only when needed
+	* Fix attribute type
+
+	Modules: transilien
+	* Adapt to browser2
+	* Fix: site changed (#938)
+
+	Modules: vimeo
+	* Fix: site changed
+	* Adapt to browser2
+	* Enable search and tests (#1082)
+	* Catch HttpNotFound errors
+
+	Modules: youjizz
+	* Overload & and | operators to chain filters (refs #1426)
+	* Use filters as classes in chain (refs #1426)
+
+	Modules: youtube
+	* Fix: Youtube mplayer error "No stream found to handle url"
+	* Fix: is_logged function does not work (#1423)
+	* Backport some youtube-dl changes (#1422)
+
+
 Weboob 0.i (2014-05-19)
 
 	General
@@ -459,7 +1187,7 @@ Weboob 0.i (2014-05-19)
 
 	Misc: Windows Installer
 	* Better script to generate the .exe
-	* Better management for 64 bits systems	 
+	* Better management for 64 bits systems
 
 
 Weboob 0.h (2014-01-08)
@@ -821,7 +1549,7 @@ Weboob 0.h (2014-01-08)
 	* Better detection of Pillow
 
 	Misc: tools
-	* local_run: do not erase existing PYTHONPATH 
+	* local_run: do not erase existing PYTHONPATH
 
 
 Weboob 0.g (2013-08-03)
@@ -1253,7 +1981,7 @@ Weboob 0.g (2013-08-03)
 	* weboob_bash_completion: fix bash completion
 
 	Contrib: boobot
-	* Support python-irclib >= 3 
+	* Support python-irclib >= 3
 	* Proper freenode server name
 	* Irc 5.0+ compatibility
 	* Display regular URL info
@@ -1282,7 +2010,7 @@ Weboob 0.g (2013-08-03)
 	* Rename Makefile -> build.mk to avoid spurious build attempts
 	* Use Pillow, unless PIL is already there
 	* Better README/INSTALL files
-	* Workaround Debian compatibily layer	 
+	* Workaround Debian compatibily layer
 
 
 Weboob 0.f (2013-03-26)
@@ -1555,7 +2283,7 @@ Weboob 0.f (2013-03-26)
 	* Fast and silent building
 	* Ensure proper building of man pages
 	* Tell groff manpages are utf-8
-	* Update INSTALL	 
+	* Update INSTALL
 
 
 Weboob 0.e (2013-01-25)
@@ -1569,10 +2297,10 @@ Weboob 0.e (2013-01-25)
 	* New module: Gan Assurances (CapBank).
 	* New module: Mangago (CapGallery).
 	* New script: anonymiser.sh.
-	
+
 	Module: Arte
 	* Fix: parsing video title (site changed).
-	
+
 	Module: Banque Populaire
 	* Update transaction regexps.
 	* Correctly encode login and password.
@@ -1606,7 +2334,7 @@ Weboob 0.e (2013-01-25)
 	* Fix: parsing accounts when there are interlines.
 	* ignore special accounts.
 	* Fix: crash when there is no ID on a transaction.
-	
+
 	Module: Caisse d'épargne
 	* Handle login errors.
 	* Support when website is unavailable.
@@ -1618,33 +2346,33 @@ Weboob 0.e (2013-01-25)
 	* New favicon.
 	* Fix: parsing amounts in special cases
 	* Fix: parsing card pages in special cases
-	
+
 	Module: cmb
 	* do not consider special accounts
 	* Fix: parsing balance
-	
+
 	Module: CrAgr
 	* update transaction regexps
 	* Fix: do not crash if there is no history link for an account
 	* correctly use iterators
-	
+
 	Module: dlfp
 	* Allow anonyme browsing (#923)
 	* Fix: deconnection error
 	* Fix: Support new html structure
-	
+
 	Module: ebonics
 	* Add favicon
-	
+
 	Module: ehentai
 	* Fix: Support new website
-	
+
 	Module: Fortuneo
 	* Add new certificate
-	
+
 	Module: France Télévisions
 	* Fix: Support new website
-	
+
 	Module: Freemobile
 	* Fix: Support the new website
 	* Add a real id for all details objects (#932)
@@ -1653,7 +2381,7 @@ Weboob 0.e (2013-01-25)
 
 	Module: Gazelle
 	* Fix: parsing torrents descriptions
-	
+
 	Module: HSBC
 	* Raise exception on login error
 
@@ -1671,21 +2399,21 @@ Weboob 0.e (2013-01-25)
 	* Fix: login regexp
 	* Add the new SSL certificat
 	* Add a pattern to detect cards
-	
+
 	Module: Leclercmobile
 	* Fix: Support new versions of website
-	
+
 	Module: Le Figaro
 	* Fix: encoding
 	* Remove some unused files (#819)
 	* Fix: author selection
-	
+
 	Module: Nettokom
 	* Add validity date
 
 	Module: Opacwebaloes
 	* Fix: Accept ID with 8 chars (#921)
-	
+
 	Module: pastalacon
 	* Remove some test warnings
 
@@ -1693,15 +2421,15 @@ Weboob 0.e (2013-01-25)
 	* Fix: visibility detection
 	* Fix: login without API
 	* Remove some test warnings
-	
+
 	Module: Piratebay
 	* Fix: search (site changed)
-	
+
 	Module: Presseurop
 	* Remove tweeter sharing
 	* Use clean_relativ_urls
 	* Fix: Support new version of daily titles
-	
+
 	Module: Sachsen
 	* Add a favicon
 	* Search is no more case sentitive
@@ -1714,20 +2442,20 @@ Weboob 0.e (2013-01-25)
 	* New SSL certificat
 	* Check date of card debit to apply it
 	* Fix: crash on special accounts
-	
+
 	Module: Taz
 	* Remove some adds
 
 	Module: Wordreference
 	* Fix: parsing (#840, #1036)
-	
+
 	Module: youporn
 	* Set domain to www.youporn.com
 
 	Module: youtube
 	* Fix: login
-	
-	
+
+
 	CapBank
 	* Support currencies
 
@@ -1741,11 +2469,11 @@ Weboob 0.e (2013-01-25)
 	CapGauge
 	* Change API to be more flexible
 	* Add GaugeSensor objects
-	
+
 	CapVideo
 	* Fix: CapVideo-related ConversionWarnings (dailymotion, ehentai,
 	francetelevisions, ina, radiofrance, youjizz, youporn, youtube)
-	
+
 	CapWaterLevel
 	* Rename it to ICapGauge
 
@@ -1822,10 +2550,10 @@ Weboob 0.e (2013-01-25)
 	Installation
 	* setup.py: print what executable we were looking for
 	* setup.py: be less confusing when make is missing
-	
+
 	Contrib: boobank-munin
 	* Fix: encoding issue
-	
+
 	Contrib: downloadboob
 	* Correctly create symlink and support when one is removed
 	* 'exclude' parameter is case insensitive

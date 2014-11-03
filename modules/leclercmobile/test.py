@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['LeclercMobileTest']
-
-
 class LeclercMobileTest(BackendTest):
-    BACKEND = 'leclercmobile'
+    MODULE = 'leclercmobile'
 
     def test_list(self):
         """

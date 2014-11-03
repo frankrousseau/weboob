@@ -22,12 +22,11 @@ from weboob.capabilities.video import BaseVideo
 
 from datetime import timedelta
 
-from weboob.tools.browser2.page import HTMLPage, method, JsonPage
-from weboob.tools.browser2.elements import ItemElement, ListElement
-from weboob.tools.browser2.filters import Filter, Link, CleanText, Regexp, Attr, Format, DateTime, Env, Dict, Duration, XPath
-
-
-__all__ = ['IndexPage', 'VideoPage']
+from weboob.browser.pages import HTMLPage, JsonPage
+from weboob.browser.elements import ItemElement, ListElement, method
+from weboob.browser.filters.standard import Filter, CleanText, Regexp, Format, DateTime, Env, Duration
+from weboob.browser.filters.html import Link, Attr, XPath
+from weboob.browser.filters.json import Dict
 
 
 class DurationPluzz(Filter):

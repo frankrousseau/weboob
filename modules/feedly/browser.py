@@ -19,7 +19,7 @@
 
 from weboob.tools.json import json
 from weboob.capabilities.collection import Collection
-from weboob.tools.browser2 import LoginBrowser, URL, need_login
+from weboob.browser import LoginBrowser, URL, need_login
 from .pages import EssentialsPage, TokenPage, ContentsPage, PreferencesPage
 
 
@@ -75,7 +75,7 @@ class FeedlyBrowser(LoginBrowser):
     @need_login
     def get_logged_categories(self):
         user_categories = list(self.preferences.go().get_categories())
-        user_categories.append(Collection(['global.saved'], 'Saved'))
+        user_categories.append(Collection([u'global.saved'], u'Saved'))
         return user_categories
 
     def get_feeds(self, category):

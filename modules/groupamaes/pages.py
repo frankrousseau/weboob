@@ -18,13 +18,11 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser2.page import HTMLPage, method, LoggedPage
-from weboob.tools.browser2.elements import TableElement, ItemElement
-from weboob.tools.browser2.filters import CleanText, CleanDecimal, TableCell, Date
+from weboob.browser.pages import HTMLPage, LoggedPage
+from weboob.browser.elements import TableElement, ItemElement, method
+from weboob.browser.filters.standard import CleanText, CleanDecimal, TableCell, Date
 from weboob.capabilities.bank import Account, Transaction
 from weboob.tools.date import LinearDateGuesser
-
-__all__ = ['LoginPage', 'LoginErrorPage', 'AvoirPage', 'OperationsFuturesPage', 'OperationsTraiteesPage']
 
 
 class LoginPage(HTMLPage):
@@ -74,7 +72,7 @@ class OperationsFuturesPage(LoggedPage, HTMLPage):
             klass = Transaction
 
             def condition(self):
-                return not u'Aucune opération en attente' in CleanText(TableCell('date'))(self)
+                return u'Aucune opération en attente' not in CleanText(TableCell('date'))(self)
 
             obj_date = Date(CleanText(TableCell('date')), LinearDateGuesser())
             obj_type = Transaction.TYPE_UNKNOWN
@@ -96,7 +94,7 @@ class OperationsTraiteesPage(LoggedPage, HTMLPage):
             klass = Transaction
 
             def condition(self):
-                return not u'Aucune opération' in CleanText(TableCell('date'))(self)
+                return u'Aucune opération' not in CleanText(TableCell('date'))(self)
 
             obj_date = Date(CleanText(TableCell('date')), LinearDateGuesser())
             obj_type = Transaction.TYPE_UNKNOWN

@@ -18,6 +18,6 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import NettoKomBackend
+from .module import NettoKomModule
 
-__all__ = ['NettoKomBackend']
+__all__ = ['NettoKomModule']

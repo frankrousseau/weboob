@@ -20,7 +20,7 @@ def genapi():
 
         subs = set()
         for f in files:
-            if not '.' in f:
+            if '.' not in f:
                 continue
 
             f, ext = f.rsplit('.', 1)
@@ -34,6 +34,7 @@ def genapi():
 ======%(equals)s=
 
 .. automodule:: %(module)s
+   :show-inheritance:
    :members:
    :undoc-members:""" % {'module': fmod,
                          'equals': '=' * len(fmod)})

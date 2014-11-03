@@ -19,8 +19,8 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BaseBrowser
-from weboob.tools.browser.decorators import id2url
+from weboob.deprecated.browser import Browser
+from weboob.deprecated.browser.decorators import id2url
 
 #from .pages.index import IndexPage
 from .pages import VideoPage
@@ -30,7 +30,7 @@ from .video import EuroparlVideo
 __all__ = ['EuroparlBrowser']
 
 
-class EuroparlBrowser(BaseBrowser):
+class EuroparlBrowser(Browser):
     DOMAIN = 'europarl.europa.eu'
     ENCODING = None
     PAGES = {r'http://[w\.]*europarl\.europa\.eu/ep-live/(?P<lang>\w+)/committees/video\?.*event=(?P<id>[^&]+).*': VideoPage,

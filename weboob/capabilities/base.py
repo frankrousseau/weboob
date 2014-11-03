@@ -29,7 +29,7 @@ from weboob.tools.ordereddict import OrderedDict
 
 
 __all__ = ['UserError', 'FieldNotFound', 'NotAvailable',
-           'NotLoaded', 'CapBase', 'Field', 'IntField', 'DecimalField',
+           'NotLoaded', 'Capability', 'Field', 'IntField', 'DecimalField',
            'FloatField', 'StringField', 'BytesField',
            'empty', 'BaseObject']
 
@@ -44,6 +44,7 @@ def empty(value):
         if value is cls:
             return True
     return False
+
 
 def find_object(mylist, error=None, **kwargs):
     """
@@ -63,6 +64,7 @@ def find_object(mylist, error=None, **kwargs):
         raise error()
     return None
 
+
 class UserError(Exception):
     """
     Exception containing an error message for user.
@@ -78,6 +80,7 @@ class FieldNotFound(Exception):
     :param field: field not found
     :type field: :class:`Field`
     """
+
     def __init__(self, obj, field):
         Exception.__init__(self,
                            u'Field "%s" not found for object %s' % (field, obj))
@@ -102,6 +105,7 @@ class NotAvailableType(object):
     """
     NotAvailable is a constant to use on non available fields.
     """
+
     def __str__(self):
         return unicode(self).decode('utf-8')
 
@@ -110,6 +114,9 @@ class NotAvailableType(object):
 
     def __deepcopy__(self, memo):
         return self
+
+    def __repr__(self):
+        return 'NotAvailable'
 
     def __unicode__(self):
         return u'Not available'
@@ -124,7 +131,7 @@ class NotLoadedType(object):
     """
     NotLoaded is a constant to use on not loaded fields.
 
-    When you use :func:`weboob.tools.backend.BaseBackend.fillobj` on a object based on :class:`BaseObject`,
+    When you use :func:`weboob.tools.backend.Module.fillobj` on a object based on :class:`BaseObject`,
     it will request all fields with this value.
     """
 
@@ -137,6 +144,9 @@ class NotLoadedType(object):
     def __deepcopy__(self, memo):
         return self
 
+    def __repr__(self):
+        return u'NotLoaded'
+
     def __unicode__(self):
         return u'Not loaded'
 
@@ -146,7 +156,7 @@ class NotLoadedType(object):
 NotLoaded = NotLoadedType()
 
 
-class CapBase(object):
+class Capability(object):
     """
     This is the base class for all capabilities.
 
@@ -193,6 +203,7 @@ class IntField(Field):
     """
     A field which accepts only :class:`int` and :class:`long` types.
     """
+
     def __init__(self, doc, **kwargs):
         Field.__init__(self, doc, int, long, **kwargs)
 
@@ -204,6 +215,7 @@ class DecimalField(Field):
     """
     A field which accepts only :class:`decimal` type.
     """
+
     def __init__(self, doc, **kwargs):
         Field.__init__(self, doc, Decimal, **kwargs)
 
@@ -217,6 +229,7 @@ class FloatField(Field):
     """
     A field which accepts only :class:`float` type.
     """
+
     def __init__(self, doc, **kwargs):
         Field.__init__(self, doc, float, **kwargs)
 
@@ -228,6 +241,7 @@ class StringField(Field):
     """
     A field which accepts only :class:`unicode` strings.
     """
+
     def __init__(self, doc, **kwargs):
         Field.__init__(self, doc, unicode, **kwargs)
 
@@ -239,6 +253,7 @@ class BytesField(Field):
     """
     A field which accepts only :class:`str` strings.
     """
+
     def __init__(self, doc, **kwargs):
         Field.__init__(self, doc, str, **kwargs)
 
@@ -332,6 +347,9 @@ class BaseObject(object):
         obj._fields = copy(self._fields)
         return obj
 
+    def __deepcopy__(self, memo):
+        return self.copy()
+
     def set_empty_fields(self, value, excepts=()):
         """
         Set the same value on all empty fields.
@@ -374,7 +392,7 @@ class BaseObject(object):
         try:
             attr = (self._fields or {})[name]
         except KeyError:
-            if not name in dir(self) and not name.startswith('_'):
+            if name not in dir(self) and not name.startswith('_'):
                 warnings.warn('Creating a non-field attribute %s. Please prefix it with _' % name,
                               AttributeCreationWarning, stacklevel=2)
             object.__setattr__(self, name, value)
@@ -424,6 +442,7 @@ class Currency(object):
                   u'USD': u'$',
                   u'GBP': u'£',
                   u'LBP': u'ل.ل',
+                  u'AED': u'AED',
                  }
 
     EXTRACTOR = re.compile(r'[\d\s,\.\-]', re.UNICODE)
@@ -449,7 +468,7 @@ class Currency(object):
         curtexts = klass.EXTRACTOR.sub(' ', text.upper()).split()
         for curtext in curtexts:
             for currency, symbol in klass.CURRENCIES.iteritems():
-                if curtext in (currency, symbol):
+                if curtext in (currency, symbol) or symbol in curtext:
                     return currency
         return None
 

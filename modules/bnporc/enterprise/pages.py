@@ -24,13 +24,10 @@ from datetime import datetime
 import re
 
 from weboob.capabilities.bank import Account
-from weboob.tools.browser import BasePage, BrokenPageError
+from weboob.deprecated.browser import Page, BrokenPageError
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 from weboob.tools.captcha.virtkeyboard import MappedVirtKeyboard, VirtKeyboardError
 from weboob.tools.misc import to_unicode
-
-
-__all__ = ['LoginPage', 'AccountsPage', 'UnknownPage']
 
 
 class Transaction(FrenchTransaction):
@@ -53,7 +50,7 @@ class Transaction(FrenchTransaction):
                ]
 
 
-class BEPage(BasePage):
+class BEPage(Page):
     def get_error(self):
         for title in self.document.xpath('/html/head/title'):
             if 'erreur' in title.text or 'error' in title.text:
@@ -83,8 +80,9 @@ class BNPVirtKeyboard(MappedVirtKeyboard):
         MappedVirtKeyboard.__init__(self, imgdata, basepage.document, img, self.color)
         self.check_symbols(self.symbols, basepage.browser.responses_dirname)
 
-    def get_symbol_coords(self, (x1, y1, x2, y2)):
+    def get_symbol_coords(self, coords):
         # strip borders
+        x1, y1, x2, y2 = coords
         return MappedVirtKeyboard.get_symbol_coords(self, (x1+6, y1+1, x2-6, y2-4))
 
     def get_symbol_code(self, md5sum):
@@ -99,8 +97,9 @@ class BNPVirtKeyboard(MappedVirtKeyboard):
             code += self.get_symbol_code(self.symbols[c])
         return code
 
-    def checksum(self, (x1, y1, x2, y2)):
+    def checksum(self, coords):
         """Copy of parent checksum(), but cropping (removes empty lines)"""
+        x1, y1, x2, y2 = coords
         s = ''
         for y in range(y1, min(y2 + 1, self.height)):
             for x in range(x1, min(x2 + 1, self.width)):
@@ -267,6 +266,7 @@ class HistoryPage(BEPage):
         except IndexError:
             # Last page
             return None
+
 
 class UnknownPage(BEPage):
     pass

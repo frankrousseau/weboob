@@ -21,11 +21,12 @@
 import re
 
 from weboob.capabilities.paste import BasePaste, PasteNotFound
-from weboob.tools.browser2 import HTMLPage, LoginBrowser, need_login, URL
-from weboob.tools.browser2.filters import Attr, Base, CleanText, DateTime, Env, Filter, FilterError, RawText
-from weboob.tools.browser2.page import method, RawPage
-from weboob.tools.browser2.elements import ItemElement
-from weboob.tools.exceptions import BrowserHTTPNotFound, BrowserIncorrectPassword, BrowserUnavailable
+from weboob.browser import LoginBrowser, need_login, URL
+from weboob.browser.pages import HTMLPage, RawPage
+from weboob.browser.elements import ItemElement, method
+from weboob.browser.filters.standard import Base, CleanText, DateTime, Env, Filter, FilterError, RawText
+from weboob.browser.filters.html import Attr
+from weboob.exceptions import BrowserHTTPNotFound, BrowserIncorrectPassword, BrowserUnavailable
 
 
 class PastebinPaste(BasePaste):
@@ -73,12 +74,14 @@ class PastePage(BasePastebinPage):
             self.env['header'] = el.find('//div[@id="content_left"]//div[@class="paste_box_info"]')
 
         obj_id = Env('id')
-        obj_title = Base(Env('header')) & CleanText('.//div[@class="paste_box_line1"]//h1')
+        obj_title = Base(Env('header'), CleanText('.//div[@class="paste_box_line1"]//h1'))
         obj_contents = RawText('//textarea[@id="paste_code"]')
-        obj_public = Base(Env('header')) \
-                     & Attr('.//div[@class="paste_box_line1"]//img', 'title') \
-                     & CleanVisibility()
-        obj__date = Base(Env('header')) & Attr('.//div[@class="paste_box_line2"]/span[1]', 'title') & DateTime()
+        obj_public = Base(
+            Env('header'),
+            CleanVisibility(Attr('.//div[@class="paste_box_line1"]//img', 'title')))
+        obj__date = Base(
+            Env('header'),
+            DateTime(Attr('.//div[@class="paste_box_line2"]/span[1]', 'title')))
 
 
 class PostPage(BasePastebinPage):
@@ -95,6 +98,11 @@ class PostPage(BasePastebinPage):
         form.submit()
 
 
+class WarningPage(BasePastebinPage):
+    def __init__(self, *args, **kwargs):
+        raise LimitExceeded()
+
+
 class UserPage(BasePastebinPage):
     pass
 
@@ -103,9 +111,14 @@ class BadAPIRequest(BrowserUnavailable):
     pass
 
 
+class LimitExceeded(BrowserUnavailable):
+    pass
+
+
 class PastebinBrowser(LoginBrowser):
     BASEURL = 'http://pastebin.com/'
 
+    warning = URL('warning\.php\?p=(?P<id>\d+)', WarningPage)
     api = URL('api/api_post\.php', RawPage)
     apilogin = URL('api/api_login\.php', RawPage)
     login = URL('login', LoginPage)
@@ -152,7 +165,9 @@ class PastebinBrowser(LoginBrowser):
 
     def post_paste(self, paste, expiration=None):
         self.postpage.stay_or_go().post(paste, expiration=expiration)
-        self.page.fill_paste(paste)
+        # We cannot call fill_paste because we often have a captcha
+        # anti-spam page, and do not detect it.
+        paste.id = self.page.params['id']
 
     def api_post_paste(self, paste, expiration=None):
         data = {'api_dev_key': self.api_key,

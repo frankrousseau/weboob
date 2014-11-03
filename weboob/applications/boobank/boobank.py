@@ -19,11 +19,11 @@
 
 from __future__ import print_function
 
-import datetime, uuid
+import datetime
+import uuid
 from dateutil.relativedelta import relativedelta
 from dateutil.parser import parse as parse_date
 from decimal import Decimal, InvalidOperation
-import sys
 
 from weboob.capabilities.base import empty
 from weboob.capabilities.bank import CapBank, Account, Transaction
@@ -104,6 +104,7 @@ class OfxFormatter(IFormatter):
 
         self.output(u'<DTASOF>%s</AVAILBAL>' % datetime.date.today().strftime('%Y%m%d'))
         self.output(u'</STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>')
+
 
 class QifFormatter(IFormatter):
     MANDATORY_FIELDS = ('id', 'date', 'raw', 'amount')
@@ -197,8 +198,8 @@ class InvestmentFormatter(IFormatter):
     tot_diff = Decimal(0)
 
     def start_format(self, **kwargs):
-        self.output(' Label                           Code     Quantity   Unit Value  Valuation   diff   ')
-        self.output('-------------------------------+--------+----------+-----------+-----------+--------')
+        self.output(' Label                            Code          Quantity     Unit Value   Valuation    diff    ')
+        self.output('-------------------------------+--------------+------------+------------+------------+---------')
 
     def format_obj(self, obj, alias):
         label = obj.label
@@ -209,20 +210,28 @@ class InvestmentFormatter(IFormatter):
         self.tot_diff += diff
         self.tot_valuation += obj.valuation
 
-        return u' %s %s %s %s %s   %s' % \
+        format_quantity = '%11.2f'
+        if obj.quantity._isinteger():
+            format_quantity = '%11d'
+        if empty(obj.code) and not empty(obj.description):
+            code = obj.description
+        else:
+            code = obj.code
+
+        return u' %s  %s  %s  %s  %s  %s' % \
                 (self.colored('%-30s' % label[:30], 'red'),
-                 self.colored('%-10s' % obj.code[:8], 'yellow') if not empty(obj.code) else ' ' * 10,
-                 self.colored('%6d' % obj.quantity, 'yellow'),
+                 self.colored('%-12s' % code[:12], 'yellow') if not empty(code) else ' ' * 12,
+                 self.colored(format_quantity % obj.quantity, 'yellow'),
                  self.colored('%11.2f' % obj.unitvalue, 'yellow'),
                  self.colored('%11.2f' % obj.valuation, 'yellow'),
                  self.colored('%8.2f' % diff, 'green' if diff >= 0 else 'red')
                  )
 
     def flush(self):
-        self.output('-------------------------------+--------+----------+-----------+-----------+--------')
-        self.output(u'                                        Total                    %s   %s' %
-                     (self.colored('%8.2f' % self.tot_valuation, 'yellow'),
-                      self.colored('%8.2f' % self.tot_diff, 'green' if self.tot_diff >=0 else 'red')
+        self.output(u'-------------------------------+--------------+------------+------------+------------+---------')
+        self.output(u'                                                                  Total  %s %s' %
+                     (self.colored('%11.2f' % self.tot_valuation, 'yellow'),
+                      self.colored('%9.2f' % self.tot_diff, 'green' if self.tot_diff >=0 else 'red')
                     ))
         self.tot_valuation = Decimal(0)
         self.tot_diff = Decimal(0)
@@ -282,8 +291,8 @@ class AccountListFormatter(IFormatter):
 
 class Boobank(ReplApplication):
     APPNAME = 'boobank'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2011 Romain Bignon, Christophe Benz'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Romain Bignon, Christophe Benz'
     CAPS = CapBank
     DESCRIPTION = "Console application allowing to list your bank accounts and get their balance, " \
                   "display accounts history and coming bank operations, and transfer money from an account to " \
@@ -328,21 +337,21 @@ class Boobank(ReplApplication):
 
         account = self.get_object(id, 'get_account', [])
         if not account:
-            print('Error: account "%s" not found (Hint: try the command "list")' % id, file=sys.stderr)
+            print('Error: account "%s" not found (Hint: try the command "list")' % id, file=self.stderr)
             return 2
 
         if end_date is not None:
             try:
                 end_date = parse_date(end_date)
             except ValueError:
-                print('"%s" is an incorrect date format (for example "%s")' % \
-                            (end_date, (datetime.date.today() - relativedelta(months=1)).strftime('%Y-%m-%d')), file=sys.stderr)
+                print('"%s" is an incorrect date format (for example "%s")' %
+                      (end_date, (datetime.date.today() - relativedelta(months=1)).strftime('%Y-%m-%d')), file=self.stderr)
                 return 3
             old_count = self.options.count
             self.options.count = None
 
         self.start_format(account=account)
-        for backend, transaction in self.do(command, account, backends=account.backend):
+        for transaction in self.do(command, account, backends=account.backend):
             if end_date is not None and transaction.date < end_date:
                 break
             self.format(transaction)
@@ -406,7 +415,7 @@ class Boobank(ReplApplication):
 
         account = self.get_object(id_from, 'get_account', [])
         if not account:
-            print('Error: account %s not found' % id_from, file=sys.stderr)
+            print('Error: account %s not found' % id_from, file=self.stderr)
             return 1
 
         if not id_to:
@@ -415,20 +424,20 @@ class Boobank(ReplApplication):
             self.set_formatter_header(u'Available recipients')
 
             self.start_format()
-            for backend, recipient in self.do('iter_transfer_recipients', account.id, backends=account.backend):
+            for recipient in self.do('iter_transfer_recipients', account.id, backends=account.backend):
                 self.cached_format(recipient)
             return 0
 
         id_to, backend_name_to = self.parse_id(id_to)
 
         if account.backend != backend_name_to:
-            print("Transfer between different backends is not implemented", file=sys.stderr)
+            print("Transfer between different backends is not implemented", file=self.stderr)
             return 4
 
         try:
             amount = Decimal(amount)
         except (TypeError, ValueError, InvalidOperation):
-            print('Error: please give a decimal amount to transfer', file=sys.stderr)
+            print('Error: please give a decimal amount to transfer', file=self.stderr)
             return 2
 
         if self.interactive:
@@ -436,7 +445,7 @@ class Boobank(ReplApplication):
             # recipients list, for example for banks which allow transfers to
             # arbitrary recipients.
             to = id_to
-            for backend, recipient in self.do('iter_transfer_recipients', account.id, backends=account.backend):
+            for recipient in self.do('iter_transfer_recipients', account.id, backends=account.backend):
                 if recipient.id == id_to:
                     to = recipient.label
                     break
@@ -449,7 +458,7 @@ class Boobank(ReplApplication):
                 return
 
         self.start_format()
-        for backend, transfer in self.do('transfer', account.id, id_to, amount, reason, backends=account.backend):
+        for transfer in self.do('transfer', account.id, id_to, amount, reason, backends=account.backend):
             self.format(transfer)
 
     def do_investment(self, id):
@@ -460,9 +469,9 @@ class Boobank(ReplApplication):
         """
         account = self.get_object(id, 'get_account', [])
         if not account:
-            print('Error: account "%s" not found (Hint: try the command "list")' % id, file=sys.stderr)
+            print('Error: account "%s" not found (Hint: try the command "list")' % id, file=self.stderr)
             return 2
 
         self.start_format()
-        for backend, investment in self.do('iter_investment', account, backends=account.backend):
+        for investment in self.do('iter_investment', account, backends=account.backend):
             self.format(investment)

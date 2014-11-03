@@ -17,13 +17,13 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from nose.plugins.skip import SkipTest
-from weboob.tools.test import BackendTest
 from datetime import datetime
+
+from weboob.tools.test import BackendTest, SkipTest
 
 
 class BiplanTest(BackendTest):
-    BACKEND = 'biplan'
+    MODULE = 'biplan'
 
     def test_biplan_list(self):
         if datetime.now() > datetime(datetime.now().year, 7, 14) and datetime.now() < datetime(datetime.now().year, 9, 15):

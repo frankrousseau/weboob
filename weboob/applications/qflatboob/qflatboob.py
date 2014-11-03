@@ -27,8 +27,8 @@ from .main_window import MainWindow
 
 class QFlatBoob(QtApplication):
     APPNAME = 'qflatboob'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2012 Romain Bignon'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-2014 Romain Bignon'
     DESCRIPTION = "Qt application to search for housing."
     SHORT_DESCRIPTION = "search for housing"
     CAPS = CapHousing
@@ -40,6 +40,6 @@ class QFlatBoob(QtApplication):
         self.create_storage()
         self.load_config(klass=YamlConfig)
 
-        self.main_window = MainWindow(self.config, self.storage, self.weboob)
+        self.main_window = MainWindow(self.config, self.storage, self.weboob, self)
         self.main_window.show()
         return self.weboob.loop()

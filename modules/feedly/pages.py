@@ -21,11 +21,11 @@ from datetime import datetime
 
 from weboob.capabilities.messages import Message
 from weboob.capabilities.collection import Collection
-from weboob.tools.browser2.page import JsonPage, method
-from weboob.tools.browser2.elements import ListElement, ItemElement
-from weboob.tools.browser2.filters import CleanText, Dict, Format, CleanHTML
-
-__all__ = ['TokenPage', 'ContentsPage', 'PreferencesPage']
+from weboob.browser.pages import JsonPage
+from weboob.browser.elements import ListElement, ItemElement, method
+from weboob.browser.filters.standard import CleanText, Format
+from weboob.browser.filters.json import Dict
+from weboob.browser.filters.html import CleanHTML
 
 
 class DictElement(ListElement):
@@ -95,4 +95,4 @@ class PreferencesPage(JsonPage):
     def get_categories(self):
         for category, value in self.doc.items():
             if value in [u"shown", u"hidden"]:
-                yield Collection([category])
+                yield Collection([u'%s' % category], u'%s' % category.replace('global.', ''))

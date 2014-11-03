@@ -19,11 +19,10 @@
 
 from StringIO import StringIO
 
-from weboob.tools.exceptions import BrowserIncorrectPassword
+from weboob.exceptions import BrowserIncorrectPassword
 from weboob.tools.captcha.virtkeyboard import VirtKeyboard
-from weboob.tools.browser2.page import HTMLPage
-
-__all__ = ['LoginPage', 'INGVirtKeyboard', 'StopPage']
+from weboob.browser.pages import HTMLPage
+from weboob.browser.filters.html import Attr
 
 
 class INGVirtKeyboard(VirtKeyboard):
@@ -39,32 +38,30 @@ class INGVirtKeyboard(VirtKeyboard):
                '9': '82e63914f2e52ec04c11cfc6fecf7e08'
                }
     color = 64
+    coords = {"11": (5, 5, 33, 33),
+              "21": (45, 5, 73, 33),
+              "31": (85, 5, 113, 33),
+              "41": (125, 5, 153, 33),
+              "51": (165, 5, 193, 33),
+              "12": (5, 45, 33, 73),
+              "22": (45, 45, 73, 73),
+              "32": (85, 45, 113, 73),
+              "42": (125, 45, 153, 73),
+              "52": (165, 45, 193, 73)
+              }
 
-    def __init__(self, basepage):
-        self.basepage = basepage
-        divkeyboard = basepage.doc.find("//div[@id='clavierdisplayLogin']")
-        if divkeyboard is None:
-            divkeyboard = basepage.doc.find("//div[@id='claviertransfer']")
-        try:
-            img = divkeyboard.xpath("img")[1]
-        except:
+    def __init__(self, page):
+        self.page = page
+        img = page.doc.xpath("//div[has-class('clavier')]/img")
+        if len(img) == 0:
             raise BrowserIncorrectPassword()
-        url = img.attrib.get("src")
-        coords = {}
-        coords["11"] = (5, 5, 33, 33)
-        coords["21"] = (45, 5, 73, 33)
-        coords["31"] = (85, 5, 113, 33)
-        coords["41"] = (125, 5, 153, 33)
-        coords["51"] = (165, 5, 193, 33)
-        coords["12"] = (5, 45, 33, 73)
-        coords["22"] = (45, 45, 73, 73)
-        coords["32"] = (85, 45, 113, 73)
-        coords["42"] = (125, 45, 153, 73)
-        coords["52"] = (165, 45, 193, 73)
 
-        VirtKeyboard.__init__(self, StringIO(basepage.browser.open(url).content), coords, self.color)
+        url = Attr('.', "src")(img[1])
 
-        self.check_symbols(self.symbols, basepage.browser.responses_dirname)
+        VirtKeyboard.__init__(self, StringIO(self.page.browser.open(url).content),
+                              self.coords, self.color)
+
+        self.check_symbols(self.symbols, self.page.browser.responses_dirname)
 
     def get_string_code(self, string):
         code = ''
@@ -77,20 +74,18 @@ class INGVirtKeyboard(VirtKeyboard):
             codesymbol = self.get_symbol_code(self.symbols[c])
             x = (self.coords[codesymbol][0] + self.coords[codesymbol][2]) / 2
             y = (self.coords[codesymbol][1] + self.coords[codesymbol][3]) / 2
-            code += str(x)
-            code += ","
-            code += str(y)
+            code += "%d,%d" % (x, y)
         return code
 
-    def get_coordinates(self, xpath, password):
+    def get_coordinates(self, password):
         temppasswd = ""
-        span = self.basepage.doc.find(xpath)
-        for i, font in enumerate(span.getiterator('font')):
-            if font.attrib.get('class') == "vide":
+        elems = self.page.doc.xpath('//div[@class="digitpad"]/span/font')
+        for i, font in enumerate(elems):
+            if Attr('.', 'class')(font) == "vide":
                 temppasswd += password[i]
-        self.basepage.browser.logger.debug('We are looking for : ' + temppasswd)
+        self.page.browser.logger.debug('We are looking for : ' + temppasswd)
         coordinates = self.get_string_code(temppasswd)
-        self.basepage.browser.logger.debug("Coordonates: " + coordinates)
+        self.page.browser.logger.debug("Coordonates: " + coordinates)
         return coordinates
 
 
@@ -116,7 +111,7 @@ class LoginPage(HTMLPage):
         form = self.get_form(name='mrc')
         form['mrc:mrg'] = 'mrc:mrg'
         form['AJAXREQUEST'] = '_viewRoot'
-        form['mrc:mrldisplayLogin'] = vk.get_coordinates('//span[@id="digitpaddisplayLogin"]', password)
+        form['mrc:mrldisplayLogin'] = vk.get_coordinates(password)
         form.submit()
 
 

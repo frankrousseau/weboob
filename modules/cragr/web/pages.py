@@ -22,14 +22,11 @@ from decimal import Decimal
 
 from weboob.tools.date import parse_french_date
 from weboob.capabilities.bank import Account
-from weboob.tools.browser import BasePage, BrokenPageError
+from weboob.deprecated.browser import Page, BrokenPageError
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction as Transaction
 
 
-__all__ = ['HomePage', 'LoginPage', 'LoginErrorPage', 'AccountsPage', 'TransactionsPage', 'UselessPage']
-
-
-class HomePage(BasePage):
+class HomePage(Page):
     def get_post_url(self):
         for script in self.document.xpath('//script'):
             text = script.text
@@ -42,11 +39,9 @@ class HomePage(BasePage):
 
         return None
 
-class LoginPage(BasePage):
-    def login(self, password):
-        assert password.isdigit()
-        assert len(password) == 6
 
+class LoginPage(Page):
+    def login(self, password):
         imgmap = {}
         for td in self.document.xpath('//table[@id="pave-saisie-code"]/tr/td'):
             a = td.find('a')
@@ -63,13 +58,16 @@ class LoginPage(BasePage):
     def get_result_url(self):
         return self.parser.tocleanstring(self.document.getroot())
 
-class UselessPage(BasePage):
+
+class UselessPage(Page):
     pass
 
-class LoginErrorPage(BasePage):
+
+class LoginErrorPage(Page):
     pass
 
-class _AccountsPage(BasePage):
+
+class _AccountsPage(Page):
     COL_LABEL    = 0
     COL_ID       = 2
     COL_VALUE    = 4
@@ -124,7 +122,7 @@ class _AccountsPage(BasePage):
         return links
 
 
-class CardsPage(BasePage):
+class CardsPage(Page):
     def get_list(self):
         TABLE_XPATH = '//table[caption[@class="caption tdb-cartes-caption" or @class="ca-table caption"]]'
 
@@ -179,7 +177,6 @@ class CardsPage(BasePage):
 
             yield account
 
-
     def get_history(self, date_guesser):
         seen = set()
         lines = self.document.xpath('(//table[@class="ca-table"])[2]/tr')
@@ -221,19 +218,22 @@ class CardsPage(BasePage):
             try:
                 t.id = t.unique_id(seen)
             except UnicodeEncodeError:
-                print t
-                print t.label
+                self.logger.debug(t)
+                self.logger.debug(t.label)
                 raise
 
             yield t
 
+
 class AccountsPage(_AccountsPage):
     pass
+
 
 class SavingsPage(_AccountsPage):
     COL_ID       = 1
 
-class TransactionsPage(BasePage):
+
+class TransactionsPage(Page):
     def get_next_url(self):
         links = self.document.xpath('//span[@class="pager"]/a[@class="liennavigationcorpspage"]')
         if len(links) < 1:
@@ -315,8 +315,11 @@ class TransactionsPage(BasePage):
             t.rdate = t.date
             t.raw = raw
 
-            # On some accounts' history page, there is a <font> tag in columns.
             col_text = cols[self.COL_TEXT]
+            if len(col_text.xpath('.//br')) == 0:
+                col_text = cols[self.COL_TEXT+1]
+
+            # On some accounts' history page, there is a <font> tag in columns.
             if col_text.find('font') is not None:
                 col_text = col_text.find('font')
 

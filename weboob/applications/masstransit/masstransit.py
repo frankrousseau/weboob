@@ -19,7 +19,7 @@
 
 
 from weboob.capabilities.travel import CapTravel
-from weboob.tools.application.base import BaseApplication
+from weboob.tools.application.base import Application
 from logging import warning
 
 import gtk
@@ -275,11 +275,11 @@ class MasstransitHildon():
         hildon.hildon_gtk_window_set_progress_indicator(self.main_window, 0)
 
 
-class Masstransit(BaseApplication):
+class Masstransit(Application):
     "Application Class"
     APPNAME = 'masstransit'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2011 Julien Hébert'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Julien Hébert'
     DESCRIPTION = "Maemo application allowing to search for train stations and get departure times."
     SHORT_DESCRIPTION = "search for train stations and departures"
 

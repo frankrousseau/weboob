@@ -17,8 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
-import sys
 from decimal import Decimal
 
 from weboob.capabilities.bill import CapBill, Detail, Subscription
@@ -41,8 +41,8 @@ class SubscriptionsFormatter(PrettyFormatter):
 
 class Boobill(ReplApplication):
     APPNAME = 'boobill'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2012 Florent Fourcot'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2012-YEAR Florent Fourcot'
     DESCRIPTION = 'Console application allowing to get and download bills.'
     SHORT_DESCRIPTION = "get and download bills"
     CAPS = CapBill
@@ -74,7 +74,7 @@ class Boobill(ReplApplication):
         for id, backend in l:
             names = (backend,) if backend is not None else None
             try:
-                for backend, result in self.do(method, id, backends=names):
+                for result in self.do(method, id, backends=names):
                     self.format(result)
             except CallErrors as errors:
                 for backend, error, backtrace in errors:
@@ -87,9 +87,9 @@ class Boobill(ReplApplication):
                         self.bcall_error_handler(backend, error, backtrace)
 
         if len(more_results) > 0:
-            print >>sys.stderr, 'Hint: There are more results available for %s (use option -n or count command)' % (', '.join(more_results))
+            print('Hint: There are more results available for %s (use option -n or count command)' % (', '.join(more_results)), file=self.stderr)
         for backend in not_implemented:
-            print >>sys.stderr, u'Error(%s): This feature is not supported yet by this backend.' % backend.name
+            print(u'Error(%s): This feature is not supported yet by this backend.' % backend.name, file=self.stderr)
 
     def do_subscriptions(self, line):
         """
@@ -128,7 +128,7 @@ class Boobill(ReplApplication):
             mysum.price = Decimal("0.")
 
             self.start_format()
-            for backend, detail in self.do('get_details', id, backends=names):
+            for detail in self.do('get_details', id, backends=names):
                 self.format(detail)
                 mysum.price = detail.price + mysum.price
 
@@ -184,14 +184,14 @@ class Boobill(ReplApplication):
         id, dest = self.parse_command_args(line, 2, 1)
         id, backend_name = self.parse_id(id)
         if not id:
-            print >>sys.stderr, 'Error: please give a bill ID (hint: use bills command)'
+            print('Error: please give a bill ID (hint: use bills command)', file=self.stderr)
             return 2
 
         names = (backend_name,) if backend_name is not None else None
         # Special keywords, download all bills of all subscriptions
         if id == "all":
             if dest is None:
-                for backend, subscription in self.do('iter_subscription', backends=names):
+                for subscription in self.do('iter_subscription', backends=names):
                     self.download_all(subscription.id, names)
                 return
             else:
@@ -199,36 +199,36 @@ class Boobill(ReplApplication):
                 return
 
         if dest is None:
-            for backend, bill in self.do('get_bill', id, backends=names):
+            for bill in self.do('get_bill', id, backends=names):
                 dest = id + "." + bill.format
 
-        for backend, buf in self.do('download_bill', id, backends=names):
+        for buf in self.do('download_bill', id, backends=names):
             if buf:
                 if dest == "-":
-                    print buf
+                    print(buf)
                 else:
                     try:
                         with open(dest, 'w') as f:
                             f.write(buf)
                     except IOError as e:
-                        print >>sys.stderr, 'Unable to write bill in "%s": %s' % (dest, e)
+                        print('Unable to write bill in "%s": %s' % (dest, e), file=self.stderr)
                         return 1
                 return
 
     def download_all(self, id, names):
         id, backend_name = self.parse_id(id)
-        for backend, bill in self.do('iter_bills', id, backends=names):
+        for bill in self.do('iter_bills', id, backends=names):
             dest = bill.id + "." + bill.format
-            for backend2, buf in self.do('download_bill', bill.id, backends=names):
+            for buf in self.do('download_bill', bill.id, backends=names):
                 if buf:
                     if dest == "-":
-                        print buf
+                        print(buf)
                     else:
                         try:
                             with open(dest, 'w') as f:
                                 f.write(buf)
                         except IOError as e:
-                            print >>sys.stderr, 'Unable to write bill in "%s": %s' % (dest, e)
+                            print('Unable to write bill in "%s": %s' % (dest, e), file=self.stderr)
                             return 1
 
         return

@@ -24,12 +24,10 @@ from decimal import Decimal
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 from weboob.capabilities.bank import Account
 from weboob.capabilities.base import NotAvailable
-from weboob.tools.browser import BasePage, BrokenPageError, BrowserPasswordExpired
-
-__all__ = ['AccountsList', 'AccountPrelevement']
+from weboob.deprecated.browser import Page, BrokenPageError, BrowserPasswordExpired
 
 
-class AccountsList(BasePage):
+class AccountsList(Page):
     ACCOUNT_TYPES = {
         u'Liquidités': Account.TYPE_CHECKING,
         u'Epargne disponible': Account.TYPE_SAVINGS,

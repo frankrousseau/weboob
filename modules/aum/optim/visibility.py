@@ -18,35 +18,32 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BrowserUnavailable
+from weboob.deprecated.browser import BrowserUnavailable
 from weboob.capabilities.dating import Optimization
-
-
-__all__ = ['Visibility']
 
 
 class Visibility(Optimization):
     def __init__(self, sched, browser):
-        self.sched = sched
-        self.browser = browser
-        self.cron = None
+        super(Visibility, self).__init__()
+        self._sched = sched
+        self._browser = browser
+        self._cron = None
 
     def start(self):
-        self.cron = self.sched.repeat(60*5, self.reconnect)
+        self._cron = self._sched.repeat(60*5, self.reconnect)
         return True
 
     def stop(self):
-        self.sched.cancel(self.cron)
-        self.cron = None
+        self._sched.cancel(self._cron)
+        self._cron = None
         return True
 
     def is_running(self):
-        return self.cron is not None
+        return self._cron is not None
 
     def reconnect(self):
         try:
-            with self.browser:
-                self.browser.login()
-        except BrowserUnavailable as e:
-            print str(e)
+            with self._browser:
+                self._browser.login()
+        except BrowserUnavailable:
             pass

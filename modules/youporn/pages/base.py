@@ -17,17 +17,14 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.mech import ClientForm
+from weboob.deprecated.mech import ClientForm
 ControlNotFoundError = ClientForm.ControlNotFoundError
 
 from mechanize import FormNotFoundError
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 
-__all__ = ['PornPage']
-
-
-class PornPage(BasePage):
+class PornPage(Page):
     def on_loaded(self):
         try:
             self.browser.select_form(nr=0)

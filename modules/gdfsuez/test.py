@@ -22,11 +22,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['GdfSuezTest']
-
-
 class GdfSuezTest(BackendTest):
-    BACKEND = 'gdfsuez'
+    MODULE = 'gdfsuez'
 
     def test_gdfsuez(self):
         for subscription in self.backend.iter_subscription():

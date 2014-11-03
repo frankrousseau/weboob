@@ -17,45 +17,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from decimal import Decimal, InvalidOperation
+from decimal import InvalidOperation
 import re
 import datetime
 
 import dateutil.parser
 
-from weboob.tools.browser import BasePage, BrokenPageError
-from weboob.tools.parsers.csvparser import CsvParser
+from weboob.deprecated.browser import Page, BrokenPageError
+from weboob.deprecated.browser.parsers.csvparser import CsvParser
 from weboob.tools.misc import to_unicode
+from weboob.tools.date import parse_french_date
 from weboob.capabilities.bank import Account, Transaction
-from weboob.tools.capabilities.bank.transactions import FrenchTransaction
+from weboob.tools.capabilities.bank.transactions import \
+    AmericanTransaction as AmTr
 
-__all__ = ['LoginPage', 'AccountPage', 'LastDownloadHistoryPage']
 
 class CSVAlreadyAsked(Exception):
     pass
 
-def clean_amount(text):
-    """
-    >>> clean_amount('42')
-    Decimal('42')
-    >>> clean_amount('42,12')
-    Decimal('42.12')
-    >>> clean_amount('42.12')
-    Decimal('42.12')
-    >>> clean_amount('$42.12 USD')
-    Decimal('42.12')
-    >>> clean_amount('$12.442,12 USD')
-    Decimal('12442.12')
-    >>> clean_amount('$12,442.12 USD')
-    Decimal('12442.12')
-    """
-    # Convert "American" UUU.CC format to "French" UUU,CC format
-    if re.search(r'\d\.\d\d(?: [A-Z]+)?$', text):
-        text = text.replace(',', ' ').replace('.', ',')
-    return Decimal(FrenchTransaction.clean_amount(text))
 
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, login, password):
         self.browser.select_form(name='login_form')
         self.browser['login_email'] = login.encode(self.browser.ENCODING)
@@ -63,7 +44,7 @@ class LoginPage(BasePage):
         self.browser.submit(nologin=True)
 
 
-class AccountPage(BasePage):
+class AccountPage(Page):
     def get_account(self, _id):
         return self.get_accounts().get(_id)
 
@@ -82,7 +63,7 @@ class AccountPage(BasePage):
         # Primary currency account
         primary_account = Account()
         primary_account.type = Account.TYPE_CHECKING
-        primary_account.balance = clean_amount(balance)
+        primary_account.balance = AmTr.decimal_amount(balance)
         primary_account.currency = Account.get_currency(balance)
         primary_account.id = unicode(primary_account.currency)
         primary_account.label = u'%s %s*' % (self.browser.username, balance.split()[-1])
@@ -101,7 +82,7 @@ class AccountPage(BasePage):
         # An Account object has only one currency; secondary currencies should be other accounts.
         if balance:
             balance = balance[0].text_content().strip()
-            primary_account.balance = clean_amount(balance)
+            primary_account.balance = AmTr.decimal_amount(balance)
             # The primary currency of the "head balance" is the same; ensure we got the right one
             assert primary_account.currency == primary_account.get_currency(balance)
 
@@ -111,7 +92,7 @@ class AccountPage(BasePage):
             account.type = Account.TYPE_CHECKING
             # XXX it ignores 5+ devises, so it's bad, but it prevents a crash, cf #1216
             try:
-                account.balance = clean_amount(balance)
+                account.balance = AmTr.decimal_amount(balance)
             except InvalidOperation:
                 continue
             account.currency = Account.get_currency(balance)
@@ -126,12 +107,17 @@ class AccountPage(BasePage):
         return accounts
 
 
-class DownloadHistoryPage(BasePage):
+class DownloadHistoryPage(Page):
     def download(self, start, end):
         tr_last_file_request = self.document.xpath('//table//table//table//tr[2]//td')[1]
         if tr_last_file_request.text is not None:
             last_file_request = tr_last_file_request.text[:-1]
-            if dateutil.parser.parse(last_file_request).date() == datetime.date.today():
+            try:
+                last_file_request = dateutil.parser.parse(last_file_request.encode('utf-8')).date()
+            except ValueError:
+                last_file_request = parse_french_date(last_file_request).date()
+
+            if last_file_request == datetime.date.today():
                 raise CSVAlreadyAsked('')
         self.browser.select_form(name='form1')
         self.browser['to_c'] = str(end.year)
@@ -146,17 +132,20 @@ class DownloadHistoryPage(BasePage):
 
         self.browser.submit()
 
-class LastDownloadHistoryPage(BasePage):
+
+class LastDownloadHistoryPage(Page):
     def download(self):
         self.browser.select_form(nr=1)
         log_select =  self.document.xpath('//table//form//input[@type="radio"]')[0].attrib['value']
         self.browser['log_select'] = [log_select]
         self.browser.submit()
 
-class SubmitPage(BasePage):
+
+class SubmitPage(Page):
     """
     Any result of form submission
     """
+
     def iter_transactions(self, account):
         csv = self.document
 
@@ -194,8 +183,8 @@ class SubmitPage(BasePage):
             raise ValueError('CSV fields count of %i is not supported' % len(csv.header))
 
         for row in csv.rows:
-            # we filter accounts by currency
-            if account.get_currency(row[CURRENCY]) != account.currency:
+            # we filter accounts by currency and ignore canceled transactions
+            if account.get_currency(row[CURRENCY]) != account.currency or row[NET] == '...':
                 continue
 
             # analog to dict.get()
@@ -233,9 +222,9 @@ class SubmitPage(BasePage):
                 trans.type = Transaction.TYPE_UNKNOWN
 
             # Net is what happens after the fee (0 for most users), so what is the most "real"
-            trans.amount = clean_amount(row[NET])
-            trans._gross = clean_amount(get(GROSS, row[NET]))
-            trans._fees = clean_amount(get(FEE, u'0.00'))
+            trans.amount = AmTr.decimal_amount(row[NET])
+            trans._gross = AmTr.decimal_amount(get(GROSS, row[NET]))
+            trans._fees = AmTr.decimal_amount(get(FEE, u'0.00'))
 
             trans._to = get(TO)
             trans._from = get(FROM)
@@ -254,11 +243,11 @@ class HistoryParser(CsvParser):
         return [to_unicode(cell) for cell in row]
 
 
-class UselessPage(BasePage):
+class UselessPage(Page):
     pass
 
 
-class HistoryPage(BasePage):
+class HistoryPage(Page):
     def guess_format(self):
         rp = re.compile('PAYPAL\.widget\.CalendarLocales\.MDY_([A-Z]+)_POSITION\s*=\s*(\d)')
         rd = re.compile('PAYPAL\.widget\.CalendarLocales\.DATE_DELIMITER\s*=\s*"(.)"')
@@ -317,7 +306,7 @@ class HistoryPage(BasePage):
             amount = row.xpath('.//td[@headers="gross"]')[-1].text_content().strip()
             if re.search('\d', amount):
                 currency = Account.get_currency(amount)
-                amount = clean_amount(amount)
+                amount = AmTr.decimal_amount(amount)
             else:
                 continue
 

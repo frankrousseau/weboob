@@ -18,8 +18,8 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser2 import LoginBrowser, need_login, URL
-from weboob.tools.exceptions import BrowserIncorrectPassword
+from weboob.browser import LoginBrowser, need_login, URL
+from weboob.exceptions import BrowserIncorrectPassword
 
 from .pages import LoginPage, IndexPage, AccountsPage, OperationsPage
 
@@ -29,7 +29,7 @@ __all__ = ['BanqueAccordBrowser']
 
 class BanqueAccordBrowser(LoginBrowser):
     BASEURL = 'https://www.banque-accord.fr/site/s/'
-    TIMEOUT = 20.0
+    TIMEOUT = 30.0
 
     login = URL('login/login.html', LoginPage)
     index = URL('detailcompte/detailcompte.html', IndexPage)

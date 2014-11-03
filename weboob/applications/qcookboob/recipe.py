@@ -17,8 +17,9 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import urllib
-import sys
 import codecs
 
 from PyQt4.QtCore import Qt, SIGNAL
@@ -108,6 +109,6 @@ class Recipe(QFrame):
                 with codecs.open(dest, 'w', 'utf-8') as f:
                     f.write(data)
             except IOError as e:
-                print >>sys.stderr, 'Unable to write Krecipe file in "%s": %s' % (dest, e)
+                print('Unable to write Krecipe file in "%s": %s' % (dest, e), file=self.stderr)
                 return 1
             return

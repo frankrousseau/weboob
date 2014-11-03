@@ -20,7 +20,7 @@
 
 import urllib
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword
 
 from .pages import LoginPage, LoginResultPage, AccountsPage, EmptyPage, TransactionsPage
 
@@ -28,7 +28,7 @@ from .pages import LoginPage, LoginResultPage, AccountsPage, EmptyPage, Transact
 __all__ = ['BredBrowser']
 
 
-class BredBrowser(BaseBrowser):
+class BredBrowser(Browser):
     PROTOCOL = 'https'
     DOMAIN = 'www.bred.fr'
     CERTHASH = ['9b77dab9c84e1dc9e0798de561a6541ff15f038f60b36ca74c29be1def6c19a3', '375f1fed165d34aacaaf71674ab14ca6c1b38404cf748278714fde3c58385ff0', '0853a056453b56aea6a29085ef3f3721b18db2052aa8e84220720d44e0eb22af']
@@ -54,7 +54,7 @@ class BredBrowser(BaseBrowser):
         self.accnum = accnum.replace(' ','').zfill(11)
         self.DOMAIN = 'www.%s.fr' % website
         self.website = website
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def is_logged(self):
         return self.page is not None and not self.is_on_page(LoginPage)
@@ -98,8 +98,8 @@ class BredBrowser(BaseBrowser):
 
         return None
 
-    def iter_transactions(self, id, is_coming=None):
-        numero_compte, numero_poste = id.split('.')
+    def get_history(self, account):
+        numero_compte, numero_poste = account.id.split('.')
         data = {'typeDemande':      'recherche',
                 'motRecherche':     '',
                 'numero_compte':    numero_compte,
@@ -113,16 +113,4 @@ class BredBrowser(BaseBrowser):
         self.location('https://www.%s.fr/Andromede/Ecriture' % self.website, urllib.urlencode(data))
 
         assert self.is_on_page(TransactionsPage)
-        return self.page.get_history(is_coming)
-
-    def get_history(self, account):
-        for tr in self.iter_transactions(account.id):
-            yield tr
-
-        for tr in self.get_card_operations(account):
-            yield tr
-
-    def get_card_operations(self, account):
-        for id in account._card_links:
-            for tr in self.iter_transactions(id, True):
-                yield tr
+        return self.page.get_history()

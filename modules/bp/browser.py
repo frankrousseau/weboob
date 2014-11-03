@@ -21,19 +21,20 @@
 from urlparse import urlsplit, parse_qsl
 from datetime import datetime
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword, BrowserBanned
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword, BrowserBanned
 
 from .pages import LoginPage, Initident, CheckPassword, repositionnerCheminCourant, BadLoginPage, AccountDesactivate, \
                    AccountList, AccountHistory, CardsList, UnavailablePage, \
                    TransferChooseAccounts, CompleteTransfer, TransferConfirm, TransferSummary
+from .pages.pro import RedirectPage, ProAccountsList, ProAccountHistory, ProAccountHistoryDownload, ProAccountHistoryCSV, HistoryParser
 
 from weboob.capabilities.bank import Transfer
 
 
-__all__ = ['BPBrowser']
+__all__ = ['BPBrowser', 'BProBrowser']
 
 
-class BPBrowser(BaseBrowser):
+class BPBrowser(Browser):
     DOMAIN = 'voscomptesenligne.labanquepostale.fr'
     PROTOCOL = 'https'
     CERTHASH = ['d10d09246853237892d5fb44685826ea99bfdeaaf29fac6dd236dae8cb103c39', 'ccdf2885f1d6df19e15d098dd52fd486609d891ebd2724970a5cfcb9254b6fa5']
@@ -43,8 +44,15 @@ class BPBrowser(BaseBrowser):
              r'.*authentification/initialiser-identif.ea'                                : Initident,
              r'.*authentification/verifierMotDePasse-identif.ea'                         : CheckPassword,
 
+             r'.*voscomptes/identification/identification.ea.*'                          : RedirectPage,
+
              r'.*synthese_assurancesEtComptes/afficheSynthese-synthese\.ea'              : AccountList,
              r'.*synthese_assurancesEtComptes/rechercheContratAssurance-synthese.ea'     : AccountList,
+
+             r'.*voscomptes/synthese/synthese.ea'                                        : ProAccountsList,
+             r'.*voscomptes/historiqueccp/historiqueccp.ea.*'                            : ProAccountHistory,
+             r'.*voscomptes/telechargercomptes/telechargercomptes.ea.*'                  : ProAccountHistoryDownload,
+             r'.*voscomptes/telechargercomptes/1-telechargercomptes.ea'                  : (ProAccountHistoryCSV, HistoryParser()),
 
              r'.*CCP/releves_ccp/releveCPP-releve_ccp\.ea'                               : AccountHistory,
              r'.*CNE/releveCNE/releveCNE-releve_cne\.ea'                                 : AccountHistory,
@@ -61,22 +69,23 @@ class BPBrowser(BaseBrowser):
              r'https?://.*.labanquepostale.fr/delestage.html'                            : UnavailablePage,
              }
 
+    login_url = 'https://voscomptesenligne.labanquepostale.fr/wsost/OstBrokerWeb/loginform?TAM_OP=login&' \
+            'ERROR_CODE=0x00000000&URL=%2Fvoscomptes%2FcanalXHTML%2Fidentif.ea%3Forigin%3Dparticuliers'
+    accounts_url = "https://voscomptesenligne.labanquepostale.fr/voscomptes/canalXHTML/comptesCommun/synthese_assurancesEtComptes/rechercheContratAssurance-synthese.ea"
+
     def __init__(self, *args, **kwargs):
         kwargs['parser'] = ('lxml',)
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def home(self):
-        self.location('https://voscomptesenligne.labanquepostale.fr/wsost/OstBrokerWeb/loginform?TAM_OP=login&'
-            'ERROR_CODE=0x00000000&URL=%2Fvoscomptes%2FcanalXHTML%2Fidentif.ea%3Forigin%3Dparticuliers')
+        self.login()
 
     def is_logged(self):
         return not self.is_on_page(LoginPage)
 
     def login(self):
         if not self.is_on_page(LoginPage):
-            self.location('https://voscomptesenligne.labanquepostale.fr/wsost/OstBrokerWeb/loginform?TAM_OP=login&'
-                'ERROR_CODE=0x00000000&URL=%2Fvoscomptes%2FcanalXHTML%2Fidentif.ea%3Forigin%3Dparticuliers',
-                no_login=True)
+            self.location(self.login_url, no_login=True)
 
         self.page.login(self.username, self.password)
 
@@ -86,12 +95,12 @@ class BPBrowser(BaseBrowser):
             raise BrowserBanned()
 
     def get_accounts_list(self):
-        self.location("https://voscomptesenligne.labanquepostale.fr/voscomptes/canalXHTML/comptesCommun/synthese_assurancesEtComptes/rechercheContratAssurance-synthese.ea")
+        self.location(self.accounts_url)
         return self.page.get_accounts_list()
 
     def get_account(self, id):
         if not self.is_on_page(AccountList):
-            self.location("https://voscomptesenligne.labanquepostale.fr/voscomptes/canalXHTML/comptesCommun/synthese_assurancesEtComptes/rechercheContratAssurance-synthese.ea")
+            self.location(self.accounts_url)
         return self.page.get_account(id)
 
     def get_history(self, account):
@@ -155,3 +164,15 @@ class BPBrowser(BaseBrowser):
         transfer.recipient = to_account.label
         transfer.date = datetime.now()
         return transfer
+
+class BProBrowser(BPBrowser):
+    login_url = "https://banqueenligne.entreprises.labanquepostale.fr/wsost/OstBrokerWeb/loginform?TAM_OP=login&ERROR_CODE=0x00000000&URL=%2Fws_q47%2Fvoscomptes%2Fidentification%2Fidentification.ea%3Forigin%3Dprofessionnels"
+
+    def login(self):
+        BPBrowser.login(self)
+
+        v = urlsplit(self.page.url)
+        version = v.path.split('/')[1]
+
+        self.base_url = 'https://banqueenligne.entreprises.labanquepostale.fr/%s' % version
+        self.accounts_url = self.base_url + '/voscomptes/synthese/synthese.ea'

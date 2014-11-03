@@ -18,6 +18,6 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import RedmineBackend
+from .module import RedmineModule
 
-__all__ = ['RedmineBackend']
+__all__ = ['RedmineModule']

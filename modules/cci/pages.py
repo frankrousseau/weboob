@@ -17,13 +17,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser2.page import HTMLPage, method
-from weboob.tools.browser2.elements import ItemElement, TableElement
-from weboob.tools.browser2.filters import Filter, Link, CleanText, Format, Env, DateTime, CleanHTML, TableCell, Join
+from weboob.browser.pages import HTMLPage
+from weboob.browser.elements import ItemElement, TableElement, method
+from weboob.browser.filters.standard import Filter, CleanText, Format, Env, DateTime, TableCell, Join
+from weboob.browser.filters.html import Link, CleanHTML
 
 from weboob.capabilities.job import BaseJobAdvert
-
-__all__ = ['SearchPage']
 
 
 class Child(Filter):

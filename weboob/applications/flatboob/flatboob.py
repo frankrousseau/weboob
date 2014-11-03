@@ -17,12 +17,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-import sys
+from __future__ import print_function
 
 from weboob.capabilities.housing import CapHousing, Query
 from weboob.tools.application.repl import ReplApplication, defaultcount
 from weboob.tools.application.formatters.iformatter import IFormatter, PrettyFormatter
+from weboob.tools.config.yamlconfig import YamlConfig
 
 
 __all__ = ['Flatboob']
@@ -34,6 +34,10 @@ class HousingFormatter(IFormatter):
     def format_obj(self, obj, alias):
         result = u'%s%s%s\n' % (self.BOLD, obj.title, self.NC)
         result += 'ID: %s\n' % obj.fullid
+
+        if hasattr(obj, 'url') and obj.url:
+            result += 'URL: %s\n' % obj.url
+
         result += 'Cost: %s%s\n' % (obj.cost, obj.currency)
         result += u'Area: %sm²\n' % (obj.area)
         if obj.date:
@@ -56,6 +60,7 @@ class HousingFormatter(IFormatter):
             result += '\n\n%sDetails%s\n' % (self.BOLD, self.NC)
             for key, value in obj.details.iteritems():
                 result += ' %s: %s\n' % (key, value)
+
         return result
 
 
@@ -75,20 +80,22 @@ class HousingListFormatter(PrettyFormatter):
 
 class Flatboob(ReplApplication):
     APPNAME = 'flatboob'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2012 Romain Bignon'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2012-YEAR Romain Bignon'
     DESCRIPTION = "Console application to search for housing."
     SHORT_DESCRIPTION = "search for housing"
     CAPS = CapHousing
+    CONFIG = {'queries': {}}
     EXTRA_FORMATTERS = {'housing_list': HousingListFormatter,
                         'housing':      HousingFormatter,
                        }
     COMMANDS_FORMATTERS = {'search': 'housing_list',
                            'info': 'housing',
+                           'load': 'housing_list'
                           }
 
     def main(self, argv):
-        self.load_config()
+        self.load_config(klass=YamlConfig)
         return ReplApplication.main(self, argv)
 
     @defaultcount(10)
@@ -103,17 +110,17 @@ class Flatboob(ReplApplication):
         query.cities = []
         while pattern:
             if len(query.cities) > 0:
-                print '\n%sSelected cities:%s %s' % (self.BOLD, self.NC, ', '.join([c.name for c in query.cities]))
+                print('\n%sSelected cities:%s %s' % (self.BOLD, self.NC, ', '.join([c.name for c in query.cities])))
             pattern = self.ask('Enter a city pattern (or empty to stop)', default='')
             if not pattern:
                 break
 
             cities = []
-            for backend, city in self.weboob.do('search_city', pattern):
+            for city in self.weboob.do('search_city', pattern):
                 cities.append(city)
 
             if len(cities) == 0:
-                print '  Not found!'
+                print('  Not found!')
                 continue
             if len(cities) == 1:
                 if city in query.cities:
@@ -125,7 +132,7 @@ class Flatboob(ReplApplication):
             r = 'notempty'
             while r != '':
                 for i, city in enumerate(cities):
-                    print '  %s%2d)%s [%s] %s' % (self.BOLD, i+1, self.NC, 'x' if city in query.cities else ' ', city.name)
+                    print('  %s%2d)%s [%s] %s (%s)' % (self.BOLD, i+1, self.NC, 'x' if city in query.cities else ' ', city.name, city.backend))
                 r = self.ask('  Select cities (or empty to stop)', regexp='(\d+|)', default='')
                 if not r.isdigit():
                     continue
@@ -138,15 +145,57 @@ class Flatboob(ReplApplication):
                 else:
                     query.cities.append(city)
 
+        r = 'notempty'
+        while r != '':
+            for good in Query.HOUSE_TYPES.values:
+                print('  %s%2d)%s [%s] %s' % (self.BOLD,
+                                              Query.HOUSE_TYPES.index[good] + 1,
+                                              self.NC,
+                                              'x' if good in query.house_types else ' ', good))
+            r = self.ask('  Select type of house (or empty to stop)', regexp='(\d+|)', default='')
+            if not r.isdigit():
+                continue
+            r = int(r)
+            if r <= 0 or r > len(Query.HOUSE_TYPES.values):
+                continue
+            value = Query.HOUSE_TYPES.values[r - 1]
+            if value in query.house_types:
+                query.house_types.remove(value)
+            else:
+                query.house_types.append(value)
+
+        _type = None
+        while _type not in [query.TYPE_RENT, query.TYPE_SALE]:
+            print('  %s%2d)%s %s' % (self.BOLD,
+                                     query.TYPE_RENT,
+                                     self.NC,
+                                     "Rent"))
+            print('  %s%2d)%s %s' % (self.BOLD,
+                                     query.TYPE_SALE,
+                                     self.NC,
+                                     "Sale"))
+            _type = self.ask_int('Type of query')
+
+        query.type = _type
         query.area_min = self.ask_int('Enter min area')
         query.area_max = self.ask_int('Enter max area')
         query.cost_min = self.ask_int('Enter min cost')
         query.cost_max = self.ask_int('Enter max cost')
         query.nb_rooms = self.ask_int('Enter number of rooms')
+        save_query = self.ask('Save query (y/n)', default='n')
+        if save_query.upper() == 'Y':
+            name = ''
+            while not name:
+                name = self.ask('Query name')
 
+            self.config.set('queries', name, query)
+            self.config.save()
+        self.complete_search(query)
+
+    def complete_search(self, query):
         self.change_path([u'housings'])
         self.start_format()
-        for backend, housing in self.do('search_housings', query):
+        for housing in self.do('search_housings', query):
             self.cached_format(housing)
 
     def ask_int(self, txt):
@@ -154,6 +203,31 @@ class Flatboob(ReplApplication):
         if r:
             return int(r)
         return None
+
+    @defaultcount(10)
+    def do_load(self, query_name):
+        """
+        load [query name]
+        without query name : list loadable queries
+        with query name laod query
+        """
+        queries = self.config.get('queries')
+        if not queries:
+            print('There is no saved queries', file=self.stderr)
+            return 2
+
+        if not query_name:
+            for name in queries.keys():
+                print('  %s* %s %s' % (self.BOLD,
+                                       self.NC,
+                                       name))
+            query_name = self.ask('Which one')
+
+        if query_name in queries:
+            self.complete_search(queries.get(query_name))
+        else:
+            print('Unknown query', file=self.stderr)
+            return 2
 
     def complete_info(self, text, line, *ignored):
         args = line.split(' ')
@@ -167,12 +241,12 @@ class Flatboob(ReplApplication):
         Get information about a housing.
         """
         if not _id:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('info', short=True)
+            print('This command takes an argument: %s' % self.get_command_help('info', short=True), file=self.stderr)
             return 2
 
         housing = self.get_object(_id, 'get_housing')
         if not housing:
-            print >>sys.stderr, 'Housing not found: %s' % _id
+            print('Housing not found: %s' % _id, file=self.stderr)
             return 3
 
         self.start_format()

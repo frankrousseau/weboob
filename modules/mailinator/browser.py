@@ -18,9 +18,9 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BaseBrowser, BrowserBanned
+from weboob.deprecated.browser import Browser, BrowserBanned
 from weboob.tools.date import datetime
-from weboob.tools.parsers.jsonparser import json
+from weboob.deprecated.browser.parsers.jsonparser import json
 import lxml.html
 import time
 
@@ -28,14 +28,14 @@ import time
 __all__ = ['MailinatorBrowser']
 
 
-class MailinatorBrowser(BaseBrowser):
+class MailinatorBrowser(Browser):
     PROTOCOL = 'http'
     DOMAIN = 'mailinator.com'
     ENCODING = 'utf-8'
 
     def __init__(self, *args, **kw):
         kw['parser'] = 'raw'
-        BaseBrowser.__init__(self, *args, **kw)
+        Browser.__init__(self, *args, **kw)
 
     def _get_unicode(self, url):
         return self.get_document(self.openurl(url)).decode(self.ENCODING, 'replace')
@@ -65,8 +65,10 @@ class MailinatorBrowser(BaseBrowser):
         divs = doc.cssselect('.mailview')
         return divs[0].text_content().strip()
 
+
 def millis():
     return int(time.time() * 1000)
+
 
 def frommillis(millis):
     return datetime.fromtimestamp(millis / 1000)

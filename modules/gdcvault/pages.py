@@ -18,10 +18,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.mech import ClientForm
-ControlNotFoundError = ClientForm.ControlNotFoundError
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 import urllib
 import re
@@ -30,7 +28,7 @@ from dateutil.parser import parse as parse_dt
 
 from weboob.capabilities.base import NotAvailable
 from weboob.capabilities.image import BaseImage
-from weboob.tools.browser import BrokenPageError
+from weboob.deprecated.browser import BrokenPageError
 
 #HACK
 from urllib2 import HTTPError
@@ -41,10 +39,8 @@ from .video import GDCVaultVideo
 
 # TODO: check title on 1439
 
-__all__ = ['IndexPage', 'SearchPage', 'VideoPage']
 
-
-class IndexPage(BasePage):
+class IndexPage(Page):
     def iter_videos(self):
         for a in self.parser.select(self.document.getroot(), 'section.conference ul.media_items li.featured a.session_item'):
             href = a.attrib.get('href', '')
@@ -75,7 +71,6 @@ class IndexPage(BasePage):
             else:
                 video.thumbnail = NotAvailable
 
-
             #m = re.match('id-(\d+)', a.attrib.get('class', ''))
             #if not m:
             #    continue
@@ -84,7 +79,9 @@ class IndexPage(BasePage):
 
 # the search page class uses a JSON parser,
 # since it's what search.php returns when POSTed (from Ajax)
-class SearchPage(BasePage):
+
+
+class SearchPage(Page):
     def iter_videos(self):
         if self.document is None or self.document['data'] is None:
             raise BrokenPageError('Unable to find JSON data')
@@ -95,7 +92,8 @@ class SearchPage(BasePage):
                 continue
             yield video
 
-class VideoPage(BasePage):
+
+class VideoPage(Page):
     def get_video(self, video=None):
         # check for slides id variant
         want_slides = False
@@ -117,7 +115,6 @@ class VideoPage(BasePage):
             except UnicodeDecodeError as e:
                 title = None
 
-
         if title is None:
             obj = self.parser.select(self.document.getroot(), 'meta[name=title]')
             if len(obj) > 0:
@@ -129,7 +126,6 @@ class VideoPage(BasePage):
                     except UnicodeDecodeError as e:
                         # XXX: this doesn't even works!?
                         title = obj[0].attrib['content'].decode('iso-5589-15')
-
 
         if title is not None:
             title = title.strip()
@@ -170,7 +166,6 @@ class VideoPage(BasePage):
                         # headers = req.info()
                         # if headers.get('Content-Type', '') == 'text/html' and headers.get('Content-Length', '') == '2':
                         # print 'BUG'
-
 
                         #print req.code
                     except HTTPError as e:

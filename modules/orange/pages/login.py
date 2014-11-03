@@ -17,13 +17,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 import urllib
 
-__all__ = ['LoginPage']
 
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def on_loaded(self):
         pass
 

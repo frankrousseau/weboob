@@ -17,9 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-
-import sys
+from __future__ import print_function
 
 from weboob.capabilities.subtitle import CapSubtitle
 from weboob.capabilities.base import empty
@@ -87,8 +85,8 @@ class SubtitleListFormatter(PrettyFormatter):
 
 class Suboob(ReplApplication):
     APPNAME = 'suboob'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2013 Julien Veyssier'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2013-YEAR Julien Veyssier'
     DESCRIPTION = "Console application allowing to search for subtitles on various services " \
                   "and download them."
     SHORT_DESCRIPTION = "search and download subtitles"
@@ -114,7 +112,7 @@ class Suboob(ReplApplication):
 
         subtitle = self.get_object(id, 'get_subtitle')
         if not subtitle:
-            print >>sys.stderr, 'Subtitle not found: %s' % id
+            print('Subtitle not found: %s' % id, file=self.stderr)
             return 3
 
         self.start_format()
@@ -139,7 +137,7 @@ class Suboob(ReplApplication):
 
         subtitle = self.get_object(id, 'get_subtitle')
         if not subtitle:
-            print >>sys.stderr, 'Subtitle not found: %s' % id
+            print('Subtitle not found: %s' % id, file=self.stderr)
             return 3
 
         if dest is None:
@@ -148,19 +146,19 @@ class Suboob(ReplApplication):
                 ext = 'zip'
             dest = '%s.%s' % (subtitle.name, ext)
 
-        for backend, buf in self.do('get_subtitle_file', subtitle.id, backends=subtitle.backend):
+        for buf in self.do('get_subtitle_file', subtitle.id, backends=subtitle.backend):
             if buf:
                 if dest == '-':
-                    sys.stdout.write(buf)
+                    self.stdout.write(buf)
                 else:
                     try:
                         with open(dest, 'w') as f:
                             f.write(buf)
                     except IOError as e:
-                        print >>sys.stderr, 'Unable to write file in "%s": %s' % (dest, e)
+                        print('Unable to write file in "%s": %s' % (dest, e), file=self.stderr)
                         return 1
                     else:
-                        print 'Saved to %s' % dest
+                        print('Saved to %s' % dest)
                 return
 
     @defaultcount(10)
@@ -196,5 +194,5 @@ class Suboob(ReplApplication):
             pattern = None
 
         self.start_format(pattern=pattern)
-        for backend, subtitle in self.do('iter_subtitles', language=language, pattern=pattern):
+        for subtitle in self.do('iter_subtitles', language=language, pattern=pattern):
             self.cached_format(subtitle)

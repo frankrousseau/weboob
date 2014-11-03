@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBase, BaseObject, Field, StringField, FloatField, \
+from .base import Capability, BaseObject, Field, StringField, FloatField, \
                   IntField, UserError
 from .date import DateField
 
@@ -29,6 +29,7 @@ class MagnetOnly(UserError):
     """
     Raised when trying to get URL to torrent but only magnet is available.
     """
+
     def __init__(self, magnet):
         self.magnet = magnet
         UserError.__init__(self, 'Only magnet URL is available')
@@ -54,10 +55,11 @@ class Torrent(BaseObject):
         self.name = name
 
 
-class CapTorrent(CapBase):
+class CapTorrent(Capability):
     """
     Torrent trackers.
     """
+
     def iter_torrents(self, pattern):
         """
         Search torrents and iterate on results.

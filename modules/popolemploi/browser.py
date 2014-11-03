@@ -17,8 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser.decorators import id2url
-from weboob.tools.browser import BaseBrowser
+from weboob.deprecated.browser.decorators import id2url
+from weboob.deprecated.browser import Browser
 import urllib
 
 from .pages import SearchPage, AdvertPage
@@ -28,7 +28,7 @@ from .job import PopolemploiJobAdvert
 __all__ = ['PopolemploiBrowser']
 
 
-class PopolemploiBrowser(BaseBrowser):
+class PopolemploiBrowser(Browser):
     PROTOCOL = 'http'
     DOMAIN = 'http://www.pole-emploi.fr/accueil/'
     ENCODING = None

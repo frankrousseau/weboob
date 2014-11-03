@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2012 Kevin Pouget
+# Copyright(C) 2012-2014 Kevin Pouget, Florent Fourcot
 #
 # This file is part of weboob.
 #
@@ -18,29 +18,27 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from decimal import Decimal
 import re
 
 from weboob.tools.json import json
-from weboob.tools.browser import BasePage
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
+from weboob.browser.pages import HTMLPage, JsonPage, LoggedPage
+from weboob.browser.filters.standard import Filter, Format, CleanText, CleanDecimal
+from weboob.browser.elements import ListElement, ItemElement, method
 
 
-__all__ = ['LoginPage', 'AccountsPage', 'TransactionsPage', 'ComingTransactionsPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(HTMLPage):
     def login(self, login, password):
-        self.browser.select_form(predicate=lambda form: form.attrs.get('id', '') == 'AuthForm')
-        self.browser['j_username'] = login.encode('iso-8859-15')
-        self.browser['j_password'] = password.encode('iso-8859-15')
-        self.browser.submit(nologin=True)
+        form = self.get_form(xpath='//form[@id="AuthForm"]')
+        form['j_username'] = login.encode('iso-8859-15')
+        form['j_password'] = password.encode('iso-8859-15')
+        form.submit()
 
 
-class LoggedPage(BasePage):
+class CreditLoggedPage(HTMLPage):
     def get_error(self):
-        div = self.document.xpath('//div[@class="errorForm-msg"]')
+        div = self.doc.xpath('//div[@class="errorForm-msg"]')
         if len(div) == 0:
             return None
 
@@ -48,24 +46,31 @@ class LoggedPage(BasePage):
         return re.sub('[\r\n\t\xa0]+', ' ', msg)
 
 
-class AccountsPage(BasePage):
-    ACCOUNT_TYPES = {u'COMPTE NEF': Account.TYPE_CHECKING}
+class AddType(Filter):
+    types = {u'COMPTE NEF': Account.TYPE_CHECKING,
+             u'CPTE A VUE': Account.TYPE_CHECKING,
+             u'LIVRET AGIR': Account.TYPE_SAVINGS}
 
-    def get_list(self):
-        for table in self.document.getroot().cssselect('table.table-synthese'):
-            account = Account()
-            labels = table.xpath('.//ul[@class="nClient"]/li')
-            account_type_str = table.xpath('.//h2[@class="tt_compte"]')[0].text.strip()
+    def filter(self, str_type):
+        for key, acc_type in self.types.items():
+            if key == str_type:
+                return acc_type
+        return Account.TYPE_UNKNOWN
 
-            account.id = re.sub(u'[^0-9]', '', labels[-1].text)
-            account.label = u' '.join([account_type_str, labels[0].text.strip()])
-            account.type = self.ACCOUNT_TYPES.get(account_type_str, Account.TYPE_UNKNOWN)
 
-            balance = table.xpath('.//td[@class="sum_solde"]//span')[-1].text
-            account.balance = Decimal(FrenchTransaction.clean_amount(balance))
-            account.currency = account.get_currency(balance)
+class AccountsPage(LoggedPage, HTMLPage):
+    @method
+    class get_list(ListElement):
+        item_xpath = '//table[has-class("table-synthese")]'
 
-            yield account
+        class item(ItemElement):
+            klass = Account
+
+            obj_label = Format('%s %s', CleanText('.//h2[@class="tt_compte"][1]'), CleanText('.//ul[@class="nClient"]/li[1]'))
+            obj_id = CleanText('.//ul[@class="nClient"]/li[last()]', symbols=u'N°')
+            obj_type = AddType(CleanText('.//h2[@class="tt_compte"][1]'))
+            obj_balance = CleanDecimal('.//td[@class="sum_solde"]//span[last()]', replace_dots=True)
+            obj_currency = u'EUR'
 
 
 class Transaction(FrenchTransaction):
@@ -77,12 +82,12 @@ class Transaction(FrenchTransaction):
                                                             FrenchTransaction.TYPE_CARD),
                 (re.compile('^VIR COOPA (?P<dd>\d{2})/(?P<mm>\d{2}) (?P<text>.*)'),
                                                             FrenchTransaction.TYPE_TRANSFER),
-                (re.compile('^VIR(EMENT|EMT)? (?P<text>.*?)(- .*)?$'),
+                (re.compile('^VIR(EMENT|EMT| SEPA EMET :)? (?P<text>.*?)(- .*)?$'),
                                                             FrenchTransaction.TYPE_TRANSFER),
                 (re.compile('^(PRLV|PRELEVEMENT) (?P<text>.*?)(- .*)?$'),
                                                             FrenchTransaction.TYPE_ORDER),
                 (re.compile('^CHEQUE.*'),                   FrenchTransaction.TYPE_CHECK),
-                (re.compile('^(AGIOS /|FRAIS) (?P<text>.*)'),FrenchTransaction.TYPE_BANK),
+                (re.compile('^(AGIOS /|FRAIS) (?P<text>.*)'), FrenchTransaction.TYPE_BANK),
                 (re.compile('^ABONNEMENT (?P<text>.*)'),    FrenchTransaction.TYPE_BANK),
                 (re.compile('^REMISE (?P<text>.*)'),        FrenchTransaction.TYPE_DEPOSIT),
                 (re.compile('^(?P<text>.*)( \d+)? QUITTANCE .*'),
@@ -92,25 +97,27 @@ class Transaction(FrenchTransaction):
                ]
 
 
-class TransactionsPage(BasePage):
+class TransactionsPage(LoggedPage, HTMLPage):
     pass
 
 
-class TransactionsJSONPage(BasePage):
+class TransactionsJSONPage(LoggedPage, JsonPage):
     ROW_DATE =    0
     ROW_TEXT =    2
     ROW_CREDIT = -1
     ROW_DEBIT =  -2
 
     def get_transactions(self):
-        for tr in self.document['exportData'][1:]:
+        seen = set()
+        for tr in self.doc['exportData'][1:]:
             t = Transaction(0)
             t.parse(tr[self.ROW_DATE], tr[self.ROW_TEXT])
             t.set_amount(tr[self.ROW_CREDIT], tr[self.ROW_DEBIT])
+            t.id = t.unique_id(seen)
             yield t
 
 
-class ComingTransactionsPage(BasePage):
+class ComingTransactionsPage(LoggedPage, HTMLPage):
     ROW_REF =     0
     ROW_TEXT =    1
     ROW_DATE =    2
@@ -119,7 +126,7 @@ class ComingTransactionsPage(BasePage):
 
     def get_transactions(self):
         data = []
-        for script in self.document.xpath('//script'):
+        for script in self.doc.xpath('//script'):
             txt = script.text
             if txt is None:
                 continue

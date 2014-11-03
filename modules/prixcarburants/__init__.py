@@ -1,3 +1,3 @@
-from .backend import PrixCarburantsBackend
+from .module import PrixCarburantsModule
 
-__all__ = ['PrixCarburantsBackend']
+__all__ = ['PrixCarburantsModule']

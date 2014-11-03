@@ -1,3 +1,3 @@
-from .backend import HSBCBackend
+from .module import HSBCModule
 
-__all__ = ['HSBCBackend']
+__all__ = ['HSBCModule']

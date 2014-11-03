@@ -17,18 +17,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-
-
 from random import randint
 
-from weboob.tools.browser import BrowserUnavailable
+from weboob.deprecated.browser import BrowserUnavailable
 from weboob.capabilities.dating import Optimization
 from weboob.tools.log import getLogger
 from weboob.tools.value import Value, ValuesDict
-
-
-__all__ = ['ProfilesWalker']
 
 
 class ProfilesWalker(Optimization):
@@ -76,7 +70,6 @@ class ProfilesWalker(Optimization):
     def get_config(self):
         return self.config
 
-
     def view_profile(self):
         try:
             id = self.browser.find_match_profile()
@@ -106,7 +99,7 @@ class ProfilesWalker(Optimization):
                 self.profiles_queue.add(id)
                 return
             except Exception as e:
-                print e
+                self.logger.exception(e)
         finally:
             if self.view_cron is not None:
                 self.view_cron = self.sched.schedule(randint(5, 10), self.view_profile)

@@ -1,3 +1,3 @@
-from .backend import NihonNoOtoBackend
+from .module import NihonNoOtoModule
 
-__all__ = ['NihonNoOtoBackend']
+__all__ = ['NihonNoOtoModule']

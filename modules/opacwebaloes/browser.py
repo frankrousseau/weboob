@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword
 
 from .pages import LoginPage, HomePage, RentedPage, HistoryPage, BookedPage
 
@@ -27,10 +27,10 @@ __all__ = ['AloesBrowser']
 
 
 # Browser
-class AloesBrowser(BaseBrowser):
+class AloesBrowser(Browser):
     PROTOCOL = 'http'
     ENCODING = 'utf-8'
-    USER_AGENT = BaseBrowser.USER_AGENTS['desktop_firefox']
+    USER_AGENT = Browser.USER_AGENTS['desktop_firefox']
     #DEBUG_HTTP = True
     DEBUG_HTTP = False
     PAGES = {
@@ -43,7 +43,7 @@ class AloesBrowser(BaseBrowser):
 
     def __init__(self, baseurl, *args, **kwargs):
         self.BASEURL = baseurl
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def is_logged(self):
 
@@ -61,7 +61,7 @@ class AloesBrowser(BaseBrowser):
         if not self.page.login(self.username, self.password) or \
             not self.is_logged() or \
                 (self.is_on_page(LoginPage) and self.page.is_error()):
-                raise BrowserIncorrectPassword()
+            raise BrowserIncorrectPassword()
 
     def get_rented_books_list(self):
         if not self.is_on_page(RentedPage):

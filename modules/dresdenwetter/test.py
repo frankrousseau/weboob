@@ -20,11 +20,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['DresdenWetterTest']
-
-
 class DresdenWetterTest(BackendTest):
-    BACKEND = 'dresdenwetter'
+    MODULE = 'dresdenwetter'
 
     def test_gauges_sensors(self):
         """

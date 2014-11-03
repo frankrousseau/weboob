@@ -17,8 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
-import sys
+from __future__ import print_function
 
 from weboob.capabilities.geolocip import CapGeolocIp
 from weboob.tools.application.repl import ReplApplication
@@ -29,16 +28,16 @@ __all__ = ['Geolooc']
 
 class Geolooc(ReplApplication):
     APPNAME = 'geolooc'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2011 Romain Bignon'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Romain Bignon'
     DESCRIPTION = "Console application allowing to geolocalize IP addresses."
     SHORT_DESCRIPTION = "geolocalize IP addresses"
     CAPS = CapGeolocIp
 
     def main(self, argv):
         if len(argv) < 2:
-            print >>sys.stderr, 'Syntax: %s ipaddr' % argv[0]
+            print('Syntax: %s ipaddr' % argv[0], file=self.stderr)
             return 2
 
-        for backend, location in self.do('get_location', argv[1]):
+        for location in self.do('get_location', argv[1]):
             self.format(location)

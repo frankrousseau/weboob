@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright(C) 2010-2011 Laurent Bachelier
+# Copyright(C) 2010-2014 Laurent Bachelier
 #
 # This file is part of weboob.
 #
@@ -18,16 +18,19 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-import sys
-import os
-import tempfile
+from __future__ import print_function
+
 import imp
 import inspect
 import optparse
+import os
 import re
+import sys
+import tempfile
 import time
 
-from weboob.tools.application.base import BaseApplication
+from weboob.tools.application.base import Application
+
 
 BASE_PATH = os.path.join(os.path.dirname(__file__), os.pardir)
 DEST_DIR = 'man'
@@ -120,13 +123,13 @@ def main():
                 try:
                     script = imp.load_module("scripts.%s" % fname, f, tmpfile, desc)
                 except ImportError as e:
-                    print >>sys.stderr, "Unable to load the %s script (%s)" \
-                        % (fname, e)
+                    print("Unable to load the %s script (%s)"
+                          % (fname, e), file=sys.stderr)
                 else:
-                    print "Loaded %s" % fname
+                    print("Loaded %s" % fname)
                     # Find the applications we can handle
                     for klass in script.__dict__.itervalues():
-                        if inspect.isclass(klass) and issubclass(klass, BaseApplication):
+                        if inspect.isclass(klass) and issubclass(klass, Application):
                             analyze_application(klass, fname)
                 finally:
                     # Cleanup compiled files if needed
@@ -165,7 +168,7 @@ def analyze_application(app, script_name):
                                         script_name, app.VERSION.replace('.', '\\&.'))
     name = ".SH NAME\n%s \- %s" % (script_name, application.SHORT_DESCRIPTION)
     condition = """.SH CONDITION
-The \-c and \-\-condition is a flexible way to sort and get only interesting results. It supports conditions on numerical values, dates, and strings. Dates are given in YYYY\-MM\-DD format.
+The \-c and \-\-condition is a flexible way to filter and get only interesting results. It supports conditions on numerical values, dates, and strings. Dates are given in YYYY\-MM\-DD or YYYY\-MM\-DD HH:MM format.
 The syntax of one expression is "\\fBfield operator value\\fR". The field to test is always the left member of the expression.
 .LP
 The field is a member of the objects returned by the command. For example, a bank account has "balance", "coming" or "label" fields.
@@ -186,8 +189,10 @@ Test if object.field is less than the value. If object.field is date, return tru
 |
 This operator is available only for string fields. It works like the Unix standard \\fBgrep\\fR command, and returns True if the pattern specified in the value is in object.field.
 .SS Expression combination
-You can make a expression combinations with the keywords \\fB" AND "\\fR and \\fB" OR "\\fR.
-
+.LP
+You can make a expression combinations with the keywords \\fB" AND "\\fR, \\fB" OR "\\fR an \\fB" LIMIT "\\fR.
+.LP
+The \\fBLIMIT\\fR keyword can be used to limit the number of items upon which running the expression. \\fBLIMIT\\fR can only be placed at the end of the expression followed by the number of elements you want.
 .SS Examples:
 .nf
 .B boobank ls \-\-condition 'label=Livret A'
@@ -208,11 +213,16 @@ Get transactions containing "rewe".
 .B boobank history account@backend \-\-condition 'date>2013\-12\-01 AND date<2013\-12\-09'
 .fi
 Get transactions betweens the 2th December and 8th December 2013.
+.PP
+.nf
+.B boobank history account@backend \-\-condition 'date>2013\-12\-01  LIMIT 10'
+.fi
+Get transactions after the 2th December in the last 10 transactions
 """
     footer = """.SH COPYRIGHT
 %s
 .LP
-For full COPYRIGHT see COPYING file with weboob package.
+For full copyright information see the COPYING file in the weboob package.
 .LP
 .RE
 .SH FILES
@@ -227,7 +237,7 @@ For full COPYRIGHT see COPYING file with weboob package.
     with open(os.path.join(BASE_PATH, DEST_DIR, "%s.1" % script_name), 'w+') as manfile:
         for line in mantext.split('\n'):
             manfile.write('%s\n' % line.lstrip().encode('utf-8'))
-    print "wrote %s/%s.1" % (DEST_DIR, script_name)
+    print("wrote %s/%s.1" % (DEST_DIR, script_name))
 
 if __name__ == '__main__':
     sys.exit(main())

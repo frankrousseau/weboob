@@ -20,8 +20,10 @@
 
 import re
 
-from weboob.tools.browser2 import DomainBrowser, HTMLPage, Profile
-from weboob.tools.exceptions import BrowserIncorrectPassword
+from weboob.browser import DomainBrowser
+from weboob.browser.pages import HTMLPage
+from weboob.browser.profiles import Profile
+from weboob.exceptions import BrowserIncorrectPassword
 from weboob.tools.json import json
 
 
@@ -43,7 +45,7 @@ class FacebookBrowser(DomainBrowser):
         form['pass'] = password
         form['persistent'] = 1
         form.submit(allow_redirects=False)
-        if not 'Location' in self.response.headers:
+        if 'Location' not in self.response.headers:
             raise BrowserIncorrectPassword()
 
         self.location(self.response.headers['Location'])
@@ -63,7 +65,7 @@ class IPhoneClient(Profile):
     def setup_session(self, session):
         session.headers["Accept-Language"] = "en;q=1, fr;q=0.9, de;q=0.8, ja;q=0.7, nl;q=0.6, it;q=0.5"
         session.headers["Accept"] = "*/*"
-        session.headers["UserAgent"] = "Tinder/3.0.2 (iPhone; iOS 7.1; Scale/2.00)"
+        session.headers["User-Agent"] = "Tinder/3.0.2 (iPhone; iOS 7.1; Scale/2.00)"
         session.headers["Accept-Encoding"] = "gzip, deflate"
         session.headers["Content-Type"] = "application/json"
 

@@ -17,12 +17,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
 import os
-import sys
 import tempfile
-import locale
 import codecs
+from distutils.spawn import find_executable
 
 from weboob.core.bcall import CallErrors
 from weboob.capabilities.content import CapContent, Revision
@@ -34,8 +34,8 @@ __all__ = ['WebContentEdit']
 
 class WebContentEdit(ReplApplication):
     APPNAME = 'webcontentedit'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2011 Romain Bignon'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Romain Bignon'
     DESCRIPTION = "Console application allowing to display and edit contents on various websites."
     SHORT_DESCRIPTION = "manage websites content"
     CAPS = CapContent
@@ -51,13 +51,13 @@ class WebContentEdit(ReplApplication):
             _id, backend_name = self.parse_id(id, unique_backend=True)
             backend_names = (backend_name,) if backend_name is not None else self.enabled_backends
 
-            contents += [content for backend, content in self.do('get_content', _id, backends=backend_names) if content]
+            contents += [content for content in self.do('get_content', _id, backends=backend_names) if content]
 
         if len(contents) == 0:
-            print >>sys.stderr, 'No contents found'
+            print('No contents found', file=self.stderr)
             return 3
 
-        if sys.stdin.isatty():
+        if self.stdin.isatty():
             paths = {}
             for content in contents:
                 tmpdir = os.path.join(tempfile.gettempdir(), "weboob")
@@ -75,7 +75,8 @@ class WebContentEdit(ReplApplication):
 
             params = ''
             editor = os.environ.get('EDITOR', 'vim')
-            if editor == 'vim':
+            # check cases where /usr/bin/vi is a symlink to vim
+            if 'vim' in (os.path.basename(editor), os.path.basename(os.path.realpath(find_executable(editor) or '/')).replace('.nox', '')):
                 params = '-p'
             os.system("%s %s %s" % (editor, params, ' '.join(['"%s"' % path.replace('"', '\\"') for path in paths.iterkeys()])))
 
@@ -92,10 +93,10 @@ class WebContentEdit(ReplApplication):
                     contents.remove(content)
 
             if len(contents) == 0:
-                print >>sys.stderr, 'No changes. Abort.'
+                print('No changes. Abort.', file=self.stderr)
                 return 1
 
-            print 'Contents changed:\n%s' % ('\n'.join(' * %s' % content.id for content in contents))
+            print('Contents changed:\n%s' % ('\n'.join(' * %s' % content.id for content in contents)))
 
             message = self.ask('Enter a commit message', default='')
             minor = self.ask('Is this a minor edit?', default=False)
@@ -105,38 +106,38 @@ class WebContentEdit(ReplApplication):
             errors = CallErrors([])
             for content in contents:
                 path = [path for path, c in paths.iteritems() if c == content][0]
-                sys.stdout.write('Pushing %s...' % content.id.encode('utf-8'))
-                sys.stdout.flush()
+                self.stdout.write('Pushing %s...' % content.id.encode('utf-8'))
+                self.stdout.flush()
                 try:
                     self.do('push_content', content, message, minor=minor, backends=[content.backend]).wait()
                 except CallErrors as e:
                     errors.errors += e.errors
-                    sys.stdout.write(' error (content saved in %s)\n' % path)
+                    self.stdout.write(' error (content saved in %s)\n' % path)
                 else:
-                    sys.stdout.write(' done\n')
+                    self.stdout.write(' done\n')
                     os.unlink(path)
         else:
             # stdin is not a tty
 
             if len(contents) != 1:
-                print >>sys.stderr, "Multiple ids not supported with pipe"
+                print("Multiple ids not supported with pipe", file=self.stderr)
                 return 2
 
             message, minor = '', False
-            data = sys.stdin.read()
-            contents[0].content = data.decode(sys.stdin.encoding or locale.getpreferredencoding())
+            data = self.stdin.read()
+            contents[0].content = data.decode(self.guess_encoding(self.stdin))
 
             errors = CallErrors([])
             for content in contents:
-                sys.stdout.write('Pushing %s...' % content.id.encode('utf-8'))
-                sys.stdout.flush()
+                self.stdout.write('Pushing %s...' % content.id.encode(self.encoding))
+                self.stdout.flush()
                 try:
                     self.do('push_content', content, message, minor=minor, backends=[content.backend]).wait()
                 except CallErrors as e:
                     errors.errors += e.errors
-                    sys.stdout.write(' error\n')
+                    self.stdout.write(' error\n')
                 else:
-                    sys.stdout.write(' done\n')
+                    self.stdout.write(' done\n')
 
         if len(errors.errors) > 0:
             raise errors
@@ -149,7 +150,7 @@ class WebContentEdit(ReplApplication):
         Display log of a page
         """
         if not line:
-            print >>sys.stderr, 'Error: please give a page ID'
+            print('Error: please give a page ID', file=self.stderr)
             return 2
 
         _id, backend_name = self.parse_id(line)
@@ -158,7 +159,7 @@ class WebContentEdit(ReplApplication):
         _id = _id.encode('utf-8')
 
         self.start_format()
-        for backend, revision in self.do('iter_revisions', _id, backends=backend_names):
+        for revision in self.do('iter_revisions', _id, backends=backend_names):
             self.format(revision)
 
     def do_get(self, line):
@@ -168,7 +169,7 @@ class WebContentEdit(ReplApplication):
         Get page contents
         """
         if not line:
-            print >>sys.stderr, 'Error: please give a page ID'
+            print('Error: please give a page ID', file=self.stderr)
             return 2
 
         _part_line = line.strip().split(' ')
@@ -181,7 +182,7 @@ class WebContentEdit(ReplApplication):
             _part_line.remove('-r')
 
             if not _part_line:
-                print >>sys.stderr, 'Error: please give a page ID'
+                print('Error: please give a page ID', file=self.stderr)
                 return 2
 
         _id, backend_name = self.parse_id(" ".join(_part_line))
@@ -190,11 +191,11 @@ class WebContentEdit(ReplApplication):
 
         _id = _id.encode('utf-8')
 
-        output = codecs.getwriter(sys.stdout.encoding or locale.getpreferredencoding())(sys.stdout)
-        for contents in [content for backend, content in self.do('get_content', _id, revision, backends=backend_names) if content]:
+        output = codecs.getwriter(self.encoding)(self.stdout)
+        for contents in [content for content in self.do('get_content', _id, revision, backends=backend_names) if content]:
             output.write(contents.content)
 
         # add a newline unless we are writing
         # in a file or in a pipe
-        if os.isatty(output.fileno()):
+        if output.isatty():
             output.write('\n')

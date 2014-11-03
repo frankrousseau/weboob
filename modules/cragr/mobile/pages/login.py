@@ -18,13 +18,10 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.mech import ClientForm
+from weboob.deprecated.mech import ClientForm
 ControlNotFoundError = ClientForm.ControlNotFoundError
 
 from .base import CragrBasePage
-
-
-__all__ = ['LoginPage']
 
 
 class LoginPage(CragrBasePage):

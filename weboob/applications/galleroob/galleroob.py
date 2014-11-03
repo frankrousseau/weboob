@@ -17,9 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
-
-import sys
 import os
 from re import search, sub
 
@@ -48,8 +47,8 @@ class GalleryListFormatter(PrettyFormatter):
 
 class Galleroob(ReplApplication):
     APPNAME = 'galleroob'
-    VERSION = '0.j'
-    COPYRIGHT = u'Copyright(C) 2011 Noé Rubinstein'
+    VERSION = '1.1'
+    COPYRIGHT = u'Copyright(C) 2011-2014 Noé Rubinstein'
     DESCRIPTION = 'galleroob browses and downloads web image galleries'
     SHORT_DESCRIPTION = 'browse and download web image galleries'
     CAPS = CapGallery
@@ -68,11 +67,11 @@ class Galleroob(ReplApplication):
         List galleries matching a PATTERN.
         """
         if not pattern:
-            print >>sys.stderr, 'This command takes an argument: %s' % self.get_command_help('search', short=True)
+            print('This command takes an argument: %s' % self.get_command_help('search', short=True), file=self.stderr)
             return 2
 
         self.start_format(pattern=pattern)
-        for backend, gallery in self.do('search_gallery', pattern=pattern):
+        for gallery in self.do('search_gallery', pattern=pattern):
             self.cached_format(gallery)
 
     def do_download(self, line):
@@ -92,20 +91,19 @@ class Galleroob(ReplApplication):
 
         gallery = None
         _id, backend = self.parse_id(_id)
-        for _backend, result in self.do('get_gallery', _id, backends=backend):
+        for result in self.do('get_gallery', _id, backends=backend):
             if result:
-                backend = _backend
                 gallery = result
 
         if not gallery:
-            print >>sys.stderr, 'Gallery not found: %s' % _id
+            print('Gallery not found: %s' % _id, file=self.stderr)
             return 3
 
-        backend.fillobj(gallery, ('title',))
+        self.weboob[backend].fillobj(gallery, ('title',))
         if dest is None:
             dest = sub('/', ' ', gallery.title)
 
-        print "Downloading to %s" % dest
+        print("Downloading to %s" % dest)
 
         try:
             os.mkdir(dest)
@@ -114,16 +112,16 @@ class Galleroob(ReplApplication):
         os.chdir(dest)  # fail here if dest couldn't be created
 
         i = 0
-        for img in backend.iter_gallery_images(gallery):
+        for img in self.weboob[backend].iter_gallery_images(gallery):
             i += 1
             if i < first:
                 continue
 
-            backend.fillobj(img, ('url', 'data'))
+            self.weboob[backend].fillobj(img, ('url', 'data'))
             if img.data is None:
-                backend.fillobj(img, ('url', 'data'))
+                self.weboob[backend].fillobj(img, ('url', 'data'))
                 if img.data is None:
-                    print >>sys.stderr, "Couldn't get page %d, exiting" % i
+                    print("Couldn't get page %d, exiting" % i, file=self.stderr)
                     break
 
             ext = search(r"\.([^\.]{1,5})$", img.url)
@@ -133,7 +131,7 @@ class Galleroob(ReplApplication):
                 ext = "jpg"
 
             name = '%03d.%s' % (i, ext)
-            print 'Writing file %s' % name
+            print('Writing file %s' % name)
 
             with open(name, 'w') as f:
                 f.write(img.data)
@@ -150,7 +148,7 @@ class Galleroob(ReplApplication):
 
         gallery = self.get_object(_id, 'get_gallery')
         if not gallery:
-            print >>sys.stderr, 'Gallery not found: %s' % _id
+            print('Gallery not found: %s' % _id, file=self.stderr)
             return 3
 
         self.start_format()

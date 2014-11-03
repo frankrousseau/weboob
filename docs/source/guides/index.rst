@@ -7,6 +7,8 @@ Contents:
    :maxdepth: 2
 
    setup
+   contribute
    module
    capability
    application
+   tests

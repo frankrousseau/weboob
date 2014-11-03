@@ -25,8 +25,8 @@ import urllib
 from weboob.capabilities import NotAvailable
 from weboob.capabilities.image import BaseImage
 from weboob.tools.json import json as simplejson
-from weboob.tools.browser import BaseBrowser
-from weboob.tools.browser.decorators import id2url
+from weboob.deprecated.browser import Browser
+from weboob.deprecated.browser.decorators import id2url
 
 from .pages import ArteLivePage, ArteLiveVideoPage
 from .video import ArteVideo, ArteLiveVideo
@@ -34,7 +34,7 @@ from .video import ArteVideo, ArteLiveVideo
 __all__ = ['ArteBrowser']
 
 
-class ArteBrowser(BaseBrowser):
+class ArteBrowser(Browser):
     DOMAIN = u'videos.arte.tv'
     ENCODING = None
     PAGES = {r'http://concert.arte.tv/\w+': ArteLivePage,
@@ -51,7 +51,7 @@ class ArteBrowser(BaseBrowser):
         self.lang = lang
         self.quality = quality
         self.order = order
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     @id2url(ArteVideo.id2url)
     def get_video(self, url, video=None):
@@ -144,8 +144,9 @@ class ArteBrowser(BaseBrowser):
 
         response = self.openurl(url)
         result = simplejson.loads(response.read(), self.ENCODING)
-        video = self.create_video(result['abstractProgram']['VDO'])
-        return self.get_video(video.id, video)
+        if 'VDO' in result['abstractProgram'].keys():
+            video = self.create_video(result['abstractProgram']['VDO'])
+            return self.get_video(video.id, video)
 
     def search_videos(self, pattern):
         class_name = 'videos/plus7'
@@ -210,6 +211,38 @@ class ArteBrowser(BaseBrowser):
             + '.json'
 
         return url
+
+    def get_arte_programs(self):
+        class_name = 'epg'
+        method_name = 'clusters'
+        url = self.API_URL \
+            + '/' + class_name \
+            + '/' + method_name \
+            + '/' + self.lang \
+            + '/0/ALL.json'
+
+        response = self.openurl(url)
+        result = simplejson.loads(response.read(), self.ENCODING)
+        return result['configClusterList']
+
+    def program_videos(self, program):
+        class_name = 'epg'
+        method_name = 'cluster'
+
+        url = self.API_URL \
+            + '/' + class_name \
+            + '/' + method_name \
+            + '/' + self.lang \
+            + '/' + program \
+            + '.json'
+
+        response = self.openurl(url)
+        result = simplejson.loads(response.read(), self.ENCODING)
+        for item in result['clusterWrapper']['broadcasts']:
+            if 'VDS' in item.keys() and len(item['VDS']) > 0:
+                video = self.get_video_from_program_id(item['programId'])
+                if video:
+                    yield video
 
     def latest_videos(self):
         class_name = 'videos'

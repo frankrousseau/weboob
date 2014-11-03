@@ -1,3 +1,3 @@
-from .backend import KickassBackend
+from .module import KickassModule
 
-__all__ = ['KickassBackend']
+__all__ = ['KickassModule']

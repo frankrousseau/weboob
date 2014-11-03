@@ -22,16 +22,12 @@ import datetime
 from decimal import Decimal
 import re
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
 
-__all__ = ['LoginPage', 'Login2Page', 'IndexPage', 'AccountsPage', 'TransactionsPage',
-           'CardPage', 'ValuationPage', 'LoanPage', 'MarketPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, login, passwd):
         self.browser.select_form(name='frmLogin')
         self.browser['username'] = login.encode(self.browser.ENCODING)
@@ -45,7 +41,7 @@ class LoginPage(BasePage):
             return True
 
 
-class Login2Page(BasePage):
+class Login2Page(Page):
     def login(self, secret):
         label = self.document.xpath('//span[@class="PF_LABEL"]')[0].text.strip()
         letters = ''
@@ -57,11 +53,11 @@ class Login2Page(BasePage):
         self.browser.submit(name='valider', nologin=True)
 
 
-class IndexPage(BasePage):
+class IndexPage(Page):
     pass
 
 
-class AccountsPage(BasePage):
+class AccountsPage(Page):
     ACCOUNT_TYPES = {u'Epargne':                Account.TYPE_SAVINGS,
                      u'Liquidités':             Account.TYPE_CHECKING,
                      u'Titres':                 Account.TYPE_MARKET,
@@ -108,7 +104,7 @@ class AccountsPage(BasePage):
                 text = script.text
                 if text is None:
                     continue
-                if not 'remotePerso' in text:
+                if 'remotePerso' not in text:
                     continue
 
                 account = None
@@ -174,7 +170,7 @@ class Transaction(FrenchTransaction):
                ]
 
 
-class HistoryBasePage(BasePage):
+class HistoryBasePage(Page):
     def get_history(self):
         self.logger.warning('Do not support account of type %s' % type(self).__name__)
         return iter([])

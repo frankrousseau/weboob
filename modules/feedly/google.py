@@ -19,10 +19,9 @@
 
 from urlparse import urlparse, parse_qs
 
-from weboob.tools.browser2 import LoginBrowser, URL, HTMLPage
-from weboob.tools.exceptions import BrowserIncorrectPassword
-
-__all__ = ['GoogleBrowser', 'GoogleLoginPage']
+from weboob.browser import LoginBrowser, URL
+from weboob.browser.pages import HTMLPage
+from weboob.exceptions import BrowserIncorrectPassword
 
 
 class GoogleLoginPage(HTMLPage):

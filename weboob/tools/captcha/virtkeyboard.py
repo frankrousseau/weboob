@@ -98,7 +98,8 @@ class VirtKeyboard(object):
     def check_color(self, pixel):
         return pixel == self.color
 
-    def get_symbol_coords(self, (x1, y1, x2, y2)):
+    def get_symbol_coords(self, coords):
+        (x1, y1, x2, y2) = coords
         if self.margin:
             top, right, bottom, left = self.margin
             x1, y1, x2, y2 = x1 + left, y1 + top, x2 - right, y2 - bottom
@@ -110,12 +111,10 @@ class VirtKeyboard(object):
             for x in range(x1, min(x2 + 1, self.width)):
                 if self.check_color(self.pixar[x, y]):
                     empty_line = False
-                    if newY1 == -1:
+                    if newY1 < 0:
                         newY1 = y
-                        break
-                    else:
-                        break
-            if newY1 != -1 and not empty_line:
+                    break
+            if newY1 >= 0 and not empty_line:
                 newY2 = y
         newX1 = -1
         newX2 = -1
@@ -124,16 +123,15 @@ class VirtKeyboard(object):
             for y in range(y1, min(y2 + 1, self.height)):
                 if self.check_color(self.pixar[x, y]):
                     empty_column = False
-                    if newX1 == -1:
+                    if newX1 < 0:
                         newX1 = x
-                        break
-                    else:
-                        break
-            if newX1 != -1 and not empty_column:
+                    break
+            if newX1 >= 0 and not empty_column:
                 newX2 = x
         return (newX1, newY1, newX2, newY2)
 
-    def checksum(self, (x1, y1, x2, y2)):
+    def checksum(self, coords):
+        (x1, y1, x2, y2) = coords
         s = ''
         for y in range(y1, min(y2 + 1, self.height)):
             for x in range(x1, min(x2 + 1, self.width)):
@@ -171,6 +169,7 @@ class VirtKeyboard(object):
                 for x in range(width):
                     matrix[x, y] = self.pixar[self.coords[i][0] + x, self.coords[i][1] + y]
             img.save(dir + "/" + self.md5[i] + ".png")
+        self.image.save(dir + "/image.png")
 
 
 class MappedVirtKeyboard(VirtKeyboard):
@@ -200,10 +199,10 @@ class GridVirtKeyboard(VirtKeyboard):
         :param symbols: Sequence of symbols, ordered in the grid from left to
             right and up to down
         :type symbols: iterable
-        :param rows: Row count of the grid
-        :type rows: int
         :param cols: Column count of the grid
         :type cols: int
+        :param rows: Row count of the grid
+        :type rows: int
         :param image: File-like object to be used as data source
         :type image: file
         :param color: Color of the meaningful pixels
@@ -217,14 +216,14 @@ class GridVirtKeyboard(VirtKeyboard):
     """
     symbols = {}
 
-    def __init__(self, symbols, rows, cols, image, color, convert=None):
+    def __init__(self, symbols, cols, rows, image, color, convert=None):
         self.load_image(image, color, convert)
 
         tileW = float(self.width) / cols
         tileH = float(self.height) / rows
-        positions = ((s, i * tileW % self.width, i / cols * tileH) \
+        positions = ((s, i * tileW % self.width, i / cols * tileH)
                      for i, s in enumerate(symbols))
-        coords = dict((s, tuple(map(int, (x, y, x + tileW, y + tileH)))) \
+        coords = dict((s, tuple(map(int, (x, y, x + tileW, y + tileH))))
                       for (s, x, y) in positions)
 
         super(GridVirtKeyboard, self).__init__()

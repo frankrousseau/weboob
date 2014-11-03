@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 import subprocess
 import sys
 import os
 
 if len(sys.argv) < 2:
-    print "Usage: %s SCRIPTNAME [args]" % sys.argv[0]
+    print("Usage: %s SCRIPTNAME [args]" % sys.argv[0])
     sys.exit(1)
 else:
     script = sys.argv[1]
@@ -24,7 +26,7 @@ env['PYTHONPATH'] = ':'.join(p for p in paths if p)
 env['WEBOOB_WORKDIR'] = wd
 env['WEBOOB_BACKENDS'] = os.getenv('WEBOOB_LOCAL_BACKENDS',
                                    os.getenv('WEBOOB_BACKENDS',
-                                             os.path.expanduser('~/.config/weboob/backends')))
+                                             os.path.join(os.environ.get('XDG_CONFIG_HOME', os.path.join(os.path.expanduser('~'), '.config')), 'weboob', 'backends')))
 
 modpath = os.getenv('WEBOOB_MODULES', os.path.join(project, 'modules'))
 with open(os.path.join(wd, 'sources.list'), 'w') as f:
@@ -37,7 +39,7 @@ p = subprocess.Popen(
     stdout=subprocess.PIPE)
 s = p.communicate()
 if p.returncode != 0:
-    print s[0]
+    print(s[0])
     sys.exit(p.returncode)
 
 if os.path.exists(script):

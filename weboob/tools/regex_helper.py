@@ -50,6 +50,7 @@ ESCAPE_MAPPINGS = {
     "Z": None,
 }
 
+
 class Choice(list):
     """
     Used to represent multiple possibilities at this point in a pattern string.
@@ -57,15 +58,18 @@ class Choice(list):
     code is clear.
     """
 
+
 class Group(list):
     """
     Used to represent a capturing group in the pattern string.
     """
 
+
 class NonCapture(list):
     """
     Used to represent a non-capturing group in the pattern string.
     """
+
 
 def normalize(pattern):
     """
@@ -79,9 +83,9 @@ def normalize(pattern):
     (3) Select the first (essentially an arbitrary) element from any character
         class. Select an arbitrary character for any unordered class (e.g. '.'
         or '\w') in the pattern.
-    (5) Ignore comments and any of the reg-exp flags that won't change
+    (4) Ignore comments and any of the reg-exp flags that won't change
         what we construct ("iLmsu"). "(?x)" is an error, however.
-    (6) Raise an error on all other non-capturing (?...) forms (e.g.
+    (5) Raise an error on all other non-capturing (?...) forms (e.g.
         look-ahead and look-behind matches) and any disjunctive ('|')
         constructs.
 
@@ -116,7 +120,7 @@ def normalize(pattern):
                 result.append(u".")
             elif ch == '|':
                 # FIXME: One day we'll should do this, but not in 1.0.
-                raise NotImplementedError
+                raise NotImplementedError()
             elif ch == "^":
                 pass
             elif ch == '$':
@@ -222,6 +226,7 @@ def normalize(pattern):
 
     return zip(*flatten_result(result))
 
+
 def next_char(input_iter):
     """
     An iterator that yields the next character from "pattern_iter", respecting
@@ -242,6 +247,7 @@ def next_char(input_iter):
             continue
         yield representative, True
 
+
 def walk_to_end(ch, input_iter):
     """
     The iterator is currently inside a capturing group. We want to walk to the
@@ -261,6 +267,7 @@ def walk_to_end(ch, input_iter):
             if not nesting:
                 return
             nesting -= 1
+
 
 def get_quantifier(ch, input_iter):
     """
@@ -298,6 +305,7 @@ def get_quantifier(ch, input_iter):
         ch = None
     return int(values[0]), ch
 
+
 def contains(source, inst):
     """
     Returns True if the "source" contains an instance of "inst". False,
@@ -310,6 +318,7 @@ def contains(source, inst):
             if contains(elt, inst):
                 return True
     return False
+
 
 def flatten_result(source):
     """
@@ -363,4 +372,3 @@ def flatten_result(source):
         for i in range(len(result)):
             result[i] += piece
     return result, result_args
-

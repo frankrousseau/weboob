@@ -20,9 +20,14 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword
+import re
+from collections import defaultdict
 
-from .pages import LoginPage, AccountsList, AccountHistory, CardHistory, UpdateInfoPage, AuthenticationPage
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword
+from weboob.capabilities.bank import Account
+
+from .pages import (LoginPage, AccountsList, AccountHistory, CardHistory, UpdateInfoPage,
+                    AuthenticationPage, AccountInvestment, InvestmentDetail)
 
 
 __all__ = ['Boursorama']
@@ -32,10 +37,11 @@ class BrowserIncorrectAuthenticationCode(BrowserIncorrectPassword):
     pass
 
 
-class Boursorama(BaseBrowser):
+class Boursorama(Browser):
     DOMAIN = 'www.boursorama.com'
     PROTOCOL = 'https'
-    CERTHASH = ['6bdf8b6dd177bd417ddcb1cfb818ede153288e44115eb269f2ddd458c8461039', 'b290ef629c88f0508e9cc6305421c173bd4291175e3ddedbee05ee666b34c20e']
+    CERTHASH = ['6bdf8b6dd177bd417ddcb1cfb818ede153288e44115eb269f2ddd458c8461039',
+                'b290ef629c88f0508e9cc6305421c173bd4291175e3ddedbee05ee666b34c20e']
     ENCODING = None  # refer to the HTML encoding
     PAGES = {
              '.*/connexion/securisation/index.phtml': AuthenticationPage,
@@ -45,13 +51,15 @@ class Boursorama(BaseBrowser):
              '.*/comptes/banque/cartes/mouvements.phtml.*': CardHistory,
              '.*/comptes/epargne/mouvements.phtml.*': AccountHistory,
              '.*/date_anniversaire.phtml.*':    UpdateInfoPage,
+             '.*/detail.phtml.*': AccountInvestment,
+             '.*/opcvm.phtml.*': InvestmentDetail
             }
 
     def __init__(self, device="weboob", enable_twofactors=False,
                  *args, **kwargs):
         self.device = device
         self.enable_twofactors = enable_twofactors
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def home(self):
         if not self.is_logged():
@@ -119,6 +127,11 @@ class Boursorama(BaseBrowser):
 
     def get_history(self, account):
         link = account._link_id
+        #We need to skip the first link on card page because there is a summary,
+        #and so the recent transaction are displayed twice
+        if account.type == Account.TYPE_CARD:
+            self.location(link)
+            link = self.page.get_next_url()
 
         while link is not None:
             self.location(link)
@@ -129,6 +142,30 @@ class Boursorama(BaseBrowser):
                 yield tr
 
             link = self.page.get_next_url()
+
+    def get_investment(self, account):
+        if account.type != Account.TYPE_MARKET or not account._detail_url:
+            raise NotImplementedError()
+        self.location(account._detail_url)
+
+        seen = defaultdict(int)
+        def slugify(label):
+            label = label.upper().replace('FONDS EN EUROS (', '')[:12]
+            slug = re.sub(r'[^A-Za-z0-9]', ' ', label).strip()
+            slug = re.sub(r'\s+', '-', slug)
+            if label in seen:
+                counter = str(seen[slug])
+                slug = slug[:-len(counter)] + counter
+            seen[label] += 1
+            return slug
+
+        for inv in self.page.get_investment():
+            if inv._detail_url:
+                self.location(inv._detail_url)
+                self.page.get_investment_detail(inv)
+            if not inv.id:
+                inv.id = inv.code = 'XX' + slugify(inv.label)
+            yield inv
 
     def transfer(self, from_id, to_id, amount, reason=None):
         raise NotImplementedError()

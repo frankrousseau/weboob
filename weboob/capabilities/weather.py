@@ -20,7 +20,7 @@
 
 from datetime import datetime, date
 
-from .base import CapBase, BaseObject, Field, FloatField, \
+from .base import Capability, BaseObject, Field, FloatField, \
                   StringField, UserError
 from .date import DateField
 
@@ -109,10 +109,11 @@ class CityNotFound(UserError):
     """
 
 
-class CapWeather(CapBase):
+class CapWeather(Capability):
     """
     Capability for weather websites.
     """
+
     def iter_city_search(self, pattern):
         """
         Look for a city.

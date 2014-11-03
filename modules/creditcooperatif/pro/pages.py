@@ -22,15 +22,12 @@ from decimal import Decimal
 import re
 import time
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
 
-__all__ = ['LoginPage', 'AccountsPage', 'TransactionsPage', 'ComingTransactionsPage', 'CardTransactionsPage', 'ITransactionsPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, login, pin, strong_auth):
         form_nb = 1 if strong_auth else 0
         indentType = "RENFORCE" if strong_auth else "MDP"
@@ -43,7 +40,7 @@ class LoginPage(BasePage):
         self.browser.submit(nologin=True)
 
 
-class AccountsPage(BasePage):
+class AccountsPage(Page):
     ACCOUNT_TYPES = {u'COMPTE NEF': Account.TYPE_CHECKING}
 
     CPT_ROW_ID = 0
@@ -98,7 +95,8 @@ class Transaction(FrenchTransaction):
                                                             FrenchTransaction.TYPE_UNKNOWN),
                ]
 
-class ITransactionsPage(BasePage):
+
+class ITransactionsPage(Page):
     def get_next_url(self):
         # can be 'Suivant' or ' Suivant'
         next = self.document.xpath("//a[normalize-space(text()) = 'Suivant']")
@@ -110,6 +108,7 @@ class ITransactionsPage(BasePage):
 
     def get_history(self):
         raise NotImplementedError()
+
 
 class TransactionsPage(ITransactionsPage):
     TR_DATE = 0
@@ -138,12 +137,14 @@ class TransactionsPage(ITransactionsPage):
 
             yield t
 
+
 class ComingTransactionsPage(TransactionsPage):
     TR_DATE = 2
     TR_TEXT = 1
     TR_DEBIT = -2
     TR_CREDIT = -1
     TABLE_NAME = 'operationAVenir'
+
 
 class CardTransactionsPage(ITransactionsPage):
     COM_TR_COMMENT = 0

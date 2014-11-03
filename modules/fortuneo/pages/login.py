@@ -20,13 +20,10 @@
 
 #from logging import error
 
-from weboob.tools.browser import BasePage, BrowserUnavailable
+from weboob.deprecated.browser import Page, BrowserUnavailable
 
 
-__all__ = ['LoginPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, login, passwd):
         msgb = self.document.xpath(".//*[@id='message_client']/text()")
         msga = ''.join(msgb)

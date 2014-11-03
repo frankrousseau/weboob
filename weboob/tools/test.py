@@ -17,18 +17,25 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from unittest import TestCase
+import sys
 from random import choice
+from unittest import TestCase
 
-from nose.plugins.skip import SkipTest
 from weboob.core import Weboob
 
+# This is what nose does for Python 2.6 and lower compatibility
+# We do the same so nose becomes optional
+try:
+    from unittest.case import SkipTest
+except:
+    from nose.plugins.skip import SkipTest
 
-__all__ = ['TestCase', 'BackendTest']
+
+__all__ = ['BackendTest', 'SkipTest']
 
 
 class BackendTest(TestCase):
-    BACKEND = None
+    MODULE = None
 
     def __init__(self, *args, **kwargs):
         TestCase.__init__(self, *args, **kwargs)
@@ -38,7 +45,7 @@ class BackendTest(TestCase):
         self.backend = None
         self.weboob = Weboob()
 
-        if self.weboob.load_backends(modules=[self.BACKEND]):
+        if self.weboob.load_backends(modules=[self.MODULE]):
             # provide the tests with all available backends
             self.backends = self.weboob.backend_instances
             # chose one backend (enough for most tests)
@@ -50,6 +57,9 @@ class BackendTest(TestCase):
         Call the parent run() for each backend instance.
         Skip the test if we have no backends.
         """
+        # This is a hack to fix an issue with nosetests running
+        # with many tests. The default is 1000.
+        sys.setrecursionlimit(10000)
         try:
             if not len(self.backends):
                 result.startTest(self)

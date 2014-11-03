@@ -20,36 +20,35 @@
 
 from decimal import Decimal
 
+from weboob.capabilities.base import NotAvailable
 from weboob.capabilities.bank import Investment
-from weboob.tools.browser2.page import RawPage, HTMLPage, method
-from weboob.tools.browser2.elements import ListElement, ItemElement
-from weboob.tools.browser2.filters import CleanDecimal, CleanText, Date
+from weboob.browser.pages import RawPage, HTMLPage, LoggedPage
+from weboob.browser.elements import ListElement, ItemElement, method
+from weboob.browser.filters.standard import CleanDecimal, CleanText, Date
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-
-__all__ = ['TitrePage']
 
 
 class Transaction(FrenchTransaction):
     pass
 
 
-class TitrePage(RawPage):
+class TitrePage(LoggedPage, RawPage):
     def iter_investments(self):
         # We did not get some html, but something like that (XX is a quantity, YY a price):
         # message='[...]
-        #popup=2{6{E:ALO{PAR{{reel{695{380{ALSTOM REGROUPT#XX#YY,YY &euro;#YY,YY &euro;#1 YYY,YY &euro;#-YYY,YY &euro;#-42,42%#-0,98 %#42,42 %#|1|AXA#cotationValeur.php?val=E:CS&amp;pl=6&amp;nc=1&amp;
-        #popup=2{6{E:CS{PAR{{reel{695{380{AXA#XX#YY,YY &euro;#YY,YYY &euro;#YYY,YY &euro;#YY,YY &euro;#3,70%#42,42 %#42,42 %#|1|blablablab #cotationValeur.php?val=P:CODE&amp;pl=6&amp;nc=1&amp;
+        # popup=2{6{E:ALO{PAR{{reel{695{380{ALSTOM REGROUPT#XX#YY,YY &euro;#YY,YY &euro;#1 YYY,YY &euro;#-YYY,YY &euro;#-42,42%#-0,98 %#42,42 %#|1|AXA#cotationValeur.php?val=E:CS&amp;pl=6&amp;nc=1&amp;
+        # popup=2{6{E:CS{PAR{{reel{695{380{AXA#XX#YY,YY &euro;#YY,YYY &euro;#YYY,YY &euro;#YY,YY &euro;#3,70%#42,42 %#42,42 %#|1|blablablab #cotationValeur.php?val=P:CODE&amp;pl=6&amp;nc=1&amp;
         # [...]
         lines = self.doc.split("popup=2")
         lines.pop(0)
         for line in lines:
             columns = line.split('#')
-            code = columns[0].split('{')[2]
-            invest = Investment(code)
-            invest.code = unicode(code)
+            _id = columns[0].split('{')[2]
+            invest = Investment(_id)
             invest.label = unicode(columns[0].split('{')[-1])
-            # XXX sometimes there are decimal (!) quantities
-            invest.quantity = int(columns[1].split(',')[0].replace(' ', ''))
+            invest.code = NotAvailable
+            invest.description = unicode(_id.split(':')[1])
+            invest.quantity = Decimal(FrenchTransaction.clean_amount(columns[1]))
             invest.unitprice = Decimal(FrenchTransaction.clean_amount(columns[2]))
             invest.unitvalue = Decimal(FrenchTransaction.clean_amount(columns[3]))
             invest.valuation = Decimal(FrenchTransaction.clean_amount(columns[4]))
@@ -58,7 +57,7 @@ class TitrePage(RawPage):
             yield invest
 
 
-class TitreHistory(HTMLPage):
+class TitreHistory(LoggedPage, HTMLPage):
     @method
     class iter_history(ListElement):
         item_xpath = '//table[@class="datas retour"]/tr'

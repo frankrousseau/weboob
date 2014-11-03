@@ -20,10 +20,12 @@
 import re
 
 from weboob.capabilities.paste import BasePaste, PasteNotFound
-from weboob.tools.browser2.filters import CleanText, DateTime, Env, RawText, Regexp
-from weboob.tools.browser2.page import HTMLPage, method, PagesBrowser, URL
-from weboob.tools.browser2.elements import ItemElement
-from weboob.tools.exceptions import BrowserHTTPNotFound
+from weboob.browser.filters.standard import CleanText, DateTime, Env, RawText, Regexp
+from weboob.browser.pages import HTMLPage
+from weboob.browser.browsers import PagesBrowser
+from weboob.browser.url import URL
+from weboob.browser.elements import ItemElement, method
+from weboob.exceptions import BrowserHTTPNotFound
 
 
 class Spam(Exception):

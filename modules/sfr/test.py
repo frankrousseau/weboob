@@ -19,8 +19,9 @@
 
 from weboob.tools.test import BackendTest
 
+
 class SFRTest(BackendTest):
-    BACKEND = 'sfr'
+    MODULE = 'sfr'
 
     def test_sfr(self):
         pass
@@ -32,4 +33,4 @@ class SFRTest(BackendTest):
     def test_get_account_status(self):
         nbSms = self.backend.get_account_status()
         assert nbSms
-        assert isinstance(nbSms[0].value, str);
+        assert isinstance(nbSms[0].value, str)

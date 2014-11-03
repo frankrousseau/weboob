@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBase, BaseObject, Field, StringField, BytesField, IntField, \
+from .base import Capability, BaseObject, Field, StringField, BytesField, IntField, \
                   UserError
 from weboob.tools.ordereddict import OrderedDict
 
@@ -101,7 +101,7 @@ class Contact(BaseObject):
         :type name: str
         :param kwargs: See :class:`ContactPhoto` to know what other parameters you can use
         """
-        if not name in self.photos:
+        if name not in self.photos:
             self.photos[name] = ContactPhoto(name)
 
         photo = self.photos[name]
@@ -165,7 +165,7 @@ class Query(BaseObject):
         self.message = message
 
 
-class CapContact(CapBase):
+class CapContact(Capability):
     def iter_contacts(self, status=Contact.STATUS_ALL, ids=None):
         """
         Iter contacts
@@ -216,7 +216,7 @@ class CapContact(CapBase):
         :type id: str
         :rtype: unicode
         """
-        raise NotImplementedError
+        raise NotImplementedError()
 
     def save_notes(self, id, notes):
         """
@@ -226,4 +226,4 @@ class CapContact(CapBase):
         :type id: str
         :returns: the unicode object to save as notes
         """
-        raise NotImplementedError
+        raise NotImplementedError()

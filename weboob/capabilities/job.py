@@ -17,7 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from .base import BaseObject, CapBase, StringField
+from .base import BaseObject, Capability, StringField
 from .date import DateField
 
 __all__ = ['BaseJobAdvert', 'CapJob']
@@ -68,10 +68,11 @@ class BaseJobAdvert(BaseObject):
         return self.id2url(self.id)
 
 
-class CapJob(CapBase):
+class CapJob(Capability):
     """
     Capability of job annouce websites.
     """
+
     def search_job(self, pattern=None):
         """
         Iter results of a search on a pattern.
@@ -95,8 +96,8 @@ class CapJob(CapBase):
 
         :param _id: id of the advert
         :type _id: str
-        :param advert : the advert
-        :type advert : BaseJobAdvert
-        :rtype: :class:`BaseJobAdvert` or None is fot found.
+        :param advert: the advert
+        :type advert: BaseJobAdvert
+        :rtype: :class:`BaseJobAdvert` or None if not found.
         """
         raise NotImplementedError()

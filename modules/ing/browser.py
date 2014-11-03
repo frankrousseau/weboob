@@ -18,8 +18,8 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 import hashlib
 
-from weboob.tools.browser2 import LoginBrowser, URL, need_login
-from weboob.tools.exceptions import BrowserIncorrectPassword, ParseError
+from weboob.browser import LoginBrowser, URL, need_login
+from weboob.exceptions import BrowserIncorrectPassword, ParseError
 from weboob.capabilities.bank import Account, TransferError
 
 from .pages import AccountsList, LoginPage, TitrePage, TitreHistory,\
@@ -27,6 +27,16 @@ from .pages import AccountsList, LoginPage, TitrePage, TitreHistory,\
 
 
 __all__ = ['IngBrowser']
+
+
+def check_bourse(f):
+    def wrapper(*args):
+        browser = args[0]
+        if browser.where == u"titre":
+            browser.location("https://bourse.ingdirect.fr/priv/redirectIng.php?pageIng=COMPTE")
+            browser.where = u"start"
+        return f(*args)
+    return wrapper
 
 
 class IngBrowser(LoginBrowser):
@@ -48,7 +58,6 @@ class IngBrowser(LoginBrowser):
     titrerealtime = URL('https://bourse.ingdirect.fr/streaming/compteTempsReelCK.php', TitrePage)
     # CapBill
     billpage = URL('/protected/pages/common/estatement/eStatement.jsf', BillsPage)
-
 
     def __init__(self, *args, **kwargs):
         self.birthday = kwargs.pop('birthday', None)
@@ -72,12 +81,40 @@ class IngBrowser(LoginBrowser):
             raise BrowserIncorrectPassword('Please login on website to fill the form and retry')
 
     @need_login
+    @check_bourse
     def get_accounts_list(self):
         self.accountspage.go()
         self.where = "start"
         return self.page.get_list()
 
     @need_login
+    @check_bourse
+    def get_coming(self, account):
+        if account.type != Account.TYPE_CHECKING and\
+                account.type != Account.TYPE_SAVINGS:
+            raise NotImplementedError()
+        if self.where != "start":
+            self.accountspage.go()
+        data = {"AJAX:EVENTS_COUNT": 1,
+                "AJAXREQUEST": "_viewRoot",
+                "ajaxSingle": "index:setAccount",
+                "autoScroll": "",
+                "index": "index",
+                "index:setAccount": "index:setAccount",
+                "javax.faces.ViewState": account._jid,
+                "cptnbr": account._id
+                }
+        self.accountspage.go(data=data)
+        self.where = "history"
+        jid = self.page.get_history_jid()
+        if jid is None:
+            self.logger.info('There is no history for this account')
+            return
+
+        return self.page.get_coming()
+
+    @need_login
+    @check_bourse
     def get_history(self, account):
         if account.type == Account.TYPE_MARKET:
             for result in self.get_history_titre(account):
@@ -105,11 +142,16 @@ class IngBrowser(LoginBrowser):
             self.logger.info('There is no history for this account')
             return
 
-        index = 0  # index, we get always the same page, but with more data
+        if account.type == Account.TYPE_CHECKING:
+            history_function = AccountsList.get_transactions_cc
+            index = -1  # disable the index. It works without it on CC
+        else:
+            history_function = AccountsList.get_transactions_others
+            index = 0
         hashlist = []
         while True:
             i = index
-            for transaction in self.page.get_transactions(index=index):
+            for transaction in history_function(self.page, index=index):
                 transaction.id = hashlib.md5(transaction._hash).hexdigest()
                 while transaction.id in hashlist:
                     transaction.id = hashlib.md5(transaction.id + "1").hexdigest()
@@ -117,9 +159,10 @@ class IngBrowser(LoginBrowser):
                 i += 1
                 yield transaction
             # if there is no more transactions, it is useless to continue
-            if i == index or self.page.islast():
+            if self.page.islast() or i == index:
                 return
-            index = i
+            if index >= 0:
+                index = i
             data = {"AJAX:EVENTS_COUNT": 1,
                     "AJAXREQUEST": "_viewRoot",
                     "autoScroll": "",
@@ -130,6 +173,7 @@ class IngBrowser(LoginBrowser):
             self.accountspage.go(data=data)
 
     @need_login
+    @check_bourse
     def get_recipients(self, account):
         self.transferpage.stay_or_go()
         if self.page.ischecked(account.id):
@@ -141,6 +185,7 @@ class IngBrowser(LoginBrowser):
             self.transferpage.stay_or_go()
             return self.page.get_recipients()
 
+    @check_bourse
     def transfer(self, account, recipient, amount, reason):
         found = False
         # Automatically get the good transfer page
@@ -167,6 +212,7 @@ class IngBrowser(LoginBrowser):
         else:
             raise TransferError('Recipient not found')
 
+
     def go_investments(self, account):
         if self.where != "start":
             self.accountspage.go()
@@ -182,7 +228,7 @@ class IngBrowser(LoginBrowser):
         self.accountspage.go(data=data)
 
         self.starttitre.go()
-        self.where = "titre"
+        self.where = u"titre"
         self.titrepage.go()
 
     def get_investments(self, account):

@@ -19,14 +19,11 @@
 
 
 from weboob.tools.test import BackendTest
-from weboob.tools.browser import BrowserUnavailable
-
-
-__all__ = ['AuMTest']
+from weboob.deprecated.browser import BrowserUnavailable
 
 
 class AuMTest(BackendTest):
-    BACKEND = 'aum'
+    MODULE = 'aum'
 
     def test_new_messages(self):
         try:

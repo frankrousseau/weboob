@@ -21,11 +21,8 @@
 
 import re
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
-
-
-__all__ = ['CardHistory']
 
 
 class Transaction(FrenchTransaction):
@@ -36,7 +33,7 @@ class Transaction(FrenchTransaction):
                ]
 
 
-class CardHistory(BasePage):
+class CardHistory(Page):
     def get_operations(self):
         for form in self.document.xpath('//form[@name="marques"]'):
             for tr in form.xpath('.//tbody/tr'):

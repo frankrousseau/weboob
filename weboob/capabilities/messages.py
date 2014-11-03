@@ -21,7 +21,7 @@
 import datetime
 import time
 
-from .base import CapBase, BaseObject, NotLoaded, Field, StringField, \
+from .base import Capability, BaseObject, NotLoaded, Field, StringField, \
                   IntField, UserError
 from .date import DateField
 
@@ -44,10 +44,14 @@ class Message(_Message):
     """
     Represents a message read or to send.
     """
-    IS_HTML = 0x001          # The content is HTML formatted
-    IS_UNREAD = 0x002        # The message is unread
-    IS_RECEIVED = 0x004       # The receiver has read this message
-    IS_NOT_RECEIVED = 0x008   # The receiver has not read this message
+    IS_HTML = 0x001
+    "The content is HTML formatted"
+    IS_UNREAD = 0x002
+    "The message is unread"
+    IS_RECEIVED = 0x004
+    "The receiver has read this message"
+    IS_NOT_RECEIVED = 0x008
+    "The receiver hass not read this message"
 
     thread =        Field('Reference to the thread', _Thread)
     title =         StringField('Title of message')
@@ -71,7 +75,7 @@ class Message(_Message):
                        signature=NotLoaded,
                        children=NotLoaded,
                        flags=0):
-        BaseObject.__init__(self, id)
+        super(Message, self).__init__(id)
         self.thread = thread
         self.title = title
         self.sender = sender
@@ -165,10 +169,11 @@ class Thread(_Thread):
                     yield m
 
 
-class CapMessages(CapBase):
+class CapMessages(Capability):
     """
     Capability to read messages.
     """
+
     def iter_threads(self):
         """
         Iterates on threads, from newers to olders.
@@ -209,10 +214,11 @@ class CantSendMessage(UserError):
     """
 
 
-class CapMessagesPost(CapBase):
+class CapMessagesPost(Capability):
     """
     This capability allow user to send a message.
     """
+
     def post_message(self, message):
         """
         Post a message.

@@ -17,6 +17,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
 import os
 
@@ -29,7 +30,7 @@ from webob import exc
 from wsgiref.simple_server import make_server
 
 from weboob.capabilities.video import CapVideo
-from weboob.tools.application.base import BaseApplication
+from weboob.tools.application.base import Application
 
 
 __all__ = ['VideoobWeb']
@@ -39,7 +40,7 @@ template_lookup = TemplateLookup(directories=[os.path.join(os.path.dirname(__fil
                                  output_encoding='utf-8', encoding_errors='replace')
 
 
-class VideoobWeb(BaseApplication):
+class VideoobWeb(Application):
     APPNAME = 'videoob-webserver'
     VERSION = '0.j'
     COPYRIGHT = 'Copyright(C) 2010-2011 Christophe Benz'
@@ -79,8 +80,8 @@ class VideoobWeb(BaseApplication):
     def main(self, argv):
         self.load_config()
         self.weboob.load_backends(CapVideo)
-        print 'Web server created. Listening on http://%s:%s' % (
-            self.config.get('host'), int(self.config.get('port')))
+        print('Web server created. Listening on http://%s:%s' % (
+            self.config.get('host'), int(self.config.get('port'))))
         srv = make_server(self.config.get('host'), int(self.config.get('port')), self.make_app)
         srv.serve_forever()
 

@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .base import CapBase, BaseObject, StringField
+from .base import Capability, BaseObject, StringField
 
 
 __all__ = ['SongLyrics', 'CapLyrics']
@@ -37,10 +37,11 @@ class SongLyrics(BaseObject):
         self.title = title
 
 
-class CapLyrics(CapBase):
+class CapLyrics(Capability):
     """
     Lyrics websites.
     """
+
     def iter_lyrics(self, criteria, pattern):
         """
         Search lyrics by artist or by song

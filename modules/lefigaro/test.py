@@ -22,11 +22,8 @@ from weboob.tools.test import BackendTest
 from weboob.tools.html import html2text
 
 
-__all__ = ['LeFigaroTest']
-
-
 class LeFigaroTest(BackendTest):
-    BACKEND = 'lefigaro'
+    MODULE = 'lefigaro'
 
     def test_lefigaro(self):
         l = list(self.backend.iter_threads())

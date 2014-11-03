@@ -20,13 +20,10 @@
 
 from weboob.capabilities.lyrics import SongLyrics
 from weboob.capabilities.base import NotAvailable, NotLoaded
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 
 
-__all__ = ['SongResultsPage', 'SonglyricsPage', 'ArtistResultsPage', 'ArtistSongsPage']
-
-
-class ArtistResultsPage(BasePage):
+class ArtistResultsPage(Page):
     def iter_lyrics(self):
         for link in self.parser.select(self.document.getroot(), 'table[title~=Results] a.tlink'):
             artist = unicode(link.text_content())
@@ -36,7 +33,7 @@ class ArtistResultsPage(BasePage):
                 yield lyr
 
 
-class ArtistSongsPage(BasePage):
+class ArtistSongsPage(Page):
     def iter_lyrics(self, artist):
         for th in self.parser.select(self.document.getroot(), 'th.text'):
             txt = th.text_content()
@@ -50,7 +47,7 @@ class ArtistSongsPage(BasePage):
                     yield songlyrics
 
 
-class SongResultsPage(BasePage):
+class SongResultsPage(Page):
     def iter_lyrics(self):
         first = True
         for tr in self.parser.select(self.document.getroot(), 'table[title~=Results] tr'):
@@ -71,7 +68,7 @@ class SongResultsPage(BasePage):
             yield songlyrics
 
 
-class SonglyricsPage(BasePage):
+class SonglyricsPage(Page):
     def get_lyrics(self, id):
         artist = NotAvailable
         title = NotAvailable

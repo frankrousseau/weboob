@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import CitelisBackend
+from .module import CitelisModule
 
 
-__all__ = ['CitelisBackend']
+__all__ = ['CitelisModule']

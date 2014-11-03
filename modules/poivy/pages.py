@@ -17,14 +17,12 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.exceptions import BrowserBanned
-from weboob.tools.browser2.page import HTMLPage, LoggedPage, method, pagination
-from weboob.tools.browser2.elements import ListElement, ItemElement
-from weboob.tools.browser2.filters import CleanText, CleanDecimal, Field, Attr, DateTime, Link, Format
+from weboob.exceptions import BrowserBanned
+from weboob.browser.pages import HTMLPage, LoggedPage, pagination
+from weboob.browser.elements import ListElement, ItemElement, method
+from weboob.browser.filters.standard import CleanText, CleanDecimal, Field, DateTime, Format
+from weboob.browser.filters.html import Attr, Link
 from weboob.capabilities.bill import Subscription, Detail
-
-
-__all__ = ['LoginPage', 'HomePage', 'HistoryPage', 'BillsPage', 'ErrorPage']
 
 
 class ErrorPage(HTMLPage):

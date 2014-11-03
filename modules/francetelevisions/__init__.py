@@ -1,3 +1,3 @@
-from .backend import PluzzBackend
+from .module import PluzzModule
 
-__all__ = ['PluzzBackend']
+__all__ = ['PluzzModule']

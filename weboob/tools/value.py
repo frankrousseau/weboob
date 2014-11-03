@@ -33,6 +33,7 @@ class ValuesDict(OrderedDict):
 
     >>> ValuesDict(Value('a', label='Test'), ValueInt('b', label='Test2'))
     """
+
     def __init__(self, *values):
         OrderedDict.__init__(self)
         for v in values:
@@ -85,13 +86,13 @@ class Value(object):
         """
         if self.default is not None and v == self.default:
             return
-        if v == '' and self.default != '':
+        if v == '' and self.default != '' and (self.choices is None or v not in self.choices):
             raise ValueError('Value can\'t be empty')
         if self.regexp is not None and not re.match(self.regexp, unicode(v)):
             raise ValueError('Value "%s" does not match regexp "%s"' % (v, self.regexp))
-        if self.choices is not None and not v in self.choices.iterkeys():
+        if self.choices is not None and v not in self.choices:
             raise ValueError('Value "%s" is not in list: %s' % (
-                v, ', '.join(unicode(s) for s in self.choices.iterkeys())))
+                v, ', '.join(unicode(s) for s in self.choices)))
 
     def load(self, domain, v, callbacks):
         """
@@ -132,7 +133,6 @@ class Value(object):
         (`command` is used to call external programms)
         """
         return isinstance(v, basestring) and v.startswith(u'`') and v.endswith(u'`')
-
 
 
 class ValueBackendPassword(Value):
@@ -253,8 +253,8 @@ class ValueBool(Value):
 
     def check_valid(self, v):
         if not isinstance(v, bool) and \
-           not unicode(v).lower() in ('y', 'yes', '1', 'true',  'on',
-                                      'n', 'no',  '0', 'false', 'off'):
+            unicode(v).lower() not in ('y', 'yes', '1', 'true',  'on',
+                                       'n', 'no',  '0', 'false', 'off'):
             raise ValueError('Value "%s" is not a boolean (y/n)' % v)
 
     def get(self):

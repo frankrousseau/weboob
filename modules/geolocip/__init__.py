@@ -1,3 +1,3 @@
-from .backend import GeolocIpBackend
+from .module import GeolocIpModule
 
-__all__ = ['GeolocIpBackend']
+__all__ = ['GeolocIpModule']

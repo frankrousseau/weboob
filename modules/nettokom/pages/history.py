@@ -21,14 +21,11 @@
 from datetime import datetime, date, time
 from decimal import Decimal
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.capabilities.bill import Detail
 
 
-__all__ = ['HistoryPage', 'DetailsPage', 'BillsPage']
-
-
-class DetailsPage(BasePage):
+class DetailsPage(Page):
 
     def on_loaded(self):
         self.details = []
@@ -57,12 +54,12 @@ def _get_date(detail):
     return detail.datetime
 
 
-class BillsPage(BasePage):
+class BillsPage(Page):
     def on_loaded(self):
         pass
 
 
-class HistoryPage(BasePage):
+class HistoryPage(Page):
 
     def on_loaded(self):
         self.calls = []

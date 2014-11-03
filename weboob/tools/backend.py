@@ -23,13 +23,13 @@ from threading import RLock
 from copy import copy
 
 from weboob.capabilities.base import BaseObject, FieldNotFound, \
-    CapBase, NotLoaded, NotAvailable
+    Capability, NotLoaded, NotAvailable
 from weboob.tools.misc import iter_fields
 from weboob.tools.log import getLogger
 from weboob.tools.value import ValuesDict
 
 
-__all__ = ['BackendStorage', 'BackendConfig', 'BaseBackend']
+__all__ = ['BackendStorage', 'BackendConfig', 'Module']
 
 
 class BackendStorage(object):
@@ -37,13 +37,14 @@ class BackendStorage(object):
     This is an abstract layer to store data in storages (:mod:`weboob.tools.storage`)
     easily.
 
-    It is instancied automatically in constructor of :class:`BaseBackend`, in the
-    :attr:`BaseBackend.storage` attribute.
+    It is instancied automatically in constructor of :class:`Module`, in the
+    :attr:`Module.storage` attribute.
 
     :param name: name of backend
     :param storage: storage object
     :type storage: :class:`weboob.tools.storage.IStorage`
     """
+
     def __init__(self, name, storage):
         self.name = name
         self.storage = storage
@@ -156,7 +157,7 @@ class BackendConfig(ValuesDict):
 
             if value is None:
                 if not nofail and field.required:
-                    raise BaseBackend.ConfigError('Backend(%s): Configuration error: Missing parameter "%s" (%s)'
+                    raise Module.ConfigError('Backend(%s): Configuration error: Missing parameter "%s" (%s)'
                                                   % (cfg.instname, name, field.description))
                 value = field.default
 
@@ -165,7 +166,7 @@ class BackendConfig(ValuesDict):
                 field.load(cfg.instname, value, cfg.weboob.callbacks)
             except ValueError as v:
                 if not nofail:
-                    raise BaseBackend.ConfigError(
+                    raise Module.ConfigError(
                         'Backend(%s): Configuration error for field "%s": %s' % (cfg.instname, name, v))
 
             cfg[name] = field
@@ -202,9 +203,9 @@ class BackendConfig(ValuesDict):
         self.weboob.backends_config.add_backend(self.instname, self.modname, dump, edit)
 
 
-class BaseBackend(object):
+class Module(object):
     """
-    Base class for backends.
+    Base class for modules.
 
     You may derivate it, and also all capabilities you want to implement.
 
@@ -219,19 +220,19 @@ class BaseBackend(object):
     :param logger: logger
     :type logger: :class:`logging.Logger`
     """
-    # Backend name.
+    # Module name.
     NAME = None
-    # Name of the maintainer of this backend.
+    # Name of the maintainer of this module.
     MAINTAINER = u'<unspecified>'
     # Email address of the maintainer.
     EMAIL = '<unspecified>'
-    # Version of backend (for information only).
+    # Version of module (for information only).
     VERSION = '<unspecified>'
     # Description
     DESCRIPTION = '<unspecified>'
-    # License of this backend.
+    # License of this module.
     LICENSE = '<unspecified>'
-    # Configuration required for this backend.
+    # Configuration required for backends.
     # Values must be weboob.tools.value.Value objects.
     CONFIG = BackendConfig()
     # Storage
@@ -268,6 +269,8 @@ class BaseBackend(object):
         self.weboob = weboob
         self.name = name
         self.lock = RLock()
+        if config is None:
+            config = {}
 
         # Private fields (which start with '_')
         self._private_config = dict((key, value) for key, value in config.iteritems() if key.startswith('_'))
@@ -332,9 +335,9 @@ class BaseBackend(object):
         if any((tmpproxy, tmpproxys)):
             kwargs['proxy'] = {}
             if tmpproxy is not None:
-              kwargs['proxy']['http'] = tmpproxy
+                kwargs['proxy']['http'] = tmpproxy
             if tmpproxys is not None:
-              kwargs['proxy']['https'] = tmpproxys
+                kwargs['proxy']['https'] = tmpproxys
 
 
         kwargs['logger'] = self.logger
@@ -350,11 +353,11 @@ class BaseBackend(object):
         """
         Iter capabilities implemented by this backend.
 
-        :rtype: iter[:class:`weboob.capabilities.base.CapBase`]
+        :rtype: iter[:class:`weboob.capabilities.base.Capability`]
         """
         def iter_caps(cls):
             for base in cls.__bases__:
-                if issubclass(base, CapBase) and base != CapBase:
+                if issubclass(base, Capability) and base != Capability:
                     yield base
                     for cap in iter_caps(base):
                         yield cap

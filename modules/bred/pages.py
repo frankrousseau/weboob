@@ -19,24 +19,28 @@
 
 
 from mechanize import FormNotFoundError
-from weboob.tools.mech import ClientForm
+from weboob.deprecated.mech import ClientForm
 ControlNotFoundError = ClientForm.ControlNotFoundError
 
 from decimal import Decimal, InvalidOperation
 import re
 
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.tools.misc import to_unicode
 from weboob.tools.ordereddict import OrderedDict
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
 
 
-__all__ = ['LoginPage', 'LoginResultPage', 'AccountsPage', 'TransactionsPage', 'EmptyPage']
-
-
-class LoginPage(BasePage):
+class LoginPage(Page):
     def login(self, login, passwd):
+        try:
+            length = int(self.document.xpath('//input[@id="pass"]')[0].attrib['maxlength'])
+        except (IndexError,KeyError):
+            pass
+        else:
+            passwd = passwd[:length]
+
         self.browser.select_form(name='authen')
         try:
             self.browser['id'] = login.encode(self.browser.ENCODING)
@@ -44,10 +48,11 @@ class LoginPage(BasePage):
         except ControlNotFoundError:
             self.browser.controls.append(ClientForm.TextControl('text', 'id', {'value': login.encode(self.browser.ENCODING)}))
             self.browser.controls.append(ClientForm.TextControl('text', 'pass', {'value': passwd.encode(self.browser.ENCODING)}))
+
         self.browser.submit(nologin=True)
 
 
-class LoginResultPage(BasePage):
+class LoginResultPage(Page):
     def on_loaded(self):
         for script in self.document.xpath('//script'):
             text = script.text
@@ -93,7 +98,6 @@ class LoginResultPage(BasePage):
                 self.browser[tagName] = [value]
             self.browser.submit()
 
-
     def confirm(self):
         self.browser.location('MainAuth?typeDemande=AC', no_login=True)
 
@@ -109,11 +113,11 @@ class LoginResultPage(BasePage):
         return error.text.strip()
 
 
-class EmptyPage(BasePage):
+class EmptyPage(Page):
     pass
 
 
-class BredBasePage(BasePage):
+class BredBasePage(Page):
     def js2args(self, s):
         cur_arg = None
         args = {}
@@ -131,8 +135,6 @@ class BredBasePage(BasePage):
 
 class AccountsPage(BredBasePage):
     def get_list(self):
-        accounts = []
-
         for tr in self.document.xpath('//table[@class="compteTable"]/tr'):
             if not tr.attrib.get('class', '').startswith('ligne_'):
                 continue
@@ -149,26 +151,24 @@ class AccountsPage(BredBasePage):
 
             a = cols[0].find('a')
             if a is None:
-                # this line is a cards line. attach it on the first account.
-                if len(accounts) == 0:
-                    self.logger.warning('There is a card link but no accounts!')
-                    continue
-
                 for a in cols[0].xpath('.//li/a'):
                     args = self.js2args(a.attrib['href'])
-                    if not 'numero_compte' in args or not 'numero_poste' in args:
+                    if 'numero_compte' not in args or 'numero_poste' not in args:
                         self.logger.warning('Card link with strange args: %s' % args)
                         continue
 
-                    accounts[0]._card_links.append('%s.%s' % (args['numero_compte'], args['numero_poste']))
-                    if not accounts[0].coming:
-                        accounts[0].coming = Decimal('0.0')
-                    accounts[0].coming += amount
+                    account = Account()
+                    account.id = '%s.%s' % (args['numero_compte'], args['numero_poste'])
+                    account.label = u'Carte %s' % self.parser.tocleanstring(a)
+                    account.balance = amount
+                    account.type = account.TYPE_CARD
+                    account.currency = [account.get_currency(txt) for txt in cols[-1].itertext() if len(txt.strip()) > 0][0]
+                    yield account
                 continue
 
             args = self.js2args(a.attrib['href'])
 
-            if not 'numero_compte' in args or not 'numero_poste' in args:
+            if 'numero_compte' not in args or 'numero_poste' not in args:
                 self.logger.warning('Account link for %r with strange args: %s' % (a.attrib.get('alt', a.text), args))
                 continue
 
@@ -177,10 +177,7 @@ class AccountsPage(BredBasePage):
             account.label = to_unicode(a.attrib.get('alt', a.text.strip()))
             account.balance = amount
             account.currency = [account.get_currency(txt) for txt in cols[-1].itertext() if len(txt.strip()) > 0][0]
-            account._card_links = []
-            accounts.append(account)
-
-        return accounts
+            yield account
 
 
 class Transaction(FrenchTransaction):
@@ -203,15 +200,8 @@ class Transaction(FrenchTransaction):
                ]
 
 
-class TransactionsPage(BasePage):
-    def get_history(self, is_coming=None):
-        last_debit = None
-        transactions = []
-
-        # check if it's a card page, so by default transactions are not yet debited.
-        if len(self.document.xpath('//div[@class="scrollTbody"]/table//th')) == 6 and is_coming is None:
-            is_coming = True
-
+class TransactionsPage(Page):
+    def get_history(self):
         for tr in self.document.xpath('//div[@class="scrollTbody"]/table//tr'):
             cols = tr.findall('td')
 
@@ -224,12 +214,6 @@ class TransactionsPage(BasePage):
 
             date = self.parser.tocleanstring(cols[0])
             label = self.parser.tocleanstring(col_label)
-
-            # always strip card debits transactions. if we are on a card page, all next
-            # transactions will be probably already debited.
-            if label.startswith('DEBIT MENSUEL '):
-                is_coming = False
-                continue
 
             t = Transaction(col_label.attrib.get('id', ''))
 
@@ -252,23 +236,4 @@ class TransactionsPage(BasePage):
             credit = self.parser.tocleanstring(cols[-1])
             t.set_amount(credit, debit)
 
-            if 'CUMUL DES DEPENSES CARTES BANCAIRES REGLEES' in t.raw:
-                if last_debit is None:
-                    last_debit = t.date
-                continue
-
-            t._is_coming = bool(is_coming)
-
-            # If this is a card, get the right debit date (rdate is already set
-            # with the operation date with t.parse())
-            if is_coming is not None:
-                t.date = t.parse_date(self.parser.tocleanstring(cols[-3]))
-
-            transactions.append(t)
-
-        if last_debit is not None and is_coming is True:
-            for tr in transactions:
-                if tr.date <= last_debit.replace(day=1):
-                    tr._is_coming = False
-
-        return iter(transactions)
+            yield t

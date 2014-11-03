@@ -22,26 +22,20 @@ from urlparse import parse_qs, urlsplit
 
 from weboob.capabilities.torrent import Torrent
 from weboob.capabilities.base import NotAvailable, NotLoaded
-from weboob.tools.browser import BasePage
+from weboob.deprecated.browser import Page
 from weboob.tools.misc import get_bytes_size
 
 
-__all__ = ['TorrentsPage', 'TorrentPage']
-
-
-class TorrentsPage(BasePage):
+class TorrentsPage(Page):
     def iter_torrents(self):
         for tr in self.document.getiterator('tr'):
             if tr.attrib.get('class', '') == 'odd' or tr.attrib.get('class', '') == ' even':
                 magnet = NotAvailable
                 url = NotAvailable
-                if not 'id' in tr.attrib:
+                if 'id' not in tr.attrib:
                     continue
-                title = tr.find('.//a[@class="cellMainLink"]')
-                if title is None:
-                    title = u''
-                else:
-                    title = unicode(title.text)
+                title = self.parser.tocleanstring(tr.find('.//a[@class="cellMainLink"]'))
+                # WTF is that?
                 for red in tr.getchildren()[0].getchildren()[1].getchildren()[1].getchildren():
                     title += red.text_content()
                 idt = tr.getchildren()[0].getchildren()[1].getchildren()[1].attrib.get('href', '').replace('/', '') \
@@ -76,7 +70,7 @@ class TorrentsPage(BasePage):
                 yield torrent
 
 
-class TorrentPage(BasePage):
+class TorrentPage(Page):
     def get_torrent(self, id):
         seed = 0
         leech = 0

@@ -24,11 +24,8 @@ from weboob.tools.test import BackendTest
 from .browser import DLFP
 
 
-__all__ = ['DLFPTest']
-
-
 class DLFPTest(BackendTest):
-    BACKEND = 'dlfp'
+    MODULE = 'dlfp'
 
     def __init__(self, *args, **kwargs):
         DLFP.DOMAIN = 'alpha.linuxfr.org'

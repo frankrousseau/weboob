@@ -1,3 +1,3 @@
-from .backend import NectarineBackend
+from .module import NectarineModule
 
-__all__ = ['NectarineBackend']
+__all__ = ['NectarineModule']

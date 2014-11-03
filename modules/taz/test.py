@@ -21,11 +21,8 @@
 from weboob.tools.test import BackendTest
 
 
-__all__ = ['TazTest']
-
-
 class TazTest(BackendTest):
-    BACKEND = 'taz'
+    MODULE = 'taz'
 
     def test_new_messages(self):
         for message in self.backend.iter_unread_messages():

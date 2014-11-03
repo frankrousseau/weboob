@@ -18,7 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from .backend import ParisKiwiBackend
+from .module import ParisKiwiModule
 
 
-__all__ = ['ParisKiwiBackend']
+__all__ = ['ParisKiwiModule']

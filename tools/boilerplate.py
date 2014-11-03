@@ -18,6 +18,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
+
 import argparse
 import subprocess
 import datetime
@@ -33,7 +35,7 @@ MODULE_PATH = os.getenv(
 TEMPLATE_PATH = os.getenv(
     'TEMPLATE_PATH',
     os.path.realpath(os.path.join(os.path.dirname(__file__), 'boilerplate_data')))
-VERSION = '0.j'
+VERSION = '1.1'
 
 TEMPLATES = TemplateLookup(directories=[TEMPLATE_PATH])
 
@@ -50,18 +52,18 @@ def write(target, contents):
     if not os.path.isdir(os.path.dirname(target)):
         os.makedirs(os.path.dirname(target))
     if os.path.exists(target):
-        print >>sys.stderr, "%s already exists." % target
+        print("%s already exists." % target, file=sys.stderr)
         sys.exit(4)
     with codecs.open(target, mode='w', encoding='utf-8') as f:
         f.write(contents)
-    print 'Created %s' % target
+    print('Created %s' % target)
 
 
 class Recipe(object):
     @classmethod
     def configure_subparser(cls, subparsers):
         subparser = subparsers.add_parser(cls.NAME)
-        subparser.add_argument('name', help='Backend name')
+        subparser.add_argument('name', help='Module name')
         subparser.set_defaults(recipe=cls)
         return subparser
 
@@ -94,7 +96,7 @@ class BaseRecipe(Recipe):
 
     def generate(self):
         self.write('__init__.py', self.template('init'))
-        self.write('backend.py', self.template('base_backend'))
+        self.write('module.py', self.template('base_module'))
         self.write('browser.py', self.template('base_browser'))
         self.write('pages.py', self.template('base_pages'))
         self.write('test.py', self.template('base_test'))
@@ -156,7 +158,7 @@ class CapRecipe(Recipe):
         self.error('Capability %r not found' % self.capname)
 
     def error(self, message):
-        print >>sys.stderr, message
+        print(message, file=sys.stderr)
         sys.exit(1)
 
     def methods_code(self, klass):
@@ -193,7 +195,7 @@ class CapRecipe(Recipe):
         self.methods_code = self.methods_code(cap)
 
         self.write('__init__.py', self.template('init'))
-        self.write('backend.py', self.template('cap_backend'))
+        self.write('module.py', self.template('cap_module'))
         self.write('browser.py', self.template('base_browser'))
         self.write('pages.py', self.template('base_pages'))
         self.write('test.py', self.template('base_test'))
@@ -204,7 +206,7 @@ class ComicRecipe(Recipe):
 
     def generate(self):
         self.write('__init__.py', self.template('init'))
-        self.write('backend.py', self.template('comic_backend'))
+        self.write('module.py', self.template('comic_module'))
 
 
 class ComicTestRecipe(Recipe):

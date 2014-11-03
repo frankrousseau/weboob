@@ -18,12 +18,11 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-
 import urllib
 import mechanize
 from datetime import datetime
 
-from weboob.tools.browser import BaseBrowser, BrowserIncorrectPassword, BrowserPasswordExpired
+from weboob.deprecated.browser import Browser, BrowserIncorrectPassword, BrowserPasswordExpired
 from weboob.capabilities.bank import TransferError, Transfer
 
 from .perso.accounts_list import AccountsList, AccountPrelevement
@@ -35,7 +34,7 @@ from .perso.messages import MessagePage, MessagesPage
 __all__ = ['HelloBank']
 
 
-class HelloBank(BaseBrowser):
+class HelloBank(Browser):
     DOMAIN = 'client.hellobank.fr'
     PROTOCOL = 'https'
     ENCODING = None  # refer to the HTML encoding
@@ -55,7 +54,7 @@ class HelloBank(BaseBrowser):
             }
 
     def __init__(self, *args, **kwargs):
-        BaseBrowser.__init__(self, *args, **kwargs)
+        Browser.__init__(self, *args, **kwargs)
 
     def home(self):
         self.location('https://client.hellobank.fr/banque/portail/digitale/HomeConnexion?type=homeconnex')
@@ -85,7 +84,7 @@ class HelloBank(BaseBrowser):
 
         accounts = self.page.get_accounts()
         if len(accounts) == 0:
-            print 'no accounts'
+            self.logger.warning('no accounts')
             # oops, no accounts? check if we have not exhausted the allowed use
             # of this password
             for img in self.document.getroot().cssselect('img[align="middle"]'):

@@ -17,8 +17,8 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
+from __future__ import print_function
 
-import sys
 import os
 import datetime
 import hashlib
@@ -27,6 +27,7 @@ from tempfile import NamedTemporaryFile
 from lxml import etree
 
 from weboob.core import CallErrors
+from weboob.capabilities.base import empty
 from weboob.capabilities.messages import CapMessages, Message, Thread
 from weboob.capabilities.account import CapAccount
 from weboob.capabilities.contact import CapContact
@@ -234,8 +235,8 @@ class ProfileFormatter(IFormatter):
 
 class Boobmsg(ReplApplication):
     APPNAME = 'boobmsg'
-    VERSION = '0.j'
-    COPYRIGHT = 'Copyright(C) 2010-2011 Christophe Benz'
+    VERSION = '1.1'
+    COPYRIGHT = 'Copyright(C) 2010-YEAR Christophe Benz'
     DESCRIPTION = "Console application allowing to send messages on various websites and " \
                   "to display message threads and contents."
     SHORT_DESCRIPTION = "send and receive message threads"
@@ -280,23 +281,23 @@ class Boobmsg(ReplApplication):
             backend_name = None
 
         results = {}
-        for backend, field in self.do('get_account_status',
-                                      backends=backend_name,
-                                      caps=CapAccount):
-            if backend.name in results:
-                results[backend.name].append(field)
+        for field in self.do('get_account_status',
+                             backends=backend_name,
+                             caps=CapAccount):
+            if field.backend in results:
+                results[field.backend].append(field)
             else:
-                results[backend.name] = [field]
+                results[field.backend] = [field]
 
         for name, fields in results.iteritems():
-            print ':: %s ::' % name
+            print(':: %s ::' % name)
             for f in fields:
                 if f.flags & f.FIELD_HTML:
                     value = html2text(f.value)
                 else:
                     value = f.value
-                print '%s: %s' % (f.label, value)
-            print ''
+                print('%s: %s' % (f.label, value))
+            print('')
 
     def do_post(self, line):
         """
@@ -348,7 +349,7 @@ class Boobmsg(ReplApplication):
                 self.bcall_errors_handler(errors)
             else:
                 if self.interactive:
-                    print 'Message sent sucessfully to %s' % receiver
+                    print('Message sent sucessfully to %s' % receiver)
 
     threads = []
     messages = []
@@ -378,7 +379,7 @@ class Boobmsg(ReplApplication):
             self.formatter._list_messages = False
 
         self.start_format()
-        for backend, thread in cmd:
+        for thread in cmd:
             if not thread:
                 continue
             if len(arg) > 0:
@@ -406,7 +407,7 @@ class Boobmsg(ReplApplication):
                     yield msg
 
         self.start_format()
-        for backend, msg in self.do(func):
+        for msg in self.do(func):
             self.format(msg)
 
     def do_export_thread(self, arg):
@@ -418,8 +419,8 @@ class Boobmsg(ReplApplication):
         _id, backend_name = self.parse_id(arg)
         cmd = self.do('get_thread', _id, backends=backend_name)
         self.start_format()
-        for backend, thread in cmd:
-            if thread is not None :
+        for thread in cmd:
+            if thread is not None:
                 for msg in thread.iter_all_messages():
                     self.format(msg)
 
@@ -431,24 +432,35 @@ class Boobmsg(ReplApplication):
         """
         message = None
         if len(arg) == 0:
-            print >>sys.stderr, 'Please give a message ID.'
+            print('Please give a message ID.', file=self.stderr)
             return 2
 
         try:
             message = self.messages[int(arg) - 1]
         except (IndexError, ValueError):
-            id, backend_name = self.parse_id(arg)
-            cmd = self.do('get_thread', id, backends=backend_name)
-            for backend, thread in cmd:
-                if thread is not None:
+            # The message is not is the cache, we have now two cases:
+            # 1) the user uses a number to get a thread in the cache
+            # 2) the user gives a thread id
+            try:
+                thread = self.threads[int(arg) - 1]
+                if not empty(thread.root):
                     message = thread.root
+                else:
+                    for thread in self.do('get_thread', thread.id, backends=thread.backend):
+                        if thread is not None:
+                            message = thread.root
+            except (IndexError, ValueError):
+                _id, backend_name = self.parse_id(arg)
+                for thread in self.do('get_thread', _id, backends=backend_name):
+                    if thread is not None:
+                        message = thread.root
         if message is not None:
             self.start_format()
             self.format(message)
             self.weboob.do('set_message_read', message, backends=message.backend)
             return
         else:
-            print >>sys.stderr,  'Message not found'
+            print('Message not found', file=self.stderr)
             return 3
 
     def do_profile(self, id):
@@ -460,7 +472,7 @@ class Boobmsg(ReplApplication):
         _id, backend_name = self.parse_id(id, unique_backend=True)
 
         found = 0
-        for backend, contact in self.do('get_contact', _id, backends=backend_name, caps=CapContact):
+        for contact in self.do('get_contact', _id, backends=backend_name, caps=CapContact):
             if contact:
                 self.format(contact)
                 found = 1
@@ -476,13 +488,13 @@ class Boobmsg(ReplApplication):
         """
         photo_cmd = self.config.get('photo_viewer')
         if photo_cmd is None:
-            print >>sys.stderr, "Configuration error: photo_viewer is undefined"
+            print("Configuration error: photo_viewer is undefined", file=self.stderr)
             return
 
         _id, backend_name = self.parse_id(id, unique_backend=True)
 
         found = 0
-        for backend, contact in self.do('get_contact', _id, backends=backend_name):
+        for contact in self.do('get_contact', _id, backends=backend_name):
             if contact:
                 # Write photo to temporary files
                 tmp_files = []
@@ -492,7 +504,7 @@ class Boobmsg(ReplApplication):
                         suffix = '.%s' % photo.url.split('/')[-1].split('.')[-1]
                     f = NamedTemporaryFile(suffix=suffix)
 
-                    photo = backend.fillobj(photo, 'data')
+                    photo = self.weboob[contact.backend].fillobj(photo, 'data')
                     f.write(photo.data)
                     tmp_files.append(f)
                 os.system(photo_cmd % ' '.join([file.name for file in tmp_files]))

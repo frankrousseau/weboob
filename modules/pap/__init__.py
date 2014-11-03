@@ -1,3 +1,3 @@
-from .backend import PapBackend
+from .module import PapModule
 
-__all__ = ['PapBackend']
+__all__ = ['PapModule']

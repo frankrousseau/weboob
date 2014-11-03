@@ -27,10 +27,11 @@ from decimal import Decimal
 import re
 from dateutil.relativedelta import relativedelta
 
-from weboob.tools.browser2.page import HTMLPage, method, FormNotFound, LoggedPage
-from weboob.tools.browser2.elements import ListElement, ItemElement, SkipItem
-from weboob.tools.browser2.filters import Filter, Env, CleanText, CleanDecimal, Link, Field, TableCell
-from weboob.tools.exceptions import  BrowserIncorrectPassword
+from weboob.browser.pages import HTMLPage, FormNotFound, LoggedPage
+from weboob.browser.elements import ListElement, ItemElement, SkipItem, method
+from weboob.browser.filters.standard import Filter, Env, CleanText, CleanDecimal, Field, TableCell
+from weboob.browser.filters.html import Link
+from weboob.exceptions import BrowserIncorrectPassword
 from weboob.capabilities import NotAvailable
 from weboob.capabilities.bank import Account
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
@@ -52,12 +53,15 @@ class LoginErrorPage(HTMLPage):
 class EmptyPage(LoggedPage, HTMLPage):
     pass
 
+
 class UserSpacePage(LoggedPage, HTMLPage):
     pass
+
 
 class ChangePasswordPage(LoggedPage, HTMLPage):
     def on_load(self):
         raise BrowserIncorrectPassword('Please change your password')
+
 
 class VerifCodePage(LoggedPage, HTMLPage):
     def on_load(self):
@@ -120,7 +124,7 @@ class AccountsPage(LoggedPage, HTMLPage):
 
                 url = urlparse(link)
                 p = parse_qs(url.query)
-                if not 'rib' in p:
+                if 'rib' not in p:
                     raise SkipItem()
 
                 balance = CleanDecimal('./td[2] | ./td[3]', replace_dots=True)(self)
@@ -160,8 +164,8 @@ class Transaction(FrenchTransaction):
                 (re.compile('^RETRAIT DAB (?P<dd>\d{2})(?P<mm>\d{2}) (?P<text>.*) CARTE [\*\d]+'),
                                                           FrenchTransaction.TYPE_WITHDRAWAL),
                 (re.compile('^CHEQUE( (?P<text>.*))?$'),  FrenchTransaction.TYPE_CHECK),
-                (re.compile('^(F )?COTIS\.? (?P<text>.*)'),FrenchTransaction.TYPE_BANK),
-                (re.compile('^(REMISE|REM CHQ) (?P<text>.*)'),FrenchTransaction.TYPE_DEPOSIT),
+                (re.compile('^(F )?COTIS\.? (?P<text>.*)'), FrenchTransaction.TYPE_BANK),
+                (re.compile('^(REMISE|REM CHQ) (?P<text>.*)'), FrenchTransaction.TYPE_DEPOSIT),
                ]
 
     _is_coming = False

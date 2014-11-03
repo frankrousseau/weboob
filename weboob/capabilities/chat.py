@@ -20,7 +20,7 @@
 
 import datetime
 
-from .base import CapBase, BaseObject, StringField, UserError
+from .base import Capability, BaseObject, StringField, UserError
 from .date import DateField
 
 
@@ -53,10 +53,11 @@ class ChatMessage(BaseObject):
             self.date = datetime.datetime.utcnow()
 
 
-class CapChat(CapBase):
+class CapChat(Capability):
     """
     Websites with a chat system.
     """
+
     def iter_chat_messages(self, _id=None):
         """
         Iter messages.

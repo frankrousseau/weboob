@@ -18,7 +18,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
-from weboob.tools.browser import BrokenPageError
+from weboob.deprecated.browser import BrokenPageError
 from weboob.tools.capabilities.messages.genericArticle import GenericNewsPage, try_remove, \
                                         try_remove_from_selector_list, \
                                         drop_comments, NoneMainDiv
@@ -26,6 +26,7 @@ from weboob.tools.capabilities.messages.genericArticle import GenericNewsPage, t
 
 class ArticlePage(GenericNewsPage):
     "ArticlePage object for inrocks"
+
     def on_loaded(self):
         self.main_div = self.document.getroot()
         self.element_title_selector = "h1"

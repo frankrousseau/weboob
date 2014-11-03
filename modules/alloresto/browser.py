@@ -18,8 +18,8 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 
-from weboob.tools.browser2 import LoginBrowser, URL, need_login
-from weboob.tools.exceptions import BrowserIncorrectPassword
+from weboob.browser import LoginBrowser, URL, need_login
+from weboob.exceptions import BrowserIncorrectPassword
 
 from .pages import LoginPage, AccountsPage
 
@@ -28,7 +28,7 @@ __all__ = ['AlloRestoBrowser']
 
 
 class AlloRestoBrowser(LoginBrowser):
-    BASEURL = 'http://www.alloresto.fr'
+    BASEURL = 'https://www.alloresto.fr'
 
     login =     URL('/identification-requise.*',        LoginPage)
     accounts =  URL('/chez-moi/releve-compte-miams',    AccountsPage)

@@ -27,17 +27,18 @@ from weboob.capabilities import NotAvailable, NotLoaded
 from weboob.tools.misc import to_unicode
 from weboob.tools.log import getLogger
 
-from weboob.tools.exceptions import ParseError
-from weboob.tools.browser2.elements import TableElement, ItemElement
-from weboob.tools.browser2.filters import Filter, CleanText, CleanDecimal, TableCell
+from weboob.exceptions import ParseError
+from weboob.browser.elements import TableElement, ItemElement
+from weboob.browser.filters.standard import Filter, CleanText, CleanDecimal, TableCell
 
 
-__all__ = ['FrenchTransaction']
+__all__ = ['FrenchTransaction', 'AmericanTransaction']
 
 
 class classproperty(object):
     def __init__(self, f):
         self.f = f
+
     def __get__(self, obj, owner):
         return self.f(owner)
 
@@ -103,11 +104,12 @@ class FrenchTransaction(Transaction):
         PATTERN class attribute) with a list containing tuples of regexp
         and the associated type, for example::
 
-        >>> PATTERNS = [(re.compile('^VIR(EMENT)? (?P<text>.*)'), FrenchTransaction.TYPE_TRANSFER),
-        ...             (re.compile('^PRLV (?P<text>.*)'),        FrenchTransaction.TYPE_ORDER),
-        ...             (re.compile('^(?P<text>.*) CARTE \d+ PAIEMENT CB (?P<dd>\d{2})(?P<mm>\d{2}) ?(.*)$'),
-        ...                                                       FrenchTransaction.TYPE_CARD)
-        ...            ]
+            PATTERNS = [(re.compile(r'^VIR(EMENT)? (?P<text>.*)'), FrenchTransaction.TYPE_TRANSFER),
+                        (re.compile(r'^PRLV (?P<text>.*)'),        FrenchTransaction.TYPE_ORDER),
+                        (re.compile(r'^(?P<text>.*) CARTE \d+ PAIEMENT CB (?P<dd>\d{2})(?P<mm>\d{2}) ?(.*)$'),
+                                                                   FrenchTransaction.TYPE_CARD)
+                       ]
+
 
         In regexps, you can define this patterns:
 
@@ -122,7 +124,7 @@ class FrenchTransaction(Transaction):
         self.category = NotAvailable
 
         if '  ' in self.raw:
-            self.category, useless, self.label = [part.strip() for part in self.raw.partition('  ')]
+            self.category, _, self.label = [part.strip() for part in self.raw.partition('  ')]
         else:
             self.label = self.raw
 
@@ -224,6 +226,7 @@ class FrenchTransaction(Transaction):
     @classmethod
     def Raw(klass, *args, **kwargs):
         patterns = klass.PATTERNS
+
         class Filter(CleanText):
             def __call__(self, item):
                 raw = super(Filter, self).__call__(item)
@@ -285,6 +288,7 @@ class FrenchTransaction(Transaction):
                         break
 
                 return raw
+
             def filter(self, text):
                 text = super(Filter, self).filter(text)
                 return to_unicode(text.replace(u'\n', u' ').strip())
@@ -315,3 +319,40 @@ class FrenchTransaction(Transaction):
                     pass
 
             return Decimal('0')
+
+
+class AmericanTransaction(Transaction):
+    """
+    Transaction with some helpers for american bank websites.
+    """
+    @classmethod
+    def clean_amount(klass, text):
+        """
+        Clean a string containing an amount.
+        """
+        # Convert "American" UUU.CC format to "French" UUU,CC format
+        if re.search(r'\d\.\d\d(?: [A-Z]+)?$', text):
+            text = text.replace(',', ' ').replace('.', ',')
+        return FrenchTransaction.clean_amount(text)
+
+    @classmethod
+    def decimal_amount(klass, text):
+        """
+        Convert a string containing an amount to Decimal.
+        """
+        amnt = AmericanTransaction.clean_amount(text)
+        return Decimal(amnt) if amnt else Decimal('0')
+
+
+def test():
+    clean_amount = AmericanTransaction.clean_amount
+    assert clean_amount('42') == '42'
+    assert clean_amount('42,12') == '42.12'
+    assert clean_amount('42.12') == '42.12'
+    assert clean_amount('$42.12 USD') == '42.12'
+    assert clean_amount('$12.442,12 USD') == '12442.12'
+    assert clean_amount('$12,442.12 USD') == '12442.12'
+
+    decimal_amount = AmericanTransaction.decimal_amount
+    assert decimal_amount('$12,442.12 USD') == Decimal('12442.12')
+    assert decimal_amount('') == Decimal('0')
