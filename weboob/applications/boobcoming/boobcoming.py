@@ -24,7 +24,7 @@ from datetime import time, datetime
 from weboob.tools.date import parse_date
 from weboob.tools.application.formatters.iformatter import IFormatter, PrettyFormatter
 from weboob.capabilities.base import empty
-from weboob.capabilities.calendar import CapCalendarEvent, Query, CATEGORIES, BaseCalendarEvent
+from weboob.capabilities.calendar import CapCalendarEvent, Query, CATEGORIES, BaseCalendarEvent, TICKET
 from weboob.tools.application.repl import ReplApplication, defaultcount
 
 
@@ -35,7 +35,11 @@ class UpcomingSimpleFormatter(IFormatter):
     MANDATORY_FIELDS = ('id', 'start_date', 'category', 'summary')
 
     def format_obj(self, obj, alias):
-        return u'%s - %s - %s - %s' % (obj.backend, obj.category, obj.start_date.strftime('%H:%M'), obj.summary)
+        result = u'%s - %s' % (obj.backend, obj.category)
+        if not empty(obj.start_date):
+            result += u' - %s' % obj.start_date.strftime('%H:%M')
+        result += u' - %s' % obj.summary
+        return result
 
 
 class ICalFormatter(IFormatter):
@@ -49,8 +53,13 @@ class ICalFormatter(IFormatter):
 
     def format_obj(self, obj, alias):
         result = u'BEGIN:VEVENT\n'
-        result += u'DTSTART:%s\n' % obj.start_date.strftime("%Y%m%dT%H%M%SZ")
-        result += u'DTEND:%s\n' % obj.end_date.strftime("%Y%m%dT%H%M%SZ")
+
+        start_date = obj.start_date if not empty(obj.start_date) else datetime.now()
+        result += u'DTSTART:%s\n' % start_date.strftime("%Y%m%dT%H%M%SZ")
+
+        end_date = obj.end_date if not empty(obj.end_date) else datetime.combine(start_date, time.max)
+        result += u'DTEND:%s\n' % end_date.strftime("%Y%m%dT%H%M%SZ")
+
         result += u'SUMMARY:%s\n' % obj.summary
         result += u'UID:%s\n' % obj.id
         result += u'STATUS:%s\n' % obj.status
@@ -96,8 +105,12 @@ class UpcomingListFormatter(PrettyFormatter):
 
     def get_description(self, obj):
         result = u''
-        result += u'\tDate: %s\n' % obj.start_date.strftime('%A %d %B %Y')
-        result += u'\tHour: %s - %s \n' % (obj.start_date.strftime('%H:%M'), obj.end_date.strftime('%H:%M'))
+        if not empty(obj.start_date):
+            result += u'\tDate: %s\n' % obj.start_date.strftime('%A %d %B %Y')
+            result += u'\tHour: %s' % obj.start_date.strftime('%H:%M')
+            if not empty(obj.end_date):
+                result += ' - %s' % obj.end_date.strftime('%H:%M')
+            result += '\n'
         return result.strip('\n\t')
 
 
@@ -106,8 +119,12 @@ class UpcomingFormatter(IFormatter):
 
     def format_obj(self, obj, alias):
         result = u'%s%s - %s%s\n' % (self.BOLD, obj.category, obj.summary, self.NC)
-        result += u'Date: %s\n' % obj.start_date.strftime('%A %d %B %Y')
-        result += u'Hour: %s - %s\n' % (obj.start_date.strftime('%H:%M'), obj.end_date.strftime('%H:%M'))
+        if not empty(obj.start_date):
+            result += u'Date: %s\n' % obj.start_date.strftime('%A %d %B %Y')
+            result += u'Hour: %s' % obj.start_date.strftime('%H:%M')
+            if not empty(obj.end_date):
+                result += ' - %s' % obj.end_date.strftime('%H:%M')
+            result += '\n'
 
         if hasattr(obj, 'location') and not empty(obj.location):
             result += u'Location: %s\n' % obj.location
@@ -131,6 +148,9 @@ class UpcomingFormatter(IFormatter):
 
         if hasattr(obj, 'price') and not empty(obj.price):
             result += u'Price: %i\n' % obj.price
+
+        if hasattr(obj, 'ticket') and not empty(obj.ticket):
+            result += u'Ticket: %s\n' % obj.ticket
 
         if hasattr(obj, 'url') and not empty(obj.url):
             result += u'url: %s\n' % obj.url
@@ -168,6 +188,29 @@ class Boobcoming(ReplApplication):
             return super(Boobcoming, self).comp_object(obj1, obj2)
 
 
+    def select_values(self, values_from, values_to, query_str):
+        r = 'notempty'
+        while r != '':
+            for value in values_from.values:
+                print('  %s%2d)%s [%s] %s' % (self.BOLD,
+                                              values_from.index[value] + 1,
+                                              self.NC,
+                                              'x' if value in values_to else ' ',
+                                              value))
+            r = self.ask(query_str, regexp='(\d+|)', default='')
+
+            if not r.isdigit():
+                continue
+            r = int(r)
+            if r <= 0 or r > len(values_from.values):
+                continue
+            value = values_from.values[r - 1]
+            if value in values_to:
+                values_to.remove(value)
+            else:
+                values_to.append(value)
+
+
     @defaultcount(10)
     def do_search(self, line):
         """
@@ -175,29 +218,13 @@ class Boobcoming(ReplApplication):
 
         search for an event. Parameters interactively asked
         """
-
         query = Query()
-        r = 'notempty'
-        while r != '':
-            for category in CATEGORIES.values:
-                print('  %s%2d)%s [%s] %s' % (self.BOLD,
-                                              CATEGORIES.index[category] + 1,
-                                              self.NC,
-                                              'x' if category in query.categories else ' ', category))
-            r = self.ask('  Select category (or empty to stop)', regexp='(\d+|)', default='')
-            if not r.isdigit():
-                continue
-            r = int(r)
-            if r <= 0 or r > len(CATEGORIES.values):
-                continue
-            value = CATEGORIES.values[r - 1]
-            if value in query.categories:
-                query.categories.remove(value)
-            else:
-                query.categories.append(value)
+        self.select_values(CATEGORIES, query.categories, '  Select categorie (or empty to stop)')
+        self.select_values(TICKET, query.ticket, '  Select tickets status (or empty to stop)')
 
-        if query.categories and len(query.categories) > 0:
+        if query.categories and len(query.categories) > 0 and query.ticket and len(query.ticket) > 0:
             query.city = self.ask('Enter a city', default='')
+            query.summary = self.ask('Enter a title', default='')
 
             start_date = self.ask_date('Enter a start date', default='today')
             end_date = self.ask_date('Enter a end date', default='')
@@ -337,7 +364,8 @@ class Boobcoming(ReplApplication):
 
         l = self.retrieve_events(args[0])
         for event in l:
-            self.do('attends_event', event, True)
+            # we wait till the work be done, else the errors are not handled
+            self.do('attends_event', event, True).wait()
 
     def do_unattends(self, line):
         """

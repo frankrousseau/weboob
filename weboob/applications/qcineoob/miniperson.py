@@ -20,7 +20,7 @@
 import urllib
 
 from PyQt4.QtGui import QFrame, QImage, QPixmap, QApplication
-from PyQt4.QtCore import Qt
+from PyQt4.QtCore import Qt, SIGNAL
 
 from weboob.applications.qcineoob.ui.miniperson_ui import Ui_MiniPerson
 from weboob.capabilities.base import empty, NotAvailable
@@ -46,6 +46,10 @@ class MiniPerson(QFrame):
             self.ui.shortDescLabel.hide()
         self.ui.backendLabel.setText(backend.name)
 
+        self.connect(self.ui.newTabButton, SIGNAL("clicked()"), self.newTabPressed)
+        self.connect(self.ui.viewButton, SIGNAL("clicked()"), self.viewPressed)
+        self.connect(self.ui.viewThumbnailButton, SIGNAL("clicked()"), self.gotThumbnail)
+
         if self.parent.parent.ui.showTCheck.isChecked():
             self.gotThumbnail()
 
@@ -56,6 +60,18 @@ class MiniPerson(QFrame):
             data = urllib.urlopen(self.person.thumbnail_url).read()
             img = QImage.fromData(data)
             self.ui.imageLabel.setPixmap(QPixmap.fromImage(img).scaledToHeight(100,Qt.SmoothTransformation))
+
+    def viewPressed(self):
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+        person = self.backend.get_person(self.person.id)
+        if person:
+            self.parent.doAction(u'Details of person "%s"' %
+                                 person.name, self.parent.displayPerson, [person, self.backend])
+
+    def newTabPressed(self):
+        person = self.backend.get_person(self.person.id)
+        self.parent.parent.newTab(u'Details of person "%s"' %
+             person.name, self.backend, person=person)
 
     def enterEvent(self, event):
         self.setFrameShadow(self.Sunken)
@@ -70,13 +86,7 @@ class MiniPerson(QFrame):
 
         if event.button() == 2:
             self.gotThumbnail()
-        if event.button() == 4:
-            person = self.backend.get_person(self.person.id)
-            self.parent.parent.newTab(u'Details of person "%s"' %
-                 person.name, self.backend, person=person)
+        elif event.button() == 4:
+            self.newTabPressed()
         else:
-            QApplication.setOverrideCursor(Qt.WaitCursor)
-            person = self.backend.get_person(self.person.id)
-            if person:
-                self.parent.doAction(u'Details of person "%s"' %
-                                     person.name, self.parent.displayPerson, [person, self.backend])
+            self.viewPressed()

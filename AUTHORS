@@ -107,6 +107,9 @@ Arno Renevier <arno@renevier.net>
 Jocelyn Jaubert <jocelyn.jaubert@gmail.com>
         * SocieteGenerale module maintainer.
 
+Alexandre Morignot <erdnaxeli@cervoi.se>
+        * residentadivsor module maintainer.
+
 Johann Broudin <johann.broudin@6-8.fr>
         * CMB module maintainer.
 
@@ -137,6 +140,9 @@ Clément Calmels <cboulte@gmail.com>
 
 Gabriel Serme <gabriel@serme.net>
         * Support of two-factor authentication for Boursorama.
+
+Baptiste Delpey <bdelpey@budget-insight.com>
+        * Fixes on bank modules.
 
 Jean-Philippe Dutrève <jdutreve@winancial.com>
         * Fixes on bank modules.
@@ -213,6 +219,9 @@ Camille Baldock <camille.baldock@student.ecp.fr>
 Alexandre Franke <alexandre.franke@gmail.com>
         * Contribution to boobank.
 
+Loic Bontonou <lobotomi51@gmail.com>
+        * Fix on arretsurimages module.
+
 Olivier Schwander <olivier.schwander@ens-lyon.org>
         * Fix XDG support.
 
@@ -242,6 +251,9 @@ Laurent George <setog3@gmail.com>
 
 Romain Garbage <romain.garbage@gmail.com>
         * Fixes for FreeBSD.
+
+Pierre-Louis Bonicoli <pierre-louis.bonicoli@gmx.fr>
+        * Fix on bash completion script.
 
 Philippe Fremy <phil@freehackers.org>
         * Fixes for Windows.
@@ -274,7 +286,10 @@ Camille Dehecq <camille@dehecq.fr>
 Samuel Loury <samuel.loury@cosmo-platform.org>
         * Fix on the documentation
 
-Leven Julia <julia.leven@etudiant.univ-lille1.fr>
+Edmond Van Overtveldt
+Julia Leven
+Jérémy Bossut
+Valentin Lefils
         * Tests for the browser
 
 

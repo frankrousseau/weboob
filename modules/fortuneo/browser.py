@@ -47,6 +47,7 @@ class Fortuneo(Browser):
             '.*/prive/mes-comptes/compte-courant/consulter-situation/consulter-solde\.jsp.*' :  AccountHistoryPage,
             '.*/prive/mes-comptes/compte-titres-.*':                                            InvestmentHistoryPage,
             '.*/prive/mes-comptes/assurance-vie.*':                                             InvestmentHistoryPage,
+            '.*/prive/mes-comptes/pea.*':                                                       InvestmentHistoryPage,
             }
 
     def __init__(self, *args, **kwargs):
@@ -82,6 +83,11 @@ class Fortuneo(Browser):
 
         if self.is_on_page(AccountsList) and self.page.need_reload():
             self.location('/ReloadContext?action=1&')
+
+    def get_investments(self, account):
+        self.location(account._link_id)
+
+        return self.page.get_investments()
 
     def get_history(self, account):
         self.location(account._link_id)

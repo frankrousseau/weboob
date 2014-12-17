@@ -18,6 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt4.QtGui import QFrame
+from PyQt4.QtCore import SIGNAL
 
 from weboob.applications.qcineoob.ui.minitorrent_ui import Ui_MiniTorrent
 from weboob.applications.weboorrents.weboorrents import sizeof_fmt
@@ -41,6 +42,20 @@ class MiniTorrent(QFrame):
             self.ui.sizeLabel.setText(u'%s' % sizeof_fmt(torrent.size))
         self.ui.backendLabel.setText(backend.name)
 
+        self.connect(self.ui.newTabButton, SIGNAL("clicked()"), self.newTabPressed)
+        self.connect(self.ui.viewButton, SIGNAL("clicked()"), self.viewPressed)
+
+    def viewPressed(self):
+        torrent = self.backend.get_torrent(self.torrent.id)
+        if torrent:
+            self.parent.doAction('Details of torrent "%s"' %
+                                 torrent.name, self.parent.displayTorrent, [torrent, self.backend])
+
+    def newTabPressed(self):
+        torrent = self.backend.get_torrent(self.torrent.id)
+        self.parent.parent.newTab(u'Details of torrent "%s"' %
+             torrent.name, self.backend, torrent=torrent)
+
     def enterEvent(self, event):
         self.setFrameShadow(self.Sunken)
         QFrame.enterEvent(self, event)
@@ -52,11 +67,7 @@ class MiniTorrent(QFrame):
     def mousePressEvent(self, event):
         QFrame.mousePressEvent(self, event)
 
-        torrent = self.backend.get_torrent(self.torrent.id)
         if event.button() == 4:
-            self.parent.parent.newTab(u'Details of torrent "%s"' %
-                 torrent.name, self.backend, torrent=torrent)
+            self.newTabPressed()
         else:
-            if torrent:
-                self.parent.doAction('Details of torrent "%s"' %
-                                     torrent.name, self.parent.displayTorrent, [torrent, self.backend])
+            self.viewPressed()

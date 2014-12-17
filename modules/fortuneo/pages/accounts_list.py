@@ -23,7 +23,7 @@ from decimal import Decimal
 import re
 from time import sleep
 
-from weboob.capabilities.bank import Account
+from weboob.capabilities.bank import Account, Investment
 from weboob.deprecated.browser import Page, BrowserIncorrectPassword
 from weboob.capabilities import NotAvailable
 from weboob.tools.capabilities.bank.transactions import FrenchTransaction
@@ -50,10 +50,44 @@ class Transaction(FrenchTransaction):
                ]
 
 class InvestmentHistoryPage(Page):
+    COL_LABEL = 0
+    COL_QUANTITY = 1
+    COL_UNITVALUE = 2
+    COL_DATE = 3
+    COL_VALUATION = 4
+    COL_WEIGHT = 5
+    COL_UNITPRICE = 6
+    COL_PERF = 7
+    COL_PERF_PERCENT = 8
+    def get_investments(self):
+        for line in self.document.xpath('//table[@id="tableau_support"]/tbody/tr'):
+            cols = line.findall('td')
+
+            inv = Investment()
+            inv.id = unicode(re.search('cdReferentiel=(.*)', cols[self.COL_LABEL].find('a').attrib['href']).group(1))
+            inv.code = re.match('^[A-Z]+[0-9]+(.*)$', inv.id).group(1)
+            inv.label = self.parser.tocleanstring(cols[self.COL_LABEL])
+            inv.quantity = self.parse_decimal(cols[self.COL_QUANTITY])
+            inv.unitprice = self.parse_decimal(cols[self.COL_UNITPRICE])
+            inv.unitvalue = self.parse_decimal(cols[self.COL_UNITVALUE])
+            inv.valuation = self.parse_decimal(cols[self.COL_VALUATION])
+            inv.diff = self.parse_decimal(cols[self.COL_PERF])
+
+            yield inv
+
+    def parse_decimal(self, string):
+        value = self.parser.tocleanstring(string)
+        if value == '-':
+            return NotAvailable
+        return Decimal(Transaction.clean_amount(value))
+
     def get_operations(self, _id):
-        raise NotImplementedError()
+        return iter([])
 
 class AccountHistoryPage(Page):
+    def get_investments(self):
+        return iter([])
+
     def get_operations(self, _id):
         """history, see http://docs.weboob.org/api/capabilities/bank.html?highlight=transaction#weboob.capabilities.bank.Transaction"""
 
@@ -122,6 +156,10 @@ class AccountsList(Page):
         form = self.document.xpath('//form[@name="InformationsPersonnellesForm"]')
         return len(form) > 0
 
+    ACCOUNT_TYPES = {'mes-comptes/compte-courant':    Account.TYPE_CHECKING,
+                     'mes-comptes/assurance-vie':     Account.TYPE_MARKET,
+                     'mes-comptes/livret':            Account.TYPE_LOAN,
+                    }
     def get_list(self):
         for cpt in self.document.xpath(".//*[@class='synthese_id_compte']"):
             account = Account()
@@ -154,8 +192,11 @@ class AccountsList(Page):
                 account._link_id = url_to_parse
 
             # account.label
-            temp_label = cpt.xpath('./text()')[1].replace(u'-\xa0', '').replace("\n", "").replace("\t", "")
-            account.label = " ".join(temp_label.split(" ")[:2])
+            account.label = cpt.xpath('./text()')[1].replace(u'-\xa0', '').replace("\n", "").replace("\t", "")
+
+            for pattern, type in self.ACCOUNT_TYPES.iteritems():
+                if pattern in account._link_id:
+                    account.type = type
 
             yield account
 

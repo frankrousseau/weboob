@@ -18,6 +18,7 @@
 # along with weboob. If not, see <http://www.gnu.org/licenses/>.
 
 from PyQt4.QtGui import QFrame
+from PyQt4.QtCore import SIGNAL
 
 from weboob.applications.qcineoob.ui.minisubtitle_ui import Ui_MiniSubtitle
 from weboob.capabilities.base import empty
@@ -38,6 +39,20 @@ class MiniSubtitle(QFrame):
             self.ui.nbcdLabel.setText(u'%s' % subtitle.nb_cd)
         self.ui.backendLabel.setText(backend.name)
 
+        self.connect(self.ui.newTabButton, SIGNAL("clicked()"), self.newTabPressed)
+        self.connect(self.ui.viewButton, SIGNAL("clicked()"), self.viewPressed)
+
+    def viewPressed(self):
+        subtitle = self.backend.get_subtitle(self.subtitle.id)
+        if subtitle:
+            self.parent.doAction('Details of subtitle "%s"' %
+                                 subtitle.name, self.parent.displaySubtitle, [subtitle, self.backend])
+
+    def newTabPressed(self):
+        subtitle = self.backend.get_subtitle(self.subtitle.id)
+        self.parent.parent.newTab(u'Details of subtitle "%s"' %
+             subtitle.name, self.backend, subtitle=subtitle)
+
     def enterEvent(self, event):
         self.setFrameShadow(self.Sunken)
         QFrame.enterEvent(self, event)
@@ -49,11 +64,7 @@ class MiniSubtitle(QFrame):
     def mousePressEvent(self, event):
         QFrame.mousePressEvent(self, event)
 
-        subtitle = self.backend.get_subtitle(self.subtitle.id)
         if event.button() == 4:
-            self.parent.parent.newTab(u'Details of subtitle "%s"' %
-                 subtitle.name, self.backend, subtitle=subtitle)
+            self.newTabPressed()
         else:
-            if subtitle:
-                self.parent.doAction('Details of subtitle "%s"' %
-                                     subtitle.name, self.parent.displaySubtitle, [subtitle, self.backend])
+            self.viewPressed()

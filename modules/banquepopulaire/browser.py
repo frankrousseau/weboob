@@ -23,7 +23,7 @@ import urllib
 from weboob.deprecated.browser import Browser, BrowserIncorrectPassword, BrokenPageError
 
 from .pages import LoginPage, IndexPage, AccountsPage, CardsPage, TransactionsPage, \
-                   UnavailablePage, RedirectPage, HomePage
+                   UnavailablePage, RedirectPage, HomePage, Login2Page
 
 
 __all__ = ['BanquePopulaire']
@@ -49,6 +49,7 @@ class BanquePopulaire(Browser):
              'https://[^/]+/portailinternet/Pages/.*.aspx\?vary=(?P<vary>.*)':                  HomePage,
              'https://[^/]+/portailinternet/Pages/default.aspx':                                HomePage,
              'https://[^/]+/portailinternet/Transactionnel/Pages/CyberIntegrationPage.aspx':    HomePage,
+             'https://[^/]+/WebSSO_BP/_(?P<bankid>\d+)/index.html\?transactionID=(?P<transactionID>.*)': Login2Page,
             }
 
     def __init__(self, website, *args, **kwargs):
@@ -60,6 +61,9 @@ class BanquePopulaire(Browser):
     def is_logged(self):
         return not self.is_on_page(LoginPage)
 
+    def home(self):
+        self.login()
+
     def login(self):
         """
         Attempt to log in.
@@ -68,11 +72,8 @@ class BanquePopulaire(Browser):
         assert isinstance(self.username, basestring)
         assert isinstance(self.password, basestring)
 
-        if self.is_logged():
-            return
-
         if not self.is_on_page(LoginPage):
-            self.home()
+            self.location('%s://%s' % (self.PROTOCOL, self.DOMAIN), no_login=True)
 
         self.page.login(self.username, self.password)
 
@@ -96,6 +97,7 @@ class BanquePopulaire(Browser):
             self.select_form(nr=0)
             self.set_all_readonly(False)
             self['dialogActionPerformed'] = 'EQUIPEMENT_COMPLET'
+            self['token'] = self.page.build_token(self['token'])
             self.submit()
 
     def get_accounts_list(self):
@@ -111,6 +113,7 @@ class BanquePopulaire(Browser):
             if not self.is_on_page(AccountsPage):
                 self.go_on_accounts_list()
 
+            next_page['token'] = self.page.build_token(self.page.get_token())
             self.location('/cyber/internet/ContinueTask.do', urllib.urlencode(next_page))
 
             for a in self.page.iter_accounts():
@@ -136,6 +139,8 @@ class BanquePopulaire(Browser):
         if params is None:
             return
 
+        params['token'] = self.page.build_token(params['token'])
+
         self.location('/cyber/internet/ContinueTask.do', urllib.urlencode(params))
         self.token = self.page.get_token()
 
@@ -146,6 +151,7 @@ class BanquePopulaire(Browser):
         if len(self.page.document.xpath('//a[@id="tcl4_srt"]')) > 0:
             self.select_form(predicate=lambda form: form.attrs.get('id', '') == 'myForm')
             self.form.action = self.absurl('/cyber/internet/Sort.do?property=tbl1&sortBlocId=blc2&columnName=dateValeur')
+            params['token'] = self.page.build_token(params['token'])
             self.submit()
 
         while True:

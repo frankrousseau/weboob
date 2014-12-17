@@ -30,6 +30,7 @@ from weboob.tools.date import parse_french_date
 from weboob.capabilities.bank import Account, Transaction
 from weboob.tools.capabilities.bank.transactions import \
     AmericanTransaction as AmTr
+from weboob.capabilities.base import NotAvailable
 
 
 class CSVAlreadyAsked(Exception):
@@ -52,21 +53,25 @@ class AccountPage(Page):
         accounts = {}
         content = self.document.xpath('//div[@id="main"]//div[@class="col first"]')[0]
 
-        # Total currency balance.
-        # If there are multiple currencies, this balance is all currencies
-        # converted to the main currency.
-        balance = content.xpath('.//h3/span[@class="balance"]')
-        if not balance:
-            balance = content.xpath('.//li[@class="balance"]//span/strong')
-        balance = balance[0].text_content().strip()
-
         # Primary currency account
         primary_account = Account()
         primary_account.type = Account.TYPE_CHECKING
-        primary_account.balance = AmTr.decimal_amount(balance)
-        primary_account.currency = Account.get_currency(balance)
-        primary_account.id = unicode(primary_account.currency)
-        primary_account.label = u'%s %s*' % (self.browser.username, balance.split()[-1])
+
+        # Total currency balance.
+        # If there are multiple currencies, this balance is all currencies
+        # converted to the main currency.
+        try:
+            balance = content.xpath('.//h3/span[@class="balance"]')
+            if not balance:
+                balance = content.xpath('.//li[@class="balance"]//span/strong')
+            balance = balance[0].text_content().strip()
+            primary_account.balance = AmTr.decimal_amount(balance)
+            primary_account.currency = Account.get_currency(balance)
+            primary_account.id = unicode(primary_account.currency)
+            primary_account.label = u'%s %s*' % (self.browser.username, balance.split()[-1])
+        except IndexError:
+            primary_account.balance = NotAvailable
+            primary_account.label = u'%s' % (self.browser.username)
         accounts[primary_account.id] = primary_account
 
         # The following code will only work if the user enabled multiple currencies.
@@ -109,9 +114,9 @@ class AccountPage(Page):
 
 class DownloadHistoryPage(Page):
     def download(self, start, end):
-        tr_last_file_request = self.document.xpath('//table//table//table//tr[2]//td')[1]
-        if tr_last_file_request.text is not None:
-            last_file_request = tr_last_file_request.text[:-1]
+        tr_last_file_request = self.document.xpath('//table//table//table[@width="100%"]//tr[2]//td')
+        if len(tr_last_file_request) > 1 and tr_last_file_request[1].text is not None:
+            last_file_request = tr_last_file_request[1].text[:-1]
             try:
                 last_file_request = dateutil.parser.parse(last_file_request.encode('utf-8')).date()
             except ValueError:
@@ -149,21 +154,35 @@ class SubmitPage(Page):
     def iter_transactions(self, account):
         csv = self.document
 
-        if len(csv.header) == 43:
+        if len(csv.header) == 42 or len(csv.header) == 43:
             # Merchant multi-currency account
+            # 42 is for when the user can't access the balance on the website
+            # 43 is for full acces to the account
             DATE = 0
             TIME = 1
             NAME = 3
             TYPE = 4
-            CURRENCY = 6
-            GROSS = 7
-            FEE = 8
-            NET = 9
-            FROM = 10
-            TO = 11
-            TRANS_ID = 12
-            ITEM = 15
-            SITE = 24
+            if csv.header[7] == "Devise":
+                CURRENCY = 7
+                GROSS = 8
+                FEE = 9
+                NET = 10
+                FROM = 11
+                TO = 12
+                TRANS_ID = 13
+                ITEM = 16
+                SITE = -1
+
+            else:
+                CURRENCY = 6
+                GROSS = 7
+                FEE = 8
+                NET = 9
+                FROM = 10
+                TO = 11
+                TRANS_ID = 12
+                ITEM = 15
+                SITE = 24
         elif len(csv.header) == 11:
             # Regular multi-currency account
             DATE = 0
@@ -183,8 +202,9 @@ class SubmitPage(Page):
             raise ValueError('CSV fields count of %i is not supported' % len(csv.header))
 
         for row in csv.rows:
-            # we filter accounts by currency and ignore canceled transactions
-            if account.get_currency(row[CURRENCY]) != account.currency or row[NET] == '...':
+            # we filter transaction currceny to match account currency, except if we don't now the account currency
+            # we ignore canceled transactions
+            if (account.balance != NotAvailable and account.get_currency(row[CURRENCY]) != account.currency) or row[NET] == '...':
                 continue
 
             # analog to dict.get()

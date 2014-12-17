@@ -23,6 +23,7 @@ import codecs
 from PyQt4.QtCore import SIGNAL, Qt, QStringList
 from PyQt4.QtGui import QApplication, QCompleter, QFrame, QShortcut, QKeySequence
 
+from weboob.capabilities.base import NotAvailable
 from weboob.capabilities.cinema import CapCinema
 from weboob.capabilities.torrent import CapTorrent
 from weboob.capabilities.subtitle import CapSubtitle
@@ -102,6 +103,90 @@ class Result(QFrame):
         self.process.do('iter_movie_persons', id, role, backends=backend_name, caps=CapCinema)
         self.parent.ui.stopButton.show()
 
+    def moviesInCommonAction(self, backend_name, id1, id2):
+        self.ui.stackedWidget.setCurrentWidget(self.ui.list_page)
+        for mini in self.minis:
+            self.ui.list_content.layout().removeWidget(mini)
+            mini.hide()
+            mini.deleteLater()
+
+        self.minis = []
+        self.parent.ui.searchEdit.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        for a_backend in self.weboob.iter_backends():
+            if (backend_name and a_backend.name == backend_name):
+                backend = a_backend
+                person1 = backend.get_person(id1)
+                person2 = backend.get_person(id2)
+
+        lid1 = []
+        for p in backend.iter_person_movies_ids(id1):
+            lid1.append(p)
+        lid2 = []
+        for p in backend.iter_person_movies_ids(id2):
+            lid2.append(p)
+
+        inter = list(set(lid1) & set(lid2))
+
+        chrono_list = []
+        for common in inter:
+            movie = backend.get_movie(common)
+            movie.backend = backend_name
+            role1 = movie.get_roles_by_person_id(person1.id)
+            role2 = movie.get_roles_by_person_id(person2.id)
+            if (movie.release_date != NotAvailable):
+                year = movie.release_date.year
+            else:
+                year = '????'
+            movie.short_description = '(%s) %s as %s ; %s as %s'%(year , person1.name, ', '.join(role1), person2.name, ', '.join(role2))
+            i = 0
+            while (i<len(chrono_list) and movie.release_date != NotAvailable and
+                  (chrono_list[i].release_date == NotAvailable or year > chrono_list[i].release_date.year)):
+                i += 1
+            chrono_list.insert(i, movie)
+
+        for movie in chrono_list:
+            self.addMovie(movie)
+
+        self.processFinished()
+
+    def personsInCommonAction(self, backend_name, id1, id2):
+        self.ui.stackedWidget.setCurrentWidget(self.ui.list_page)
+        for mini in self.minis:
+            self.ui.list_content.layout().removeWidget(mini)
+            mini.hide()
+            mini.deleteLater()
+
+        self.minis = []
+        self.parent.ui.searchEdit.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        for a_backend in self.weboob.iter_backends():
+            if (backend_name and a_backend.name == backend_name):
+                backend = a_backend
+                movie1 = backend.get_movie(id1)
+                movie2 = backend.get_movie(id2)
+
+        lid1 = []
+        for p in backend.iter_movie_persons_ids(id1):
+            lid1.append(p)
+        lid2 = []
+        for p in backend.iter_movie_persons_ids(id2):
+            lid2.append(p)
+
+        inter = list(set(lid1) & set(lid2))
+
+        for common in inter:
+            person = backend.get_person(common)
+            person.backend = backend_name
+            role1 = movie1.get_roles_by_person_id(person.id)
+            role2 = movie2.get_roles_by_person_id(person.id)
+            person.short_description = '%s in %s ; %s in %s'%(', '.join(role1), movie1.original_title, ', '.join(role2), movie2.original_title)
+            self.addPerson(person)
+
+        self.processFinished()
+
     def filmographyAction(self, backend_name, id, role):
         self.ui.stackedWidget.setCurrentWidget(self.ui.list_page)
         for mini in self.minis:
@@ -155,7 +240,7 @@ class Result(QFrame):
 
     def addMovie(self, movie):
         minimovie = MiniMovie(self.weboob, self.weboob[movie.backend], movie, self)
-        self.ui.list_content.layout().addWidget(minimovie)
+        self.ui.list_content.layout().insertWidget(self.ui.list_content.layout().count()-1,minimovie)
         self.minis.append(minimovie)
 
     def displayMovie(self, movie, backend):
@@ -194,7 +279,7 @@ class Result(QFrame):
 
     def addPerson(self, person):
         miniperson = MiniPerson(self.weboob, self.weboob[person.backend], person, self)
-        self.ui.list_content.layout().addWidget(miniperson)
+        self.ui.list_content.layout().insertWidget(self.ui.list_content.layout().count()-1,miniperson)
         self.minis.append(miniperson)
 
     def displayPerson(self, person, backend):
@@ -239,7 +324,7 @@ class Result(QFrame):
 
     def addTorrent(self, torrent):
         minitorrent = MiniTorrent(self.weboob, self.weboob[torrent.backend], torrent, self)
-        self.ui.list_content.layout().addWidget(minitorrent)
+        self.ui.list_content.layout().insertWidget(self.ui.list_content.layout().count()-1,minitorrent)
         self.minis.append(minitorrent)
 
     def displayTorrent(self, torrent, backend):
@@ -277,7 +362,7 @@ class Result(QFrame):
 
     def addSubtitle(self, subtitle):
         minisubtitle = MiniSubtitle(self.weboob, self.weboob[subtitle.backend], subtitle, self)
-        self.ui.list_content.layout().addWidget(minisubtitle)
+        self.ui.list_content.layout().insertWidget(self.ui.list_content.layout().count()-1,minisubtitle)
         self.minis.append(minisubtitle)
 
     def displaySubtitle(self, subtitle, backend):

@@ -122,9 +122,7 @@ class Videoob(ReplApplication):
 
     def read_url(self, url):
         r = requests.get(url, stream=True)
-        buf = r.iter_lines()
-        r.close()
-        return buf
+        return r.iter_lines()
 
     def complete_download(self, text, line, *ignored):
         args = line.split(' ')

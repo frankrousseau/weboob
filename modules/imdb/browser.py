@@ -125,7 +125,27 @@ class ImdbBrowser(Browser):
             if m:
                 duration = int(m.group(1))
         if 'Released' in jres:
-            release_date = datetime.strptime(str(jres['Released']), '%d %b %Y')
+            released_string = str(jres['Released'])
+            if released_string == 'N/A':
+                release_date = NotAvailable
+            else:
+                months = {
+                        'Jan':'01',
+                        'Feb':'02',
+                        'Mar':'03',
+                        'Apr':'04',
+                        'May':'05',
+                        'Jun':'06',
+                        'Jul':'07',
+                        'Aug':'08',
+                        'Sep':'09',
+                        'Oct':'10',
+                        'Nov':'11',
+                        'Dec':'12',
+                         }
+                for st in months:
+                    released_string = released_string.replace(st,months[st])
+                release_date = datetime.strptime(released_string, '%d %m %Y')
         if 'Country' in jres:
             country = u''
             for c in jres['Country'].split(', '):
@@ -137,7 +157,7 @@ class ImdbBrowser(Browser):
             note = u'%s/10 (%s votes)' % (jres['imdbRating'], jres['imdbVotes'])
         for r in ['Actors', 'Director', 'Writer']:
             if '%s' % r in jres.keys():
-                roles['%s' % r] = jres['%s' % r].split(', ')
+                roles['%s' % r] = [('N/A',e) for e in jres['%s' % r].split(', ')]
 
         movie = Movie(id, title)
         movie.other_titles = other_titles
