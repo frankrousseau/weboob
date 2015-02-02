@@ -21,6 +21,10 @@ from __future__ import absolute_import, print_function
 
 import re
 try:
+    import urllib3
+except ImportError:
+    from requests.packages import urllib3
+try:
     from urllib.parse import urlparse, urljoin
 except ImportError:
     from urlparse import urlparse, urljoin
@@ -38,6 +42,7 @@ except ImportError:
 
 from weboob.tools.log import getLogger
 from weboob.tools.ordereddict import OrderedDict
+from weboob.tools.json import json
 
 from .cookies import WeboobCookieJar
 from .exceptions import HTTPNotFound, ClientError, ServerError
@@ -168,6 +173,12 @@ class Browser(object):
         session.proxies = self.PROXIES
 
         session.verify = not self.logger.settings['ssl_insecure'] and self.VERIFY
+        if not session.verify:
+            try:
+                urllib3.disable_warnings()
+            except AttributeError:
+                # urllib3 is too old, warnings won't be disable
+                pass
 
         # defines a max_retries. It's mandatory in case a server is not
         # handling keep alive correctly, like the proxy burp
@@ -188,6 +199,9 @@ class Browser(object):
         self.session = session
 
         session.cookies = WeboobCookieJar()
+
+    def set_profile(self, profile):
+        profile.setup_session(self.session)
 
     def location(self, url, **kwargs):
         """
@@ -462,6 +476,11 @@ class DomainBrowser(Browser):
     More complex behavior is possible by overloading url_allowed()
     """
 
+    def __init__(self, baseurl=None, *args, **kwargs):
+        super(DomainBrowser, self).__init__(*args, **kwargs)
+        if baseurl is not None:
+            self.BASEURL = baseurl
+
     def url_allowed(self, url):
         """
         Checks if we are allowed to visit an URL.
@@ -707,3 +726,17 @@ class LoginBrowser(PagesBrowser):
         It is call when a login is needed.
         """
         raise NotImplementedError()
+
+
+class APIBrowser(DomainBrowser):
+    def open(self, *args, **kwargs):
+        if 'data' in kwargs:
+            kwargs['data'] = json.dumps(kwargs['data'])
+        if not 'headers' in kwargs:
+            kwargs['headers'] = {}
+        kwargs['headers']['Content-Type'] = 'application/json'
+
+        return super(APIBrowser, self).open(*args, **kwargs)
+
+    def request(self, *args, **kwargs):
+        return self.open(*args, **kwargs).json()

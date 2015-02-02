@@ -68,9 +68,9 @@ class AudioAddictModule(Module, CapRadio, CapCollection):
                         'premium_high': {'rate': 256, 'fmt': 'mp3'}
                         }
         },
-        'SKYfm': {
-            'desc': 'SKY FM radio',
-            'domain': 'sky.fm',
+        'RadioTunes': {
+            'desc': 'Radio Tunes',
+            'domain': 'radiotunes.com',
             'streams': {'appleapp_low': {'rate': 40, 'fmt': 'aac'},
                         'appleapp': {'rate': 64, 'fmt': 'aac'},
                         'appleapp_high': {'rate': 96, 'fmt': 'mp3'},
@@ -112,6 +112,13 @@ class AudioAddictModule(Module, CapRadio, CapCollection):
                         'android_premium_high': {'rate': 256, 'fmt': 'mp3'},
                         'public3': {'rate': 96, 'fmt': 'mp3'}
                         }
+        },
+        'FrescaRadio': {
+            'desc': 'Fresca Radio',
+            'domain': 'frescaradio.com',
+            'streams': {
+                        'public3': {'rate': 96, 'fmt': 'mp3'}
+            }
         }
     }
 
@@ -169,7 +176,6 @@ class AudioAddictModule(Module, CapRadio, CapCollection):
                         radio = info['key']
                         self.RADIOS[selectedNetwork][radio] = {}
                         self.RADIOS[selectedNetwork][radio]['id'] = info['id']
-                        self.RADIOS[selectedNetwork][radio]['description'] = info['description']
                         self.RADIOS[selectedNetwork][radio]['name'] = info['name']
                         self.RADIOS[selectedNetwork][radio]['playlist'] = info['playlist']
 
@@ -182,7 +188,7 @@ class AudioAddictModule(Module, CapRadio, CapCollection):
         for network in self.config['networks'].get().split():
             for radio in self.RADIOS[network]:
                 radio_dict = self.RADIOS[network][radio]
-                if pattern in radio_dict['name'].lower() or pattern in radio_dict['description'].lower():
+                if pattern in radio_dict['name'].lower() :
                     yield self.get_radio(radio+"."+network)
 
     def iter_resources(self, objs, split_path):
@@ -234,7 +240,7 @@ class AudioAddictModule(Module, CapRadio, CapCollection):
 
         radio_dict = self.RADIOS[network][radioName]
         radio.title = radio_dict['name']
-        radio.description = radio_dict['description']
+        radio.description = radio_dict['name']
 
         artist, title = self.get_current(network, radioName)
         current = StreamInfo(0)

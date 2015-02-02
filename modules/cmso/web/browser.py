@@ -24,6 +24,7 @@ from itertools import chain
 
 from weboob.exceptions import BrowserHTTPError, BrowserIncorrectPassword
 from weboob.browser import LoginBrowser, URL, need_login
+from weboob.tools.date import LinearDateGuesser
 
 from .pages import LoginPage, AccountsPage, HistoryPage
 
@@ -31,7 +32,8 @@ from .pages import LoginPage, AccountsPage, HistoryPage
 class CmsoProBrowser(LoginBrowser):
     BASEURL = 'https://www.cmso.com/'
 
-    login = URL('/creditmutuel/index_espace.jsp\\?fede=cmso&espace=pro', LoginPage)
+    login = URL('/banque/assurance/credit-mutuel/pro/accueil\?espace=professionnels', LoginPage)
+    subscription = URL('/domiweb/prive/espacesegment/selectionnerAbonnement/0-selectionnerAbonnement.act')
     accounts = URL('/domiweb/prive/professionnel/situationGlobaleProfessionnel/0-situationGlobaleProfessionnel.act', AccountsPage)
     history = URL('/domiweb/prive/professionnel/situationGlobaleProfessionnel/1-situationGlobaleProfessionnel.act', HistoryPage)
 
@@ -45,6 +47,8 @@ class CmsoProBrowser(LoginBrowser):
                 raise BrowserIncorrectPassword()
             else:
                 raise
+        else:
+            self.subscription.go()
 
     @need_login
     def get_accounts_list(self):
@@ -68,4 +72,6 @@ class CmsoProBrowser(LoginBrowser):
         first_page = self.page
         rest_page = self.history.go(data=query)
 
-        return chain(first_page.iter_history(), rest_page.iter_history())
+        date_guesser = LinearDateGuesser()
+
+        return chain(first_page.iter_history(date_guesser=date_guesser), rest_page.iter_history(date_guesser=date_guesser))

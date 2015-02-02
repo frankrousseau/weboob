@@ -45,7 +45,7 @@ class NewAccountPage(Page):
 
         primary_account.balance = Decimal(FrenchTransaction.clean_amount(balance))
 
-        primary_account.label = u'%s %s*' % (self.browser.username, balance.split()[-1])
+        primary_account.label = u'%s %s*' % (self.browser.username, primary_account.currency)
 
         accounts[primary_account.id] = primary_account
 
@@ -108,10 +108,14 @@ class NewPartHistoryPage(Page):
             raw = transaction['displayType']
         t.parse(date=date, raw=raw)
         try:
-            amount = transaction['displayAmount']
+            amount = transaction['netAmount']
         except KeyError:
             return
-        t.set_amount(amount)
+        if transaction['isCredit']:
+            t.set_amount(credit=amount)
+        else:
+            t.set_amount(debit=amount)
         t._currency = transaction['currencyCode']
+
         return t
 

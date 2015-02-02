@@ -60,7 +60,7 @@ class MessagesPage(Page):
         }
 
         try:
-            mails['member']['pseudo'] = self.parser.tocleanstring(self.document.getroot().cssselect('div#message_heading div.username span.name')[0])
+            mails['member']['pseudo'] = self.parser.tocleanstring(self.document.getroot().cssselect('#message_heading div.username span.name')[0])
         except IndexError:
             mails['member']['pseudo'] = 'Unknown'
 
@@ -135,15 +135,14 @@ class ProfilePage(Page):
         profile['id'] = unicode(title.text[len('OkCupid: '):])
         profile['data'] = OrderedDict()
 
-        profile_p = self.parser.select(self.document.getroot(), "//div[@id='page_content']//p", method='xpath')
+        profile_p = self.parser.select(self.document.getroot(), "//div[@id='page_content']//div[contains(@class, 'basics')]//p", method='xpath')
 
         profile['data']['infos'] = ProfileNode('infos', u'Informations', OrderedDict(), flags=ProfileNode.SECTION)
 
         info = {
-                        'age' : unicode(profile_p[1].text.split(' / ')[0]),
-                        'sex' : unicode(profile_p[1].text.split(' / ')[1]),
-                        'orientation' : unicode(profile_p[1].text.split(' / ')[2]),
-                        'relationship' : unicode(profile_p[1].text.split(' / ')[3]),
+                        'age' : profile_p[1].text.split(u'•', 1)[0].strip(),
+                        'location' : profile_p[1].text.split(u'•', 1)[1].strip(),
+                        'sex' : profile_p[2].text.strip(),
             }
 
         for key, val in info.iteritems():
@@ -224,24 +223,16 @@ class QuickMatchPage(Page):
         js = self.parser.select(self.document.getroot(), "//script", method='xpath')
         for script in js:
             script = script.text
-
             if script is None:
                 continue
-            for line in script.splitlines():
-                match = re.match('.*var\s*CURRENTUSERID\s*=\s*"(\d+)"', line)
-                if match is not None:
-                    (userid,) = match.groups()
 
-        # Looking for target userid (tuid)
-        element = self.parser.select(self.document.getroot(), '//*[@id="star_5_top"]', method='xpath')[0]
-        onclick = element.get("onclick")
-
-        if onclick is None:
-            pass
-        for line in onclick.splitlines():
-            match = re.match("^Quickmatch\.vote\(\d,\s*'(\w*)'*", line)
+            match = re.search('.*var\s*CURRENTUSERID\s*=\s*"(\d+)"', script, flags=re.MULTILINE)
             if match is not None:
-                (tuid,) = match.groups()
+                userid = match.group(1)
+
+            match = re.search('"tuid"\s*:\s*"(\d+)"', script, flags=re.MULTILINE)
+            if match is not None:
+                tuid = match.group(1)
 
         # Building params hash
         if userid and tuid:

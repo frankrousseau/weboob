@@ -143,7 +143,7 @@ class LinearDateGuesser(object):
     sorted from recent to older.
     """
 
-    def __init__(self, current_date=None, date_max_bump=timedelta(7)):
+    def __init__(self, current_date=None, date_max_bump=timedelta(31)):
         self.date_max_bump = date_max_bump
         if current_date is None:
             current_date = date.today()
@@ -215,7 +215,7 @@ class ChaoticDateGuesser(LinearDateGuesser):
     day and month and the minimum year
     """
 
-    def __init__(self, min_date, current_date=None, date_max_bump=timedelta(7)):
+    def __init__(self, min_date, current_date=None, date_max_bump=timedelta(31)):
         if min_date is None:
             raise ValueError("min_date is not set")
         self.min_date = min_date
@@ -243,6 +243,7 @@ DATE_TRANSLATE_FR = [(re.compile(ur'janvier', re.I),   ur'january'),
                      (re.compile(ur'novembre', re.I),  ur'november'),
                      (re.compile(ur'décembre', re.I),  ur'december'),
                      (re.compile(ur'jan\.', re.I),   ur'january'),
+                     (re.compile(ur'janv\.', re.I),   ur'january'),
                      (re.compile(ur'\bjan\b', re.I),   ur'january'),
                      (re.compile(ur'fév\.', re.I),   ur'february'),
                      (re.compile(ur'\bfév\b', re.I),   ur'february'),

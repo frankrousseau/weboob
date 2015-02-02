@@ -49,7 +49,7 @@ class AccountsList(Page):
                             # ignore account
                             break
                         account.type = Account.TYPE_CARD
-                        account.label = self.parser.tocleanstring(a)
+                        account.label, account.id = [s.strip() for s in self.parser.tocleanstring(td).rsplit('-', 1)]
                         try:
                             account._link_id = td.xpath('.//a')[0].get('href')
                         except KeyError:
@@ -62,6 +62,7 @@ class AccountsList(Page):
                             # ignore account
                             break
                         account.label = self.parser.tocleanstring(span)
+                        account.id = self.parser.tocleanstring(td).rsplit('-', 1)[-1].strip()
                         try:
                             account._link_id = td.xpath('.//a')[0].get('href')
                             account._detail_url = account._link_id
@@ -72,7 +73,7 @@ class AccountsList(Page):
                         for a in td.getiterator('a'):
                             # For normal account, two "account-more-actions"
                             # One for the account, one for the credit card. Take the good one
-                            if "mouvements.phtml" in a.get('href') and "/cartes/" not in a.get('href'):
+                            if 'href' in a.attrib and "mouvements.phtml" in a.get('href') and "/cartes/" not in a.get('href'):
                                 account._link_id = a.get('href')
 
                     elif td.get('class', '') == 'account-number':
@@ -92,8 +93,7 @@ class AccountsList(Page):
                             account.balance = Decimal(balance)
                         else:
                             account.balance = Decimal(0)
-
                 else:
                     # because of some weird useless <tr>
-                    if account.id is not None:
+                    if account.id is not None and (not account._link_id or not 'moneycenter' in account._link_id):
                         yield account

@@ -62,6 +62,8 @@ class CreditMutuelBrowser(LoginBrowser):
                       '/(?P<subbank>.*)/fr/banques/index.html',
                       '/(?P<subbank>.*)/fr/banque/paci_beware_of_phishing.*',
                       '/(?P<subbank>.*)/fr/validation/(?!change_password|verif_code).*',
+                      '/(?P<subbank>.*)/fr/banque/paci_engine/static_content_manager.aspx',
+                      '/(?P<subbank>.*)/fr/banque/DELG_Gestion.*',
                       EmptyPage)
 
     currentSubBank = None

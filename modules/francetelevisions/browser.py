@@ -19,7 +19,7 @@
 
 
 from weboob.browser import PagesBrowser, URL
-from .pages import IndexPage, VideoPage
+from .pages import IndexPage, VideoPage, Programs, VideoListPage, LatestPage
 
 __all__ = ['PluzzBrowser']
 
@@ -28,13 +28,35 @@ class PluzzBrowser(PagesBrowser):
     ENCODING = 'utf-8'
 
     BASEURL = 'http://pluzz.francetv.fr'
+    PROGRAMS = None
 
+    latest = URL('http://pluzz.webservices.francetelevisions.fr/pluzz/liste/type/replay', LatestPage)
+    programs_page = URL('http://pluzz.webservices.francetelevisions.fr/pluzz/programme', Programs)
     index_page = URL(r'recherche\?recherche=(?P<pattern>.*)', IndexPage)
-    latest_page = URL(r'lesplusrecents', IndexPage)
     video_page = URL(r'http://webservices.francetelevisions.fr/tools/getInfosOeuvre/v2/\?idDiffusion=(?P<id>.*)&catalogue=Pluzz', VideoPage)
+    videos_list_page = URL('(?P<program>videos/.*)', VideoListPage)
+
+    def get_video_from_url(self, url):
+        video = self.videos_list_page.go(program=url).get_last_video()
+        if video:
+            return self.get_video(video.id, video)
 
     def search_videos(self, pattern):
-        return self.index_page.go(pattern=pattern).iter_videos()
+        if not self.PROGRAMS:
+            self.PROGRAMS = list(self.get_program_list())
+
+        videos = []
+        for program in self.PROGRAMS:
+            if pattern.upper() in program._title.upper():
+                video = self.videos_list_page.go(program=program.id).get_last_video()
+                if video:
+                    videos.append(video)
+                    videos += list(self.page.iter_videos())
+
+        return videos if len(videos) > 0 else self.index_page.go(pattern=pattern).iter_videos()
+
+    def get_program_list(self):
+        return list(self.programs_page.go().iter_programs())
 
     @video_page.id2url
     def get_video(self, url, video=None):
@@ -50,4 +72,4 @@ class PluzzBrowser(PagesBrowser):
         return buf
 
     def latest_videos(self):
-        return self.latest_page.go().iter_videos()
+        return self.latest.go().iter_videos()

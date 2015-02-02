@@ -23,7 +23,7 @@ from .pages import CityListPage, HousingListPage, HousingPage
 
 
 class LeboncoinBrowser(PagesBrowser):
-    BASEURL = 'http://www.leboncoin.fr'
+    BASEURL = 'http://www.leboncoin.fr/'
     city = URL('ajax/location_list.html\?city=(?P<city>.*)&zipcode=(?P<zip>.*)', CityListPage)
     search = URL('(?P<type>.*)/offres/(?P<region>.*)/occasions/\?ps=(?P<ps>.*)&pe=(?P<pe>.*)&ros=(?P<ros>.*)&location=(?P<location>.*)&sqs=(?P<sqs>.*)&sqe=(?P<sqe>.*)&ret=(?P<ret>.*)&f=(?P<advert_type>.*)',
                  '(?P<_type>.*)/offres/(?P<_region>.*)/occasions.*?',
@@ -52,6 +52,9 @@ class LeboncoinBrowser(PagesBrowser):
 
     def search_housings(self, query, advert_type):
         type, cities, nb_rooms, area_min, area_max, cost_min, cost_max, ret = self.decode_query(query)
+        if len(cities) == 0 or len(ret) == 0:
+            return list()
+
         return self.search.go(region=self.region,
                               location=cities,
                               ros=nb_rooms,
@@ -69,18 +72,12 @@ class LeboncoinBrowser(PagesBrowser):
     def decode_query(self, query):
         cities = []
         for c in query.cities:
-            cities.append('%s %s' % (c.id, c.name))
-
-        if len(cities) == 0:
-            return list()
+            cities.append(c.name)
 
         ret = []
         for g in query.house_types:
             if g in self.RET:
                 ret.append(self.RET.get(g))
-
-        if len(ret) == 0:
-            return list()
 
         _type = 'ventes_immobilieres'
         if query.type == Query.TYPE_RENT:

@@ -94,7 +94,10 @@ class PlayMeBrowser(DomainBrowser):
         self.credits = me['credits']['count']
 
     def get_threads(self):
-        return reversed(self.request('/users/%s/contacts' % self.my_id))
+        r = self.request('/users/%s/contacts' % self.my_id)
+        if 'status' in r:
+            return []
+        return reversed(r)
 
     def get_thread_messages(self, contact_id):
         return self.request('/messages/%s' % contact_id)
@@ -131,8 +134,11 @@ class PlayMeBrowser(DomainBrowser):
             self.credits = r['credits']['count']
             raise NoCredits(r['credits']['next_restore_in_seconds'])
 
-        t = self.get_theme()
-        self.credits = r['credits']['count']
+        if isinstance(r, list) and 'questions' in r[0]:
+            t = r[0]
+        else:
+            t = self.get_theme()
+            self.credits = r['credits']['count']
 
         data = {}
         data['theme'] = {'id': t['theme']['id'], 'is_vip': 0}
